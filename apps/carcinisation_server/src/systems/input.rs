@@ -1,6 +1,6 @@
 //! Server input handling: receive semantic intent → buffer → apply in `FixedUpdate`.
 
-use crate::{ClientPlayerId, ServerMap};
+use crate::{ClientMonitor, ClientPlayerId, ServerMap};
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::FpsMovementConfig;
@@ -125,6 +125,7 @@ impl PlayerIntentBuffer {
 pub(crate) fn receive_client_intent(
     trigger: On<FromClient<ClientIntent>>,
     clients: Query<&ClientPlayerId>,
+    monitors: Query<&ClientMonitor>,
     mut tracker: ResMut<PlayerInputTracker>,
     mut buffer: ResMut<PlayerIntentBuffer>,
 ) {
@@ -133,6 +134,12 @@ pub(crate) fn receive_client_intent(
         warn!("Received ClientIntent with invalid client entity");
         return;
     };
+
+    // Monitor clients have no player — silently drop their intents.
+    if monitors.get(client_entity).is_ok() {
+        return;
+    }
+
     let intent = &from_client.message;
 
     let player_id = if let Ok(id) = clients.get(client_entity) {

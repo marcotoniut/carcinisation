@@ -14,7 +14,8 @@ use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient};
 
 use carapace::image::CxImage;
 use carcinisation_fps::player_attack::PlayerAttackSprites;
-use carcinisation_fps::plugin::{CameraRes, MosquitonSprites, SpideySprites, SpritePairs};
+use carcinisation_fps::plugin::{CameraRes, MapRes, MosquitonSprites, SpideySprites, SpritePairs};
+use carcinisation_fps_core::{Map, PlayerFlamethrowerConfig, cast_ray};
 use carcinisation_map_view::config::MapViewConfig;
 use carcinisation_map_view::overlay::{
     self, MapViewEntityMarker, MapViewOverlay, cell_to_pixel, flip_y,
@@ -22,7 +23,8 @@ use carcinisation_map_view::overlay::{
 use carcinisation_map_view::{MapViewMonitorMode, MapViewToggle};
 use carcinisation_net::{
     ConnectMode, MonitorAck, NetBurning, NetEnemy, NetEnemyState, NetEnemyType, NetGroundFire,
-    NetPlayer, NetProjectile, NetProtocolPlugin, PlayerNetState, register_net_all,
+    NetPickupKind, NetPlayer, NetProjectile, NetProtocolPlugin, PlayerId, PlayerNetState,
+    components::NetPickup, register_net_all,
 };
 
 use super::ConnectionState;
@@ -30,6 +32,19 @@ use super::ConnectionState;
 /// Resource holding the server address for the monitor connection.
 #[derive(Resource)]
 struct MonitorConnectAddr(SocketAddr);
+
+/// Monitor camera mode.
+#[derive(Resource, Debug, Default)]
+pub enum MonitorCameraMode {
+    /// Free-roam: arrow keys pan across the map. Default mode.
+    #[default]
+    Free,
+    /// Follow a specific player by their stable `PlayerId`.
+    Follow(PlayerId),
+}
+
+/// Pan speed in map cells per second for free-cam mode.
+const FREE_CAM_SPEED: f32 = 4.0;
 
 /// Plugin for a passive map monitor client.
 ///
@@ -52,6 +67,7 @@ impl Plugin for MapMonitorClientPlugin {
         register_net_all(app);
 
         app.insert_resource(MapViewMonitorMode);
+        app.init_resource::<MonitorCameraMode>();
 
         app.add_plugins(bevy_replicon_renet2::RepliconRenetPlugins)
             .insert_resource(ConnectionState::Connecting {
@@ -61,11 +77,12 @@ impl Plugin for MapMonitorClientPlugin {
             .insert_resource(MonitorConnectAddr(self.connect_addr))
             .add_observer(handle_monitor_ack)
             .add_systems(Startup, init_monitor_transport)
+            .add_systems(PostStartup, center_camera_on_map)
             .add_systems(Update, monitor_connection_watchdog)
             .add_systems(
                 Update,
                 (
-                    sync_monitor_camera,
+                    monitor_camera_input,
                     build_net_entity_snapshot
                         .before(carcinisation_map_view::overlay::update_marker_overlay),
                 )
@@ -87,29 +104,118 @@ fn handle_monitor_ack(_trigger: On<MonitorAck>, mut connection_state: ResMut<Con
     }
 }
 
-/// Follow the first alive player's position and angle.
+/// Centre the camera on the map at startup.
+fn center_camera_on_map(map_res: Res<MapRes>, mut camera_res: ResMut<CameraRes>) {
+    camera_res.0.position = Vec2::new(map_res.0.width as f32 / 2.0, map_res.0.height as f32 / 2.0);
+    camera_res.0.angle = 0.0;
+}
+
+/// Handle monitor camera input: free-cam panning, follow-player cycling.
 ///
-/// If no players are alive, keeps the last known position (or map centre
-/// from initial `CameraRes`).
-fn sync_monitor_camera(net_players: Query<&NetPlayer>, mut camera_res: ResMut<CameraRes>) {
-    if let Some(player) = net_players
-        .iter()
-        .find(|p| p.state == PlayerNetState::Alive)
-    {
-        camera_res.0.position = player.position;
-        camera_res.0.angle = player.angle;
+/// Controls:
+/// - Arrow keys / WASD: pan in free-cam mode
+/// - Tab: cycle to next alive player (enters follow mode)
+/// - Escape: return to free-cam mode
+#[allow(clippy::needless_pass_by_value)]
+fn monitor_camera_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    net_players: Query<&NetPlayer>,
+    mut camera_res: ResMut<CameraRes>,
+    mut mode: ResMut<MonitorCameraMode>,
+) {
+    // Tab: cycle through alive players (sorted by PlayerId for stability).
+    if keys.just_pressed(KeyCode::Tab) {
+        let mut alive: Vec<&NetPlayer> = net_players
+            .iter()
+            .filter(|p| p.state == PlayerNetState::Alive)
+            .collect();
+        alive.sort_by_key(|p| p.player_id.0);
+
+        if !alive.is_empty() {
+            let next_id = match *mode {
+                MonitorCameraMode::Free => alive[0].player_id,
+                MonitorCameraMode::Follow(current_id) => {
+                    // Find current in sorted list, advance to next (wrapping).
+                    let pos = alive
+                        .iter()
+                        .position(|p| p.player_id == current_id)
+                        .map_or(0, |i| (i + 1) % alive.len());
+                    alive[pos].player_id
+                }
+            };
+            *mode = MonitorCameraMode::Follow(next_id);
+            info!("Monitor: following player {:?}", next_id);
+        }
+    }
+
+    // Escape: return to free-cam.
+    if keys.just_pressed(KeyCode::Escape) && !matches!(*mode, MonitorCameraMode::Free) {
+        *mode = MonitorCameraMode::Free;
+        info!("Monitor: free-cam");
+    }
+
+    match *mode {
+        MonitorCameraMode::Free => {
+            let dt = time.delta_secs();
+            let speed = FREE_CAM_SPEED * dt;
+            let mut delta = Vec2::ZERO;
+            if keys.pressed(KeyCode::ArrowUp) || keys.pressed(KeyCode::KeyW) {
+                delta.y += speed;
+            }
+            if keys.pressed(KeyCode::ArrowDown) || keys.pressed(KeyCode::KeyS) {
+                delta.y -= speed;
+            }
+            if keys.pressed(KeyCode::ArrowRight) || keys.pressed(KeyCode::KeyD) {
+                delta.x += speed;
+            }
+            if keys.pressed(KeyCode::ArrowLeft) || keys.pressed(KeyCode::KeyA) {
+                delta.x -= speed;
+            }
+            camera_res.0.position += delta;
+        }
+        MonitorCameraMode::Follow(target_id) => {
+            // Find the followed player by stable PlayerId.
+            if let Some(player) = net_players
+                .iter()
+                .find(|p| p.player_id == target_id && p.state == PlayerNetState::Alive)
+            {
+                camera_res.0.position = player.position;
+                camera_res.0.angle = player.angle;
+            } else {
+                // Followed player died or disconnected — return to free-cam.
+                *mode = MonitorCameraMode::Free;
+            }
+        }
     }
 }
 
-/// Detect connection timeout / disconnect.
-fn monitor_connection_watchdog(mut connection_state: ResMut<ConnectionState>) {
-    if let ConnectionState::Connecting { start_time, addr } = &*connection_state {
-        let elapsed = std::time::Instant::now().duration_since(*start_time);
-        if elapsed.as_secs() > 10 {
-            let reason = format!("Connection to {addr} timed out after {elapsed:?}");
-            warn!("{reason}");
-            *connection_state = ConnectionState::Failed { reason };
+/// Detect connection timeout and transport disconnect.
+fn monitor_connection_watchdog(
+    mut connection_state: ResMut<ConnectionState>,
+    client: Option<Res<RenetClient>>,
+) {
+    match &*connection_state {
+        ConnectionState::Connecting { start_time, addr } => {
+            let elapsed = std::time::Instant::now().duration_since(*start_time);
+            if elapsed.as_secs() > 10 {
+                let reason = format!("Connection to {addr} timed out after {elapsed:?}");
+                warn!("{reason}");
+                *connection_state = ConnectionState::Failed { reason };
+            }
         }
+        ConnectionState::Connected => {
+            if let Some(client) = &client
+                && client.is_disconnected()
+            {
+                let reason = client
+                    .disconnect_reason()
+                    .map_or_else(|| "unknown".into(), |r| format!("{r:?}"));
+                warn!("Monitor: disconnected ({reason})");
+                *connection_state = ConnectionState::Disconnected { reason };
+            }
+        }
+        _ => {}
     }
 }
 
@@ -170,15 +276,39 @@ fn init_monitor_transport(
 // Net overlay — renders replicated entities on the map view
 // ---------------------------------------------------------------------------
 
-/// Palette indices for monitor markers.
-const PLAYER_MARKER_COLOR: u8 = 1;
+/// Palette index for projectile markers on the monitor overlay.
 const PROJECTILE_MARKER_COLOR: u8 = 4;
+/// Palette index for health pickup markers.
+const PICKUP_HEALTH_COLOR: u8 = 3;
+/// Palette index for ammo/weapon pickup markers.
+const PICKUP_ITEM_COLOR: u8 = 2;
 
-/// Cached static sprites for net overlay markers.
+/// Cached static sprites and derived constants for net overlay markers.
 #[derive(Default)]
 pub struct CachedNetSprites {
     player_marker: Option<CxImage>,
     projectile_circle: Option<CxImage>,
+    pickup_health: Option<CxImage>,
+    pickup_item: Option<CxImage>,
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+pub(super) struct NetMarkerSources<'w, 's> {
+    net_players: Query<'w, 's, &'static NetPlayer>,
+    net_enemies: Query<'w, 's, &'static NetEnemy>,
+    net_projectiles: Query<'w, 's, &'static NetProjectile>,
+    net_ground_fires: Query<'w, 's, &'static NetGroundFire>,
+    net_burning: Query<'w, 's, (&'static NetEnemy, &'static NetBurning)>,
+    net_pickups: Query<'w, 's, &'static NetPickup>,
+    map_res: Res<'w, MapRes>,
+    sprite_pairs: Res<'w, SpritePairs>,
+    mosquiton_sprites: Res<'w, MosquitonSprites>,
+    spidey_sprites: Res<'w, SpideySprites>,
+    attack_sprites: Res<'w, PlayerAttackSprites>,
+    flame_config: Res<'w, PlayerFlamethrowerConfig>,
+    time: Res<'w, Time>,
+    camera: Res<'w, CameraRes>,
+    config: Res<'w, MapViewConfig>,
 }
 
 /// Build the per-frame overlay from replicated Net* components (monitor only).
@@ -187,35 +317,27 @@ pub struct CachedNetSprites {
 /// and fills from `NetPlayer`/`NetEnemy`/`NetProjectile`.
 #[allow(clippy::too_many_arguments)]
 fn build_net_entity_snapshot(
-    net_players: Query<&NetPlayer>,
-    net_enemies: Query<&NetEnemy>,
-    net_projectiles: Query<&NetProjectile>,
-    net_ground_fires: Query<&NetGroundFire>,
-    net_burning: Query<(&NetEnemy, &NetBurning)>,
-    sprite_pairs: Res<SpritePairs>,
-    mosquiton_sprites: Res<MosquitonSprites>,
-    spidey_sprites: Res<SpideySprites>,
-    attack_sprites: Res<PlayerAttackSprites>,
-    time: Res<Time>,
-    camera: Res<CameraRes>,
-    config: Res<MapViewConfig>,
+    sources: NetMarkerSources,
     mut overlay: ResMut<MapViewOverlay>,
     mut cached: Local<CachedNetSprites>,
 ) {
     overlay.markers.clear();
     append_net_markers_inner(
-        &net_players,
-        &net_enemies,
-        &net_projectiles,
-        &net_ground_fires,
-        &net_burning,
-        &sprite_pairs,
-        &mosquiton_sprites,
-        &spidey_sprites,
-        &attack_sprites,
-        &time,
-        camera.0.position,
-        &config,
+        &sources.net_players,
+        &sources.net_enemies,
+        &sources.net_projectiles,
+        &sources.net_ground_fires,
+        &sources.net_burning,
+        &sources.net_pickups,
+        &sources.map_res.0,
+        &sources.sprite_pairs,
+        &sources.mosquiton_sprites,
+        &sources.spidey_sprites,
+        &sources.attack_sprites,
+        &sources.flame_config,
+        &sources.time,
+        sources.camera.0.position,
+        &sources.config,
         &mut overlay,
         &mut cached,
     );
@@ -226,44 +348,56 @@ fn build_net_entity_snapshot(
 /// Does NOT clear markers — runs after `build_entity_snapshot` to add net
 /// entities that don't exist as local FPS components in `RemoteClient` mode.
 #[allow(clippy::too_many_arguments)]
-pub fn append_net_markers(
-    net_players: Query<&NetPlayer>,
-    net_enemies: Query<&NetEnemy>,
-    net_projectiles: Query<&NetProjectile>,
-    net_ground_fires: Query<&NetGroundFire>,
-    net_burning: Query<(&NetEnemy, &NetBurning)>,
-    sprite_pairs: Res<SpritePairs>,
-    mosquiton_sprites: Res<MosquitonSprites>,
-    spidey_sprites: Res<SpideySprites>,
-    attack_sprites: Res<PlayerAttackSprites>,
-    time: Res<Time>,
-    camera: Res<CameraRes>,
-    config: Res<MapViewConfig>,
+pub(super) fn append_net_markers(
+    sources: NetMarkerSources,
     mut overlay: ResMut<MapViewOverlay>,
     mut cached: Local<CachedNetSprites>,
 ) {
     append_net_markers_inner(
-        &net_players,
-        &net_enemies,
-        &net_projectiles,
-        &net_ground_fires,
-        &net_burning,
-        &sprite_pairs,
-        &mosquiton_sprites,
-        &spidey_sprites,
-        &attack_sprites,
-        &time,
-        camera.0.position,
-        &config,
+        &sources.net_players,
+        &sources.net_enemies,
+        &sources.net_projectiles,
+        &sources.net_ground_fires,
+        &sources.net_burning,
+        &sources.net_pickups,
+        &sources.map_res.0,
+        &sources.sprite_pairs,
+        &sources.mosquiton_sprites,
+        &sources.spidey_sprites,
+        &sources.attack_sprites,
+        &sources.flame_config,
+        &sources.time,
+        sources.camera.0.position,
+        &sources.config,
         &mut overlay,
         &mut cached,
     );
 }
 
-/// Number of flame samples to simulate along the stream direction.
-const FLAME_CHAIN_SAMPLES: usize = 4;
 /// Spacing between simulated flame samples (in map cells).
 const FLAME_SAMPLE_SPACING: f32 = 0.5;
+
+fn assert_valid_flame_range(range: f32) {
+    assert!(
+        range.is_finite() && range >= 0.0,
+        "invalid PlayerFlamethrowerConfig.range for monitor flame overlay: {range}"
+    );
+}
+
+fn flame_chain_sample_count(range: f32) -> usize {
+    assert_valid_flame_range(range);
+    (range / FLAME_SAMPLE_SPACING).ceil() as usize
+}
+
+fn flame_chain_max_distance(origin: Vec2, direction: Vec2, range: f32, map: &Map) -> f32 {
+    assert_valid_flame_range(range);
+    let wall_hit = cast_ray(map, origin, direction);
+    if wall_hit.wall_id > 0 {
+        range.min(wall_hit.distance)
+    } else {
+        range
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 fn append_net_markers_inner(
@@ -272,10 +406,13 @@ fn append_net_markers_inner(
     net_projectiles: &Query<&NetProjectile>,
     net_ground_fires: &Query<&NetGroundFire>,
     net_burning: &Query<(&NetEnemy, &NetBurning)>,
+    net_pickups: &Query<&NetPickup>,
+    map: &Map,
     sprite_pairs: &SpritePairs,
     mosquiton_sprites: &MosquitonSprites,
     spidey_sprites: &SpideySprites,
     attack_sprites: &PlayerAttackSprites,
+    flame_config: &PlayerFlamethrowerConfig,
     time: &Time,
     player_pos: Vec2,
     config: &MapViewConfig,
@@ -302,8 +439,17 @@ fn append_net_markers_inner(
             1,
         ));
     }
+    let pickup_size = ms.max(3);
+    if cached.pickup_health.is_none() {
+        cached.pickup_health = Some(overlay::circle_sprite(pickup_size, PICKUP_HEALTH_COLOR, 1));
+    }
+    if cached.pickup_item.is_none() {
+        cached.pickup_item = Some(overlay::circle_sprite(pickup_size, PICKUP_ITEM_COLOR, 1));
+    }
     let player_base = cached.player_marker.as_ref().unwrap();
     let projectile_circle = cached.projectile_circle.as_ref().unwrap();
+    let pickup_health = cached.pickup_health.as_ref().unwrap();
+    let pickup_item = cached.pickup_item.as_ref().unwrap();
 
     // --- Flame layer (behind everything) ---
 
@@ -317,8 +463,12 @@ fn append_net_markers_inner(
         }
         let cos_a = player.angle.cos();
         let sin_a = player.angle.sin();
-        for i in 1..=FLAME_CHAIN_SAMPLES {
-            let d = i as f32 * FLAME_SAMPLE_SPACING;
+        let direction = Vec2::new(cos_a, sin_a);
+        let max_distance =
+            flame_chain_max_distance(player.position, direction, flame_config.range, map);
+        let flame_samples = flame_chain_sample_count(max_distance);
+        for i in 1..=flame_samples {
+            let d = (i as f32 * FLAME_SAMPLE_SPACING).min(max_distance);
             let fx = player.position.x + cos_a * d;
             let fy = player.position.y + sin_a * d;
             overlay.markers.push(MapViewEntityMarker {
@@ -376,6 +526,23 @@ fn append_net_markers_inner(
         });
     }
 
+    // --- Pickup layer ---
+
+    for pickup in net_pickups.iter() {
+        if !pickup.available {
+            continue;
+        }
+        let sprite = match pickup.kind {
+            NetPickupKind::Health => pickup_health,
+            NetPickupKind::Ammo | NetPickupKind::Weapon => pickup_item,
+        };
+        overlay.markers.push(MapViewEntityMarker {
+            centre_x: cell_to_pixel(pickup.position.x, ts),
+            centre_y: flip_y(pickup.position.y, ts, gh),
+            sprite: sprite.clone(),
+        });
+    }
+
     // --- Projectile layer ---
 
     for proj in net_projectiles.iter() {
@@ -398,5 +565,49 @@ fn append_net_markers_inner(
             centre_y: flip_y(player.position.y, ts, gh),
             sprite: rotated,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flame_chain_sample_count_tracks_config_range() {
+        assert_eq!(flame_chain_sample_count(0.0), 0);
+        assert_eq!(flame_chain_sample_count(0.5), 1);
+        assert_eq!(flame_chain_sample_count(5.0), 10);
+        assert_eq!(flame_chain_sample_count(5.1), 11);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid PlayerFlamethrowerConfig.range")]
+    fn flame_chain_sample_count_rejects_invalid_range() {
+        let _ = flame_chain_sample_count(f32::NAN);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid PlayerFlamethrowerConfig.range")]
+    fn flame_chain_max_distance_rejects_invalid_range_before_clipping() {
+        let map = carcinisation_fps_core::test_map();
+        let _ = flame_chain_max_distance(Vec2::new(1.5, 2.5), Vec2::X, f32::NAN, &map);
+    }
+
+    #[test]
+    fn flame_chain_max_distance_clips_to_nearest_wall() {
+        let map = carcinisation_fps_core::test_map();
+        let origin = Vec2::new(1.5, 2.5);
+        let direction = Vec2::new(1.0, 0.0);
+
+        assert_eq!(flame_chain_max_distance(origin, direction, 5.0, &map), 1.5);
+    }
+
+    #[test]
+    fn flame_chain_max_distance_uses_range_when_wall_is_farther() {
+        let map = carcinisation_fps_core::test_map();
+        let origin = Vec2::new(1.5, 1.5);
+        let direction = Vec2::new(1.0, 0.0);
+
+        assert_eq!(flame_chain_max_distance(origin, direction, 5.0, &map), 5.0);
     }
 }

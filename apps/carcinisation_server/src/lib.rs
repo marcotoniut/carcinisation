@@ -47,7 +47,7 @@ struct ClientPlayerId(PlayerId);
 
 /// Marker component for monitor (spectator) clients. No player entity is spawned.
 #[derive(Component, Debug, Clone, Copy)]
-struct ClientMonitor;
+pub(crate) struct ClientMonitor;
 
 /// Server-side map resource for collision.
 #[derive(Resource)]
@@ -362,7 +362,8 @@ fn init_server_setup(
         .expect("create socket");
     let server_config = ServerSetupConfig {
         current_time,
-        max_clients: 10,
+        // Includes headroom for monitor/spectator connections beyond the player slots.
+        max_clients: 16,
         protocol_id: carcinisation_net::PROTOCOL_ID,
         authentication: ServerAuthentication::Unsecure,
         socket_addresses: vec![vec![public_addr]],

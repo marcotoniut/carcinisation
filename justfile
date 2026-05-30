@@ -106,14 +106,17 @@ dev-fps-unus monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    grid=""; [ -n "{{ monitor }}" ] && grid="2x1"
+    grid=""; [ -n "{{ monitor }}" ] && grid="2x1" || true
     echo "Starting server + 1 client (map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
-    slot_args=""; [ -n "$grid" ] && slot_args="--window-slot 0 --window-grid $grid"
+    slot_args=""; [ -n "$grid" ] && slot_args="--window-slot 0 --window-grid $grid" || true
     {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" $slot_args &
-    [ -n "{{ monitor }}" ] && sleep 1 && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 1 --window-grid "$grid" &
+    if [ -n "{{ monitor }}" ]; then
+        sleep 1
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 1 --window-grid "$grid" &
+    fi
     wait
 
 # Helper: shared env vars for client processes.
@@ -125,7 +128,7 @@ dev-fps-duo monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    grid="2x1"; [ -n "{{ monitor }}" ] && grid="3x1"
+    if [ -n "{{ monitor }}" ]; then grid="3x1"; else grid="2x1"; fi
     echo "Starting server + 2 clients (grid=$grid, map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
@@ -134,7 +137,9 @@ dev-fps-duo monitor="" stage="":
         {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
     done
-    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 2 --window-grid "$grid" &
+    if [ -n "{{ monitor }}" ]; then
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 2 --window-grid "$grid" &
+    fi
     wait
 
 # Headless server + 3 clients (grid 2x2; with monitor: 2x2, monitor in slot 3)
@@ -151,7 +156,9 @@ dev-fps-tres monitor="" stage="":
         {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
     done
-    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 3 --window-grid "$grid" &
+    if [ -n "{{ monitor }}" ]; then
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 3 --window-grid "$grid" &
+    fi
     wait
 
 # Headless server + 4 clients (grid 2x2; with monitor: 3x2, monitor in slot 4)
@@ -159,7 +166,7 @@ dev-fps-quattuor monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    grid="2x2"; [ -n "{{ monitor }}" ] && grid="3x2"
+    if [ -n "{{ monitor }}" ]; then grid="3x2"; else grid="2x2"; fi
     echo "Starting server + 4 clients (grid=$grid, map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
@@ -168,7 +175,9 @@ dev-fps-quattuor monitor="" stage="":
         {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
     done
-    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 4 --window-grid "$grid" &
+    if [ -n "{{ monitor }}" ]; then
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 4 --window-grid "$grid" &
+    fi
     wait
 
 # Headless server + 6 clients (grid 3x2; with monitor: 3x3, monitor in slot 6)
@@ -176,7 +185,7 @@ dev-fps-sex monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    grid="3x2"; [ -n "{{ monitor }}" ] && grid="3x3"
+    if [ -n "{{ monitor }}" ]; then grid="3x3"; else grid="3x2"; fi
     echo "Starting server + 6 clients (grid=$grid, map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
@@ -185,7 +194,9 @@ dev-fps-sex monitor="" stage="":
         {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
     done
-    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 6 --window-grid "$grid" &
+    if [ -n "{{ monitor }}" ]; then
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 6 --window-grid "$grid" &
+    fi
     wait
 
 # ─── Web ──────────────────────────────────────────────────────────────────────

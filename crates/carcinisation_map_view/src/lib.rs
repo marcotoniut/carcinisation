@@ -104,7 +104,9 @@ impl<B: CxLayer, O: CxLayer> Plugin for MapViewPlugin<B, O> {
                 (
                     init_map_view::<B>,
                     overlay::init_marker_overlay::<O>.after(init_map_view::<B>),
-                    overlay::init_player_marker::<O>.after(init_map_view::<B>),
+                    overlay::init_player_marker::<O>
+                        .after(init_map_view::<B>)
+                        .run_if(not(resource_exists::<MapViewMonitorMode>)),
                     apply_initial_visibility
                         .after(overlay::init_marker_overlay::<O>)
                         .after(overlay::init_player_marker::<O>),
