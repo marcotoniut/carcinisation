@@ -18,6 +18,7 @@ pub mod hash_util;
 pub mod map;
 pub mod mosquiton;
 pub mod movement;
+pub mod occupancy;
 pub mod pickup;
 pub mod presentation;
 pub mod raycast;
