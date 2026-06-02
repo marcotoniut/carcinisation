@@ -177,7 +177,7 @@ fn calc_min_size<L: CxLayer>(
     if let Some(sprite) = sprite {
         return sprites
             .get(&**sprite)
-            .map_or(UVec2::ZERO, |sprite| sprite.frame_size());
+            .map_or(UVec2::ZERO, CxSpriteAsset::frame_size);
     }
 
     if let Some(text) = text {

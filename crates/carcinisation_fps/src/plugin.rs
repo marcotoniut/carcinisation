@@ -41,8 +41,8 @@ use crate::{
     },
     player_attack::{
         AttackInput, AttackLoadout, GroundFireVisualConfig, PlayerAttackSprites, PlayerAttackState,
-        destroy_projectiles_touching_active_flamethrower, draw_player_attack_overlays,
-        flame_wall_mask, process_player_attacks, wall_impact_sprite,
+        SnapTurnVisualInput, destroy_projectiles_touching_active_flamethrower,
+        draw_player_attack_overlays, flame_wall_mask, process_player_attacks, wall_impact_sprite,
     },
     render::{
         CharDecal, FpWallRenderEffects, Palette, draw_crosshair, draw_overlay_tint,
@@ -59,8 +59,8 @@ use crate::{
 };
 
 /// Maximum time B can be held before the chord window expires.
-/// If B is released after this, no turn fires even if a direction was selected.
-const CHORD_WINDOW_SECS: f32 = 0.15;
+/// If no valid direction is pressed within this window, the chord is cancelled.
+const CHORD_WINDOW_SECS: f32 = 0.20;
 
 /// Configuration for the First-person plugin.
 ///
@@ -328,14 +328,15 @@ pub enum TurnKind {
     SideTurnRight,
 }
 
-/// Hold-to-select chord state machine for snap/quick turns.
+/// Hold-to-select, release-to-commit chord state machine for snap/quick turns.
 ///
 /// Flow:
-/// 1. B `just_pressed` (no direction pre-held) → `ChordMode { since, selected: None }`
-/// 2. Direction `just_pressed` during chord mode within window → `selected = Some(kind)`
-/// 3. B `just_released` within window with selection → **fire**
-/// 4. B `just_released` without selection, or window expires → cancel
-/// 5. Directions already held when B is pressed are blocked from selection.
+/// 1. B `just_pressed` → `ChordMode { since, selected: None }`
+/// 2. Direction `just_pressed` during chord mode within window → selects turn kind
+/// 3. Selected direction `just_released` → **fire** and enter `BlockedUntilRelease`
+/// 4. B released before direction release → cancel
+/// 5. Window expires before direction release → cancel
+/// 6. Directions already held when B is pressed are blocked from selection.
 ///
 /// Movement/turn is suppressed while in `ChordMode`.
 /// Priority when multiple directions pressed same frame: Down > Left > Right.
@@ -357,9 +358,10 @@ impl TurnChordState {
 enum TurnChordPhase {
     #[default]
     Idle,
-    /// B is held within the chord window. Direction presses select. B release fires.
+    /// B is held within the chord window. Direction press selects; direction release fires.
     ChordMode {
         since: f32,
+        /// Latched selection. `None` until a valid direction is `just_pressed`.
         selected: Option<TurnKind>,
         /// Directions that were already held when B was pressed (blocked from selection).
         blocked_dirs: u8,
@@ -390,6 +392,8 @@ pub struct TurnChordInput {
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct QuickTurnState {
     remaining_radians: f32,
+    /// Total arc of the turn in radians (constant for the duration).
+    total_radians: f32,
     /// Radians per second for the active turn.
     speed: f32,
     /// +1.0 for left, -1.0 for right.
@@ -401,6 +405,24 @@ impl QuickTurnState {
     #[must_use]
     pub fn is_active(&self) -> bool {
         self.remaining_radians > 0.0
+    }
+
+    /// Total arc of the current (or last) snap turn.
+    #[must_use]
+    pub fn total_radians(&self) -> f32 {
+        self.total_radians
+    }
+
+    /// Remaining arc of the current snap turn.
+    #[must_use]
+    pub fn remaining_radians(&self) -> f32 {
+        self.remaining_radians
+    }
+
+    /// Turn direction: +1.0 = left, -1.0 = right.
+    #[must_use]
+    pub fn direction(&self) -> f32 {
+        self.direction
     }
 }
 
@@ -453,24 +475,32 @@ const fn identify_just_pressed_direction(input: &TurnChordInput, blocked: u8) ->
     None
 }
 
+/// Whether the selected turn kind's direction key was just released.
+const fn selected_direction_just_released(input: &TurnChordInput, kind: TurnKind) -> bool {
+    match kind {
+        TurnKind::QuickTurn => input.down_just_released,
+        TurnKind::SideTurnLeft => input.left_just_released,
+        TurnKind::SideTurnRight => input.right_just_released,
+    }
+}
+
 /// Whether any direction key relevant to chords is pressed.
 const fn any_dir_pressed(input: &TurnChordInput) -> bool {
     input.down_pressed || input.left_pressed || input.right_pressed
 }
 
-/// Resolve the hold-to-select chord state machine.
+/// Resolve the hold-to-select, release-to-commit chord state machine.
 ///
-/// Returns `Some(TurnKind)` on the frame B is **released** within the chord
-/// window while a direction was selected. Directions held before B are blocked.
-/// Window expiry cancels any pending selection.
+/// Returns `Some(TurnKind)` on the frame the selected direction is
+/// **released** while B is still held within the chord window. Directions
+/// held before B are blocked. Window expiry or B release cancels.
 #[must_use]
 pub fn resolve_turn_chord(input: &TurnChordInput, state: &mut TurnChordState) -> Option<TurnKind> {
     match state.phase {
         TurnChordPhase::Idle => {
             if input.b_just_pressed {
-                // Block directions that were already held (not freshly pressed) when B arrives.
                 let blocked_dirs = dir_preheld_mask(input);
-                // Pre-select only if a direction was ALSO just pressed (same frame, not pre-held).
+                // Same-frame direction press → select (but don't fire yet).
                 let selected = identify_just_pressed_direction(input, blocked_dirs);
                 state.phase = TurnChordPhase::ChordMode {
                     since: input.now_secs,
@@ -491,19 +521,23 @@ pub fn resolve_turn_chord(input: &TurnChordInput, state: &mut TurnChordState) ->
                 return None;
             }
 
-            // Accept direction selection if not already selected and not blocked.
+            // Accept direction selection if not already selected.
             if selected.is_none() {
                 selected = identify_just_pressed_direction(input, blocked_dirs);
             }
 
-            // B released within window → fire if selected, cancel otherwise.
+            // Selected direction released → fire.
+            if let Some(kind) = selected
+                && selected_direction_just_released(input, kind)
+            {
+                state.phase = TurnChordPhase::BlockedUntilRelease;
+                return Some(kind);
+            }
+
+            // B released before direction release → cancel.
             if input.b_just_released {
-                state.phase = if selected.is_some() {
-                    TurnChordPhase::BlockedUntilRelease
-                } else {
-                    TurnChordPhase::Idle
-                };
-                return selected;
+                state.phase = TurnChordPhase::Idle;
+                return None;
             }
 
             state.phase = TurnChordPhase::ChordMode {
@@ -538,6 +572,7 @@ pub fn request_snap_turn(state: &mut QuickTurnState, kind: TurnKind, config: &Co
     let params =
         carcinisation_fps_core::snap_turn_params(core_kind, config.quick_turn_duration_secs);
     state.remaining_radians = params.remaining_radians;
+    state.total_radians = params.total_radians;
     state.speed = params.speed;
     state.direction = params.direction;
 }
@@ -1715,6 +1750,7 @@ fn handle_shooting(
     dead: Res<PlayerDead>,
     mut shoot: ResMut<ShootRequest>,
     mut attack: AttackResources,
+    quick_turn: Res<QuickTurnState>,
     mut prev_camera_angle: Local<f32>,
 ) {
     // Derive aim_turn_velocity from camera angle change so the flamethrower
@@ -1759,6 +1795,11 @@ fn handle_shooting(
             &attack.burn_config,
             attack.visual_config.view_bob_amplitude,
             attack.visual_config.view_bob_freq_mult,
+            SnapTurnVisualInput {
+                remaining: quick_turn.remaining_radians(),
+                total: quick_turn.total_radians(),
+                direction: quick_turn.direction(),
+            },
         );
         return;
     }
@@ -1808,6 +1849,11 @@ fn handle_shooting(
         &attack.burn_config,
         attack.visual_config.view_bob_amplitude,
         attack.visual_config.view_bob_freq_mult,
+        SnapTurnVisualInput {
+            remaining: quick_turn.remaining_radians(),
+            total: quick_turn.total_radians(),
+            direction: quick_turn.direction(),
+        },
     );
 
     // Scatter: write back changes to entities.
@@ -2787,20 +2833,66 @@ mod tests {
     const B_HELD: (bool, bool, bool) = (true, false, false);
     const B_RELEASED: (bool, bool, bool) = (false, false, true);
 
-    // --- Hold-to-select chord tests ---
+    // --- Selection (press selects, does not fire) ---
 
     #[test]
-    fn b_hold_left_press_b_release_fires_snap_left() {
+    fn b_then_down_press_selects_without_firing() {
         let mut state = TurnChordState::default();
         let input = chord_input(B_PRESSED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
         assert!(state.is_pending());
-        // Left pressed while B held → selects.
+        // Down just_pressed → selects, but does NOT fire.
+        let input = chord_input(B_HELD, (true, true, false), NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+    }
+
+    #[test]
+    fn b_then_left_press_selects_without_firing() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
         let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
         assert!(state.is_pending());
-        // B released → fires.
-        let input = chord_input(B_RELEASED, NONE, (true, false, false), NONE);
+    }
+
+    #[test]
+    fn b_then_right_press_selects_without_firing() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, NONE, (true, true, false));
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+    }
+
+    // --- Commit (direction release fires) ---
+
+    #[test]
+    fn releasing_down_fires_quick_turn() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Press Down → select.
+        let input = chord_input(B_HELD, (true, true, false), NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Release Down → fire.
+        let input = chord_input(B_HELD, (false, false, true), NONE, NONE);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
+    }
+
+    #[test]
+    fn releasing_left_fires_snap_left() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, (false, false, true), NONE);
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::SideTurnLeft)
@@ -2808,17 +2900,159 @@ mod tests {
     }
 
     #[test]
-    fn b_hold_down_press_b_release_fires_quick_turn() {
+    fn releasing_right_fires_snap_right() {
         let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, NONE, (true, true, false));
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, NONE, (false, false, true));
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnRight)
+        );
+    }
+
+    #[test]
+    fn holding_selected_direction_does_not_fire() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Press Left → select.
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Continue holding Left → still pending, no fire.
+        let input = chord_input(B_HELD, NONE, (true, false, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+    }
+
+    // --- Safety ---
+
+    #[test]
+    fn pre_held_left_then_b_press_does_not_snap() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_OFF, NONE, (true, false, false), NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B pressed while Left held → Left is blocked.
+        let input = chord_input_at(B_PRESSED, NONE, (true, false, false), NONE, 0.1);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // Left released → no selection was made, so no fire.
+        let input = chord_input_at(B_HELD, NONE, (false, false, true), NONE, 0.12);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn pre_held_down_then_b_press_does_not_snap() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_OFF, (true, false, false), NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input_at(B_PRESSED, (true, false, false), NONE, NONE, 0.1);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // Down released → blocked direction, no fire.
+        let input = chord_input_at(B_HELD, (false, false, true), NONE, NONE, 0.12);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn b_release_before_direction_release_cancels() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Press Left → select.
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B released while Left still held → cancel.
+        let input = chord_input(B_RELEASED, NONE, (true, false, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(!state.is_pending());
+    }
+
+    #[test]
+    fn window_expiry_before_direction_release_cancels() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Left pressed at 50ms.
+        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.05);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Window expires at 210ms (Left still held).
+        let input = chord_input_at(B_HELD, NONE, (true, false, false), NONE, 0.21);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(!state.is_pending());
+        // Left released after window → no fire.
+        let input = chord_input_at(B_HELD, NONE, (false, false, true), NONE, 0.25);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn after_fire_blocked_until_release_prevents_repeat() {
+        let mut state = TurnChordState::default();
+        // Full chord: B → Down press → Down release → fires.
         let input = chord_input(B_PRESSED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
         let input = chord_input(B_HELD, (true, true, false), NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input(B_RELEASED, (true, false, false), NONE, NONE);
+        let input = chord_input(B_HELD, (false, false, true), NONE, NONE);
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::QuickTurn)
         );
+        // B still held → blocked.
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn release_all_then_retrigger_works() {
+        let mut state = TurnChordState::default();
+        // Fire once.
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, NONE, (true, true, false));
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, NONE, (false, false, true));
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnRight)
+        );
+        // Release all.
+        let input = chord_input(B_OFF, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Fire again.
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_HELD, NONE, (false, false, true), NONE);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
+        );
+    }
+
+    // --- Movement / misc ---
+
+    #[test]
+    fn movement_suppressed_while_direction_selected() {
+        let mut state = TurnChordState::default();
+        assert!(!state.is_pending());
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        let _ = resolve_turn_chord(&input, &mut state);
+        assert!(state.is_pending());
+        // Select Left.
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        let _ = resolve_turn_chord(&input, &mut state);
+        assert!(
+            state.is_pending(),
+            "should stay pending while direction held"
+        );
+        // Hold Left.
+        let input = chord_input(B_HELD, NONE, (true, false, false), NONE);
+        let _ = resolve_turn_chord(&input, &mut state);
+        assert!(state.is_pending());
     }
 
     #[test]
@@ -2827,90 +3061,8 @@ mod tests {
         let input = chord_input(B_PRESSED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
         assert!(state.is_pending());
-        // B released with no direction → cancel.
         let input = chord_input(B_RELEASED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        assert!(!state.is_pending());
-    }
-
-    #[test]
-    fn b_held_past_window_then_direction_does_not_fire() {
-        let mut state = TurnChordState::default();
-        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        assert!(state.is_pending());
-        // Window expires at 160ms.
-        let input = chord_input_at(B_HELD, NONE, NONE, NONE, 0.16);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        assert!(!state.is_pending());
-        // Direction pressed after window → no chord.
-        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.2);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B released → no fire.
-        let input = chord_input_at(B_RELEASED, NONE, NONE, (true, false, false), 0.25);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-    }
-
-    #[test]
-    fn direction_release_before_b_release_still_fires_on_b_release() {
-        let mut state = TurnChordState::default();
-        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Left pressed → selects.
-        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Left released, B still held → does NOT fire yet.
-        let input = chord_input(B_HELD, NONE, (false, false, true), NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        assert!(state.is_pending());
-        // B released → fires (selection was latched).
-        let input = chord_input(B_RELEASED, NONE, NONE, NONE);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::SideTurnLeft)
-        );
-    }
-
-    #[test]
-    fn after_fire_requires_release_before_retrigger() {
-        let mut state = TurnChordState::default();
-        // Fire a chord.
-        let input = chord_input(B_PRESSED, (true, true, false), NONE, NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input(B_RELEASED, (true, false, false), NONE, NONE);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::QuickTurn)
-        );
-        // Direction still held → blocked.
-        let input = chord_input(B_OFF, (true, false, false), NONE, NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Release all.
-        let input = chord_input(B_OFF, NONE, NONE, NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Can fire again.
-        let input = chord_input(B_PRESSED, NONE, NONE, (true, true, false));
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input(B_RELEASED, NONE, NONE, (true, false, false));
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::SideTurnRight)
-        );
-    }
-
-    #[test]
-    fn movement_suppressed_while_chord_mode() {
-        let mut state = TurnChordState::default();
-        assert!(!state.is_pending());
-        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
-        let _ = resolve_turn_chord(&input, &mut state);
-        assert!(state.is_pending());
-        let input = chord_input(B_HELD, NONE, NONE, NONE);
-        let _ = resolve_turn_chord(&input, &mut state);
-        assert!(state.is_pending());
-        // B released → no longer pending.
-        let input = chord_input(B_RELEASED, NONE, NONE, NONE);
-        let _ = resolve_turn_chord(&input, &mut state);
         assert!(!state.is_pending());
     }
 
@@ -2923,86 +3075,59 @@ mod tests {
     }
 
     #[test]
-    fn same_frame_b_direction_selects_waits_for_release() {
-        let mut state = TurnChordState::default();
-        let input = chord_input(B_PRESSED, NONE, (true, true, false), NONE);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        assert!(state.is_pending());
-        let input = chord_input(B_RELEASED, NONE, (true, false, false), NONE);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::SideTurnLeft)
-        );
-    }
-
-    #[test]
     fn down_priority_over_left_on_same_frame() {
         let mut state = TurnChordState::default();
+        // B + Down + Left same frame → Down selected. Release Down → fires QuickTurn.
         let input = chord_input(B_PRESSED, (true, true, false), (true, true, false), NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input(B_RELEASED, (true, false, false), (true, false, false), NONE);
+        assert!(state.is_pending());
+        let input = chord_input(B_HELD, (false, false, true), (true, false, false), NONE);
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::QuickTurn)
         );
     }
 
-    // --- Pre-held direction + timeout tests ---
+    // --- Timing ---
 
     #[test]
-    fn left_held_then_b_press_then_late_b_release_does_not_snap() {
+    fn direction_at_190ms_selects_within_window() {
         let mut state = TurnChordState::default();
-        // Left already held.
-        let input = chord_input_at(B_OFF, NONE, (true, false, false), NONE, 0.0);
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B pressed while Left held → Left is blocked.
-        let input = chord_input_at(B_PRESSED, NONE, (true, false, false), NONE, 0.1);
+        // Right at 190ms (within 200ms window) → selects.
+        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.19);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
         assert!(state.is_pending());
-        // B released after >150ms → window expired, no fire.
-        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.3);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Release Right → fires.
+        let input = chord_input_at(B_HELD, NONE, NONE, (false, false, true), 0.195);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnRight)
+        );
     }
 
     #[test]
-    fn left_held_then_b_press_then_fast_b_release_does_not_snap() {
+    fn direction_after_window_does_not_select() {
         let mut state = TurnChordState::default();
-        // Left already held.
-        let input = chord_input_at(B_OFF, NONE, (true, false, false), NONE, 0.0);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B pressed while Left held → Left is blocked (pre-held).
-        let input = chord_input_at(B_PRESSED, NONE, (true, false, false), NONE, 0.1);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B released quickly → but Left was blocked, so no selection → no fire.
-        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.15);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-    }
-
-    #[test]
-    fn b_press_left_press_then_late_b_release_does_not_snap() {
-        let mut state = TurnChordState::default();
-        // B pressed alone.
         let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Left pressed at 50ms (within window) → selected.
-        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.05);
+        // Window expires at 210ms.
+        let input = chord_input_at(B_HELD, NONE, NONE, NONE, 0.21);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B released at 200ms (past 150ms window) → no fire.
-        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.2);
+        assert!(!state.is_pending());
+        // Direction pressed after expiry → no selection.
+        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.25);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
     }
 
     #[test]
-    fn b_press_left_press_then_fast_b_release_does_snap() {
+    fn same_frame_direction_press_and_release_fires() {
         let mut state = TurnChordState::default();
-        // B pressed alone.
-        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Left pressed at 50ms → selected.
-        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.05);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B released at 100ms (within 150ms window) → fires.
-        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.1);
+        // Left just_pressed AND just_released on the same frame (fleeting tap).
+        let input = chord_input(B_HELD, NONE, (false, true, true), NONE);
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::SideTurnLeft)
@@ -3010,34 +3135,81 @@ mod tests {
     }
 
     #[test]
-    fn selected_action_expires_after_window() {
+    fn pre_held_right_then_b_press_does_not_snap() {
         let mut state = TurnChordState::default();
-        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        let input = chord_input_at(B_OFF, NONE, NONE, (true, false, false), 0.0);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Down pressed at 50ms → selected.
-        let input = chord_input_at(B_HELD, (true, true, false), NONE, NONE, 0.05);
+        // B pressed while Right held → Right is blocked.
+        let input = chord_input_at(B_PRESSED, NONE, NONE, (true, false, false), 0.1);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
         assert!(state.is_pending());
-        // Window expires at 160ms → no longer pending.
-        let input = chord_input_at(B_HELD, (true, false, false), NONE, NONE, 0.16);
+        // Right released → blocked direction, no fire.
+        let input = chord_input_at(B_HELD, NONE, NONE, (false, false, true), 0.12);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        assert!(!state.is_pending());
     }
 
     #[test]
-    fn b_release_after_window_clears_pending_action() {
+    fn blocked_direction_selectable_after_fresh_b_press() {
+        let mut state = TurnChordState::default();
+        // Left pre-held → B press → Left blocked → B release → cancel.
+        let input = chord_input_at(B_OFF, NONE, (true, false, false), NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input_at(B_PRESSED, NONE, (true, false, false), NONE, 0.1);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.15);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Release all.
+        let input = chord_input_at(B_OFF, NONE, NONE, NONE, 0.3);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Fresh chord: Left now just_pressed (not pre-held) → selectable.
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.5);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.55);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input_at(B_HELD, NONE, (false, false, true), NONE, 0.6);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
+        );
+    }
+
+    #[test]
+    fn left_priority_over_right_on_same_frame() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Left + Right just_pressed same frame → Left wins.
+        let input = chord_input(B_HELD, NONE, (true, true, false), (true, true, false));
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // Release Left → fires SideTurnLeft.
+        let input = chord_input(B_HELD, NONE, (false, false, true), (true, false, false));
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
+        );
+    }
+
+    #[test]
+    fn chord_window_exact_boundary_selects() {
         let mut state = TurnChordState::default();
         let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Right pressed at 50ms → selected.
-        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.05);
+        // Direction at exactly 200ms — strict `>` means this is still within window.
+        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.20);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Window expires.
-        let input = chord_input_at(B_HELD, NONE, NONE, (true, false, false), 0.16);
+        assert!(state.is_pending(), "200ms should still be within window");
+    }
+
+    #[test]
+    fn chord_window_exact_boundary_plus_epsilon_expires() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B released after window → no fire (selection was cleared by expiry).
-        let input = chord_input_at(B_RELEASED, NONE, NONE, (true, false, false), 0.2);
+        // Direction at 200.1ms — just past window → expired.
+        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.2001);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(!state.is_pending());
     }
 
     #[test]
@@ -3382,6 +3554,7 @@ mod tests {
             &burn_config,
             1.5,
             2.0,
+            SnapTurnVisualInput::default(),
         );
 
         let mut projectiles = vec![Projectile {

@@ -393,8 +393,7 @@ fn handle_client_connect(
     let connect_mode = if let Ok(nid) = network_ids.get(client_entity) {
         transport
             .user_data(nid.get())
-            .map(|ud| ConnectMode::from_user_data(&ud))
-            .unwrap_or(ConnectMode::Player)
+            .map_or(ConnectMode::Player, |ud| ConnectMode::from_user_data(&ud))
     } else {
         ConnectMode::Player
     };

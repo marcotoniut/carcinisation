@@ -111,6 +111,7 @@ pub fn angle_toward(from: Vec2, to: Vec2) -> f32 {
 /// Build a circle-with-nose sprite pointing east (→) for the player marker.
 ///
 /// Filled circle + triangular nose with a 1 px contrasting outline.
+#[must_use]
 #[allow(clippy::many_single_char_names)]
 pub fn player_marker_sprite(size: u32) -> CxImage {
     let s = size.max(5) as f32;

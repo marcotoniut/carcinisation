@@ -71,7 +71,11 @@ pub struct WindowGrid {
 }
 
 impl WindowGrid {
-    /// Create a new grid. Panics if cols or rows is zero.
+    /// Create a new grid.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `cols` or `rows` is zero.
     #[must_use]
     pub fn new(cols: u32, rows: u32) -> Self {
         assert!(cols > 0 && rows > 0, "grid dimensions must be positive");

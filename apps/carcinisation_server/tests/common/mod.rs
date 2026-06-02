@@ -302,7 +302,7 @@ pub fn build_server_with_enemies(
 use bevy::time::TimeUpdateStrategy;
 
 /// Build a deterministic server — each `app.update()` runs exactly one
-/// FixedUpdate cycle (30 Hz). No wall-clock dependency, no sleep.
+/// `FixedUpdate` cycle (30 Hz). No wall-clock dependency, no sleep.
 ///
 /// Uses `port: 0` (OS-assigned) since no client will connect. Intent
 /// injection goes through `PlayerIntentBuffer` directly.
@@ -337,7 +337,7 @@ pub fn build_deterministic_server_with_enemies(
 }
 
 /// Wait up to `max_ticks` (deterministic) for a condition to become true.
-/// Each tick is exactly one FixedUpdate cycle — no sleep, no jitter.
+/// Each tick is exactly one `FixedUpdate` cycle — no sleep, no jitter.
 pub fn wait_for_deterministic(
     server: &mut App,
     max_ticks: u32,

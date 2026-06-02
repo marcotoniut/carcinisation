@@ -71,6 +71,7 @@ pub fn is_within_radius(a: Vec2, b: Vec2, radius: f32) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 

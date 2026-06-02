@@ -39,7 +39,7 @@ pub fn advance_stage(app: &mut App, duration: Duration) {
     app.update();
 }
 
-/// Spawn a legacy mosquito (no Mosquiton marker, no ComposedAnimationState).
+/// Spawn a legacy mosquito (no `Mosquiton` marker, no `ComposedAnimationState`).
 pub fn spawn_legacy_mosquito(app: &mut App) -> Entity {
     app.world_mut()
         .spawn((
@@ -57,7 +57,7 @@ pub fn spawn_legacy_mosquito(app: &mut App) -> Entity {
         .id()
 }
 
-/// Spawn a composed mosquiton (with Mosquiton marker + ComposedAnimationState).
+/// Spawn a composed mosquiton (with `Mosquiton` marker + `ComposedAnimationState`).
 pub fn spawn_composed_mosquiton(app: &mut App) -> Entity {
     app.world_mut()
         .spawn((

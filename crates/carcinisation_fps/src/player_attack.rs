@@ -1,6 +1,17 @@
 //! First-person player attacks and weapon overlays.
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
+
+/// Snap turn state snapshot passed into the presentation layer.
+///
+/// Keeps the visual offset computation decoupled from any specific ECS
+/// resource so the same function works for SP, MP prediction, and tests.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SnapTurnVisualInput {
+    pub remaining: f32,
+    pub total: f32,
+    pub direction: f32,
+}
 use carapace::{image::CxImage, palette::TRANSPARENT_INDEX};
 use flate2::read::DeflateDecoder;
 use serde::Deserialize;
@@ -186,6 +197,13 @@ pub struct PlayerFlamethrower1pConfig {
     pub weapon_bob_speed: f32,
     /// Speed at which the bob returns to centre when the player stops (higher = faster).
     pub weapon_bob_return_speed: f32,
+    /// Horizontal amplitude of the snap-turn weapon dip (pixels).
+    /// Left turn pushes weapon right, right turn pushes left.
+    #[serde(default)]
+    pub snap_turn_horizontal_px: f32,
+    /// Vertical amplitude of the snap-turn weapon dip (pixels, downward).
+    #[serde(default)]
+    pub snap_turn_vertical_px: f32,
     /// Screen-space offset of the small idle nozzle flame relative to the
     /// weapon sprite centre (pixels, x right / y down). Shown when not firing.
     pub idle_flame_offset: (f32, f32),
@@ -323,6 +341,12 @@ pub struct GunConfig {
     pub weapon_bob_vertical_px: f32,
     pub weapon_bob_speed: f32,
     pub weapon_bob_return_speed: f32,
+    /// Horizontal amplitude of the snap-turn weapon dip (pixels).
+    #[serde(default)]
+    pub snap_turn_horizontal_px: f32,
+    /// Vertical amplitude of the snap-turn weapon dip (pixels, downward).
+    #[serde(default)]
+    pub snap_turn_vertical_px: f32,
     pub muzzle_flash_offset: (f32, f32),
     pub muzzle_flash_scale: f32,
 }
@@ -476,6 +500,8 @@ pub struct PlayerAttackState {
     /// Current vertical offset for the idle-lowered / shooting-raised tween.
     /// Starts at the active weapon's `weapon_raise_px` (lowered) and lerps to 0 when shooting.
     weapon_raise_offset: f32,
+    /// Presentation-only offset applied during active snap turns.
+    snap_turn_offset: Vec2,
     config: PlayerFlamethrower1pConfig,
     /// Cached copy of the shared flamethrower config. Kept in sync with
     /// `Res<PlayerFlamethrowerConfig>` by the hot reload system in `plugin.rs`.
@@ -508,6 +534,7 @@ impl Default for PlayerAttackState {
             weapon_bob_offset: Vec2::ZERO,
             view_bob: 0.0,
             weapon_raise_offset,
+            snap_turn_offset: Vec2::ZERO,
             config,
             shared,
             gun_config,
@@ -535,6 +562,7 @@ impl PlayerAttackState {
             flamethrower: None,
             gun_muzzle_flash_elapsed: None,
             weapon_bob_offset: Vec2::ZERO,
+            snap_turn_offset: Vec2::ZERO,
             view_bob: 0.0,
             weapon_raise_offset,
             config,
@@ -689,6 +717,7 @@ pub fn process_player_attacks(
     burn_config: &carcinisation_fps_core::BurnConfig,
     view_bob_amplitude: f32,
     view_bob_freq_mult: f32,
+    snap_turn: SnapTurnVisualInput,
 ) {
     if input.cycle_requested {
         loadout.cycle();
@@ -775,6 +804,7 @@ pub fn process_player_attacks(
         state,
         loadout.current(),
         input.moving_forward_back,
+        &snap_turn,
         dt,
         elapsed_secs,
         view_bob_amplitude,
@@ -784,16 +814,43 @@ pub fn process_player_attacks(
     input.clear_edges();
 }
 
+/// Compute presentation-only weapon displacement during an active snap turn.
+///
+/// Returns a screen-space offset (x-right, y-down) that follows a bell
+/// curve: zero at start, peaks mid-turn, returns to zero at completion.
+///
+/// - Left turn (direction +1.0) pushes weapon right (+x) and down (+y).
+/// - Right turn (direction -1.0) pushes weapon left (-x) and down (+y).
+#[must_use]
+pub fn snap_turn_visual_offset(
+    remaining: f32,
+    total: f32,
+    direction: f32,
+    horizontal_px: f32,
+    vertical_px: f32,
+) -> Vec2 {
+    if total <= 0.0 || remaining <= 0.0 || !remaining.is_finite() || !total.is_finite() {
+        return Vec2::ZERO;
+    }
+    let t = 1.0 - (remaining / total).clamp(0.0, 1.0);
+    let intensity = (t * std::f32::consts::PI).sin();
+    Vec2::new(
+        direction * horizontal_px * intensity,
+        vertical_px * intensity,
+    )
+}
+
 fn update_weapon_presentation(
     state: &mut PlayerAttackState,
     current_weapon: AttackId,
     moving_forward_back: bool,
+    snap_turn: &SnapTurnVisualInput,
     dt: f32,
     elapsed_secs: f32,
     view_bob_amplitude: f32,
     view_bob_freq_mult: f32,
 ) {
-    let (raise_px, raise_speed, bob_enabled, bob_h, bob_v, bob_speed, bob_return) =
+    let (raise_px, raise_speed, bob_enabled, bob_h, bob_v, bob_speed, bob_return, st_h, st_v) =
         match current_weapon {
             AttackId::Flamethrower => (
                 state.config.weapon_raise_px,
@@ -803,6 +860,8 @@ fn update_weapon_presentation(
                 state.config.weapon_bob_vertical_px,
                 state.config.weapon_bob_speed,
                 state.config.weapon_bob_return_speed,
+                state.config.snap_turn_horizontal_px,
+                state.config.snap_turn_vertical_px,
             ),
             AttackId::Pistol => (
                 state.gun_config.weapon_raise_px,
@@ -812,6 +871,8 @@ fn update_weapon_presentation(
                 state.gun_config.weapon_bob_vertical_px,
                 state.gun_config.weapon_bob_speed,
                 state.gun_config.weapon_bob_return_speed,
+                state.gun_config.snap_turn_horizontal_px,
+                state.gun_config.snap_turn_vertical_px,
             ),
         };
 
@@ -846,6 +907,15 @@ fn update_weapon_presentation(
         state.weapon_bob_offset = state.weapon_bob_offset.lerp(Vec2::ZERO, t);
         state.view_bob += (0.0 - state.view_bob) * t;
     }
+
+    // Snap turn weapon offset (presentation-only, additive).
+    state.snap_turn_offset = snap_turn_visual_offset(
+        snap_turn.remaining,
+        snap_turn.total,
+        snap_turn.direction,
+        st_h,
+        st_v,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1369,8 +1439,9 @@ pub fn draw_player_attack_overlays(
     if loadout.current() == AttackId::Flamethrower {
         let config = &state.config;
         let screen_height = image.height() as f32;
-        let presentation_offset =
-            state.weapon_bob_offset + Vec2::new(0.0, state.weapon_raise_offset);
+        let presentation_offset = state.weapon_bob_offset
+            + Vec2::new(0.0, state.weapon_raise_offset)
+            + state.snap_turn_offset;
         let weapon_center = flamethrower_weapon_center(screen_height, config, presentation_offset);
 
         // Flame chain is now rendered as world-space billboards via
@@ -1399,8 +1470,9 @@ pub fn draw_player_attack_overlays(
     } else if loadout.current() == AttackId::Pistol {
         let gun_config = &state.gun_config;
         let screen_height = image.height() as f32;
-        let presentation_offset =
-            state.weapon_bob_offset + Vec2::new(0.0, state.weapon_raise_offset);
+        let presentation_offset = state.weapon_bob_offset
+            + Vec2::new(0.0, state.weapon_raise_offset)
+            + state.snap_turn_offset;
         let weapon_center = gun_weapon_center(screen_height, gun_config, presentation_offset);
 
         // Muzzle flash (drawn behind weapon).
@@ -1726,6 +1798,7 @@ mod tests {
             &carcinisation_fps_core::BurnConfig::default(),
             1.5,
             2.0,
+            SnapTurnVisualInput::default(),
         );
 
         // Flash should be active.
@@ -1755,6 +1828,7 @@ mod tests {
             &carcinisation_fps_core::BurnConfig::default(),
             1.5,
             2.0,
+            SnapTurnVisualInput::default(),
         );
 
         // Flash should have expired.
@@ -1809,6 +1883,7 @@ mod tests {
             &carcinisation_fps_core::BurnConfig::default(),
             1.5,
             2.0,
+            SnapTurnVisualInput::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2014,5 +2089,131 @@ mod tests {
             &map,
             &cfg,
         ));
+    }
+
+    // -- snap_turn_visual_offset --
+
+    use std::f32::consts::PI;
+
+    #[test]
+    fn snap_turn_offset_zero_when_total_zero() {
+        let offset = snap_turn_visual_offset(0.0, 0.0, 1.0, 5.0, 3.0);
+        assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn snap_turn_offset_zero_when_remaining_zero() {
+        let offset = snap_turn_visual_offset(0.0, PI, 1.0, 5.0, 3.0);
+        assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn snap_turn_offset_zero_at_start() {
+        // remaining == total → t = 0 → sin(0) = 0.
+        let offset = snap_turn_visual_offset(PI, PI, 1.0, 5.0, 3.0);
+        assert!(
+            offset.length() < 1e-5,
+            "should be zero at turn start: {offset:?}"
+        );
+    }
+
+    #[test]
+    fn snap_turn_offset_peaks_at_midpoint() {
+        let half = PI / 2.0;
+        let offset = snap_turn_visual_offset(half, PI, 1.0, 5.0, 3.0);
+        // t = 0.5 → sin(PI * 0.5) = 1.0 → full amplitude.
+        assert!(
+            (offset.x - 5.0).abs() < 1e-4,
+            "x should be +horizontal at midpoint: {offset:?}"
+        );
+        assert!(
+            (offset.y - 3.0).abs() < 1e-4,
+            "y should be +vertical at midpoint: {offset:?}"
+        );
+    }
+
+    #[test]
+    fn snap_turn_left_produces_positive_x() {
+        // direction +1.0 = left turn → weapon moves right (+x).
+        let offset = snap_turn_visual_offset(PI / 2.0, PI, 1.0, 5.0, 3.0);
+        assert!(offset.x > 0.0, "left turn should produce +x: {offset:?}");
+    }
+
+    #[test]
+    fn snap_turn_right_produces_negative_x() {
+        // direction -1.0 = right turn → weapon moves left (-x).
+        let offset = snap_turn_visual_offset(PI / 2.0, PI, -1.0, 5.0, 3.0);
+        assert!(offset.x < 0.0, "right turn should produce -x: {offset:?}");
+    }
+
+    #[test]
+    fn snap_turn_offset_y_always_positive() {
+        // Both turn directions push weapon down (+y in screen space).
+        let left = snap_turn_visual_offset(PI / 2.0, PI, 1.0, 5.0, 3.0);
+        let right = snap_turn_visual_offset(PI / 2.0, PI, -1.0, 5.0, 3.0);
+        assert!(left.y > 0.0, "left turn y should be positive: {left:?}");
+        assert!(right.y > 0.0, "right turn y should be positive: {right:?}");
+    }
+
+    #[test]
+    fn snap_turn_offset_symmetric_magnitude() {
+        let left = snap_turn_visual_offset(PI / 2.0, PI, 1.0, 5.0, 3.0);
+        let right = snap_turn_visual_offset(PI / 2.0, PI, -1.0, 5.0, 3.0);
+        assert!(
+            (left.x.abs() - right.x.abs()).abs() < 1e-5,
+            "magnitude should be symmetric: left={left:?} right={right:?}"
+        );
+        assert!(
+            (left.y - right.y).abs() < 1e-5,
+            "y should be identical for both directions"
+        );
+    }
+
+    #[test]
+    fn snap_turn_offset_nan_remaining_returns_zero() {
+        let offset = snap_turn_visual_offset(f32::NAN, PI, 1.0, 5.0, 3.0);
+        assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn snap_turn_offset_nan_total_returns_zero() {
+        let offset = snap_turn_visual_offset(PI / 2.0, f32::NAN, 1.0, 5.0, 3.0);
+        assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn snap_turn_offset_infinity_returns_zero() {
+        let offset = snap_turn_visual_offset(f32::INFINITY, PI, 1.0, 5.0, 3.0);
+        assert_eq!(offset, Vec2::ZERO);
+    }
+
+    #[test]
+    fn snap_turn_offset_bell_curve_monotonic() {
+        // First half (t=0 to t=0.5): offset should strictly increase.
+        let total = PI;
+        let mut prev_mag = 0.0_f32;
+        for i in 1..=10 {
+            let remaining = total * (1.0 - (i as f32 * 0.05)); // t from 0.05 to 0.50
+            let offset = snap_turn_visual_offset(remaining, total, 1.0, 5.0, 3.0);
+            let mag = offset.length();
+            assert!(
+                mag > prev_mag,
+                "first half should increase: t={:.2} mag={mag:.4} prev={prev_mag:.4}",
+                1.0 - remaining / total
+            );
+            prev_mag = mag;
+        }
+        // Second half (t=0.5 to t=1.0): offset should strictly decrease.
+        for i in 11..=19 {
+            let remaining = total * (1.0 - (i as f32 * 0.05)); // t from 0.55 to 0.95
+            let offset = snap_turn_visual_offset(remaining, total, 1.0, 5.0, 3.0);
+            let mag = offset.length();
+            assert!(
+                mag < prev_mag,
+                "second half should decrease: t={:.2} mag={mag:.4} prev={prev_mag:.4}",
+                1.0 - remaining / total
+            );
+            prev_mag = mag;
+        }
     }
 }

@@ -159,6 +159,7 @@ pub struct PredictedPlayerState {
     pub angle: f32,
     /// Client-local snap turn animation (mirrors server's `ServerQuickTurn`).
     pub snap_remaining_radians: f32,
+    pub snap_total_radians: f32,
     pub snap_speed: f32,
     pub snap_direction: f32,
     /// Set to `true` once initialised from the first replicated `NetPlayer`.
@@ -171,6 +172,7 @@ impl Default for PredictedPlayerState {
             position: Vec2::ZERO,
             angle: 0.0,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
             initialised: false,
@@ -345,6 +347,7 @@ pub fn init_predicted_state(
     predicted.position = local_np.position;
     predicted.angle = local_np.angle;
     predicted.snap_remaining_radians = 0.0;
+    predicted.snap_total_radians = 0.0;
     predicted.snap_speed = 0.0;
     predicted.snap_direction = 0.0;
     predicted.initialised = true;
@@ -632,6 +635,7 @@ pub fn handle_input_ack(
     predicted.position = ack.position;
     predicted.angle = ack.angle;
     predicted.snap_remaining_radians = ack.snap_remaining_radians;
+    predicted.snap_total_radians = ack.snap_total_radians;
     predicted.snap_speed = ack.snap_speed;
     predicted.snap_direction = ack.snap_direction;
 
@@ -694,6 +698,7 @@ pub fn apply_prediction_tick(
     {
         let params = snap_turn_params(kind, quick_turn_duration_secs);
         state.snap_remaining_radians = params.remaining_radians;
+        state.snap_total_radians = params.total_radians;
         state.snap_speed = params.speed;
         state.snap_direction = params.direction;
     }
@@ -764,6 +769,7 @@ mod tests {
             position: Vec2::new(x, y),
             angle,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
             initialised: true,
@@ -1078,6 +1084,7 @@ mod tests {
         client.position = server_at_3.position;
         client.angle = server_at_3.angle;
         client.snap_remaining_radians = 0.0;
+        client.snap_total_radians = 0.0;
 
         // 3. Replay remaining entries (4, 5).
         let entries: Vec<_> = history.iter_all().cloned().collect();
@@ -1140,6 +1147,7 @@ mod tests {
             position: ack_state.position,
             angle: ack_state.angle,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
             initialised: true,
@@ -1191,6 +1199,7 @@ mod tests {
             position: ack_state.position,
             angle: ack_state.angle,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
             initialised: true,
@@ -1266,6 +1275,7 @@ mod tests {
             position: server.position,
             angle: server.angle,
             snap_remaining_radians: server.snap_remaining_radians,
+            snap_total_radians: server.snap_total_radians,
             snap_speed: server.snap_speed,
             snap_direction: server.snap_direction,
             initialised: true,
@@ -1764,6 +1774,7 @@ mod tests {
         client.position = server.position;
         client.angle = server.angle;
         client.snap_remaining_radians = 0.0;
+        client.snap_total_radians = 0.0;
         client.snap_speed = 0.0;
         client.snap_direction = 0.0;
 
@@ -2000,6 +2011,7 @@ mod tests {
             position: Vec2::new(2.5, 2.5),
             angle: server_angle_t8,
             snap_remaining_radians: server_snap_t8,
+            snap_total_radians: server.snap_total_radians,
             snap_speed: server.snap_speed,
             snap_direction: server.snap_direction,
             initialised: true,
@@ -2326,6 +2338,7 @@ mod tests {
             position: server_pos_7,
             angle: server_angle_7,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
             initialised: true,
@@ -2374,6 +2387,7 @@ mod tests {
             position: server_pos_7,
             angle: server_angle_7,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
             initialised: true,

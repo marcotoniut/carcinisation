@@ -1,6 +1,6 @@
 //! Regression tests for dead-player guards and line-of-sight blocking.
 //!
-//! Deterministic: each `app.update()` = exactly one FixedUpdate cycle at 30 Hz.
+//! Deterministic: each `app.update()` = exactly one `FixedUpdate` cycle at 30 Hz.
 #![allow(clippy::float_cmp)]
 
 mod common;

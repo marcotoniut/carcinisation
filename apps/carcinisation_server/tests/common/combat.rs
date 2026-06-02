@@ -34,6 +34,7 @@ pub fn send_queued_intents(mut commands: Commands, mut queue: ResMut<TestIntentQ
     }
 }
 
+#[allow(clippy::needless_pass_by_value)] // Bevy observer signature requires `On<T>` by value.
 pub fn capture_flame_active(trigger: On<FlameActive>, mut events: ResMut<ReceivedFlameEvents>) {
     events.0.push(trigger.event().clone());
 }
@@ -79,7 +80,7 @@ pub fn queue_switch(app: &mut App, seq: u32) {
 // Server/client builders
 // ---------------------------------------------------------------------------
 
-/// Build a server with test_map + one enemy at (4.5, 1.5) — directly east of
+/// Build a server with `test_map` + one enemy at (4.5, 1.5) — directly east of
 /// spawn (1.5, 1.5) at angle 0.
 pub fn build_combat_server(port: u16) -> App {
     let entities = vec![EntitySpawnData {

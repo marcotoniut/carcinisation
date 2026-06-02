@@ -10,6 +10,8 @@ PlayerFlamethrower1pConfig(
     weapon_bob_vertical_px: 2.0,
     weapon_bob_speed: 8.0,
     weapon_bob_return_speed: 16.0,
+    snap_turn_horizontal_px: 10.0,
+    snap_turn_vertical_px: 6.0,
     idle_flame_offset: (3.0, -24.0),
     idle_flame_scale: 1.0,
     billboard_scale_near: 0.152,

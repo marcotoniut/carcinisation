@@ -569,6 +569,7 @@ fn append_net_markers_inner(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 

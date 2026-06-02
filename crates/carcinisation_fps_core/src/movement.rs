@@ -159,9 +159,14 @@ pub enum SnapTurnKind {
 ///
 /// Returned by [`snap_turn_params`]; the caller stores these in its own
 /// adapter state (`QuickTurnState`, `ServerQuickTurn`, etc.).
+///
+/// `total_radians` is set once at turn start and remains constant.
+/// Callers do not reset it when the turn completes (`remaining_radians`
+/// reaches 0) — it is only meaningful while `remaining_radians > 0`.
 #[derive(Clone, Copy, Debug)]
 pub struct SnapTurnParams {
     pub remaining_radians: f32,
+    pub total_radians: f32,
     pub speed: f32,
     pub direction: f32,
 }
@@ -176,16 +181,19 @@ pub fn snap_turn_params(kind: SnapTurnKind, quick_turn_duration_secs: f32) -> Sn
     match kind {
         SnapTurnKind::QuickTurn => SnapTurnParams {
             remaining_radians: std::f32::consts::PI,
+            total_radians: std::f32::consts::PI,
             speed: angular_speed,
             direction: 1.0,
         },
         SnapTurnKind::Left => SnapTurnParams {
             remaining_radians: std::f32::consts::FRAC_PI_2,
+            total_radians: std::f32::consts::FRAC_PI_2,
             speed: angular_speed,
             direction: 1.0,
         },
         SnapTurnKind::Right => SnapTurnParams {
             remaining_radians: std::f32::consts::FRAC_PI_2,
+            total_radians: std::f32::consts::FRAC_PI_2,
             speed: angular_speed,
             direction: -1.0,
         },
@@ -353,7 +361,11 @@ mod tests {
     #[test]
     fn speed_modifier_negative_budget_clamped() {
         let modifier = SpeedModifier::new(0.5, -5.0);
-        assert_eq!(modifier.remaining, 0.0);
+        assert!(
+            modifier.remaining.abs() < f32::EPSILON,
+            "{}",
+            modifier.remaining
+        );
         assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
     }
 
@@ -374,7 +386,11 @@ mod tests {
         let mut modifier = SpeedModifier::new(0.7, 1.0);
         // Drain exactly to 0: base_drain_rate=1.0, dt=1.0, movement=0.
         modifier.tick(1.0, 0.0);
-        assert_eq!(modifier.remaining, 0.0);
+        assert!(
+            modifier.remaining.abs() < f32::EPSILON,
+            "{}",
+            modifier.remaining
+        );
         assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
     }
 
@@ -647,11 +663,107 @@ mod tests {
         assert!(angle >= 0.0);
     }
 
+    #[test]
+    fn total_radians_matches_kind() {
+        let qt = snap_turn_params(SnapTurnKind::QuickTurn, 0.4);
+        assert!((qt.total_radians - PI).abs() < f32::EPSILON);
+        assert!((qt.total_radians - qt.remaining_radians).abs() < f32::EPSILON);
+
+        let left = snap_turn_params(SnapTurnKind::Left, 0.4);
+        assert!((left.total_radians - FRAC_PI_2).abs() < f32::EPSILON);
+        assert!((left.total_radians - left.remaining_radians).abs() < f32::EPSILON);
+
+        let right = snap_turn_params(SnapTurnKind::Right, 0.4);
+        assert!((right.total_radians - FRAC_PI_2).abs() < f32::EPSILON);
+        assert!((right.total_radians - right.remaining_radians).abs() < f32::EPSILON);
+    }
+
+    // -- Wraparound boundary tests --
+
+    #[test]
+    fn side_turn_left_wraps_past_tau() {
+        // Start at 5.5 rad (~315°), turn left 90° — crosses TAU boundary.
+        let start = 5.5_f32;
+        let expected = (start + FRAC_PI_2).rem_euclid(std::f32::consts::TAU);
+        let params = snap_turn_params(SnapTurnKind::Left, 0.4);
+        let mut angle = start;
+        let mut remaining = params.remaining_radians;
+
+        // Complete in one large dt.
+        tick_snap_turn(
+            &mut angle,
+            &mut remaining,
+            params.speed,
+            params.direction,
+            0.2,
+        );
+
+        assert!(remaining <= 0.0, "turn should complete");
+        assert!(
+            (angle - expected).abs() < 1e-4,
+            "should wrap past TAU: angle={angle} expected={expected}"
+        );
+        assert!(angle < std::f32::consts::TAU);
+        assert!(angle >= 0.0);
+    }
+
+    #[test]
+    fn side_turn_right_wraps_past_zero() {
+        // Start at 0.3 rad (~17°), turn right 90° — crosses zero boundary.
+        let start = 0.3_f32;
+        let expected = (start - FRAC_PI_2).rem_euclid(std::f32::consts::TAU);
+        let params = snap_turn_params(SnapTurnKind::Right, 0.4);
+        let mut angle = start;
+        let mut remaining = params.remaining_radians;
+
+        tick_snap_turn(
+            &mut angle,
+            &mut remaining,
+            params.speed,
+            params.direction,
+            0.2,
+        );
+
+        assert!(remaining <= 0.0, "turn should complete");
+        assert!(
+            (angle - expected).abs() < 1e-4,
+            "should wrap past zero: angle={angle} expected={expected}"
+        );
+        assert!(angle < std::f32::consts::TAU);
+        assert!(angle >= 0.0);
+    }
+
+    #[test]
+    fn quick_turn_wraps_through_tau_from_near_pi() {
+        // Start near PI, turn 180° left — result should wrap through TAU to near 0.
+        let start = PI - 0.05;
+        let expected = (start + PI).rem_euclid(std::f32::consts::TAU);
+        let params = snap_turn_params(SnapTurnKind::QuickTurn, 0.4);
+        let mut angle = start;
+        let mut remaining = params.remaining_radians;
+
+        tick_snap_turn(
+            &mut angle,
+            &mut remaining,
+            params.speed,
+            params.direction,
+            0.4,
+        );
+
+        assert!(remaining <= 0.0, "turn should complete");
+        assert!(
+            (angle - expected).abs() < 1e-4,
+            "should wrap through TAU: angle={angle} expected={expected}"
+        );
+        assert!(angle < std::f32::consts::TAU);
+        assert!(angle >= 0.0);
+    }
+
     // -- angular_velocity_clamped --
 
     #[test]
     fn angular_velocity_zero_dt_returns_zero() {
-        assert_eq!(angular_velocity_clamped(1.0, 0.0, 0.0), 0.0);
+        assert!(angular_velocity_clamped(1.0, 0.0, 0.0).abs() < f32::EPSILON);
     }
 
     #[test]

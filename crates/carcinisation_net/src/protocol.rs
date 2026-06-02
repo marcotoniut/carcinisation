@@ -23,7 +23,7 @@ pub enum ConnectMode {
     Monitor,
 }
 
-/// Size of the renet2 netcode user_data field.
+/// Size of the `renet2` netcode `user_data` field.
 const USER_DATA_BYTES: usize = 256;
 
 impl ConnectMode {
@@ -297,6 +297,8 @@ pub struct InputAck {
     pub angle: f32,
     /// Server snap turn remaining radians (0.0 if no snap active).
     pub snap_remaining_radians: f32,
+    /// Total arc of the snap turn in radians (PI for 180°, PI/2 for 90°).
+    pub snap_total_radians: f32,
     /// Server snap turn angular speed (rad/s).
     pub snap_speed: f32,
     /// Server snap turn direction (+1.0 left, -1.0 right).
@@ -584,6 +586,7 @@ mod tests {
             position: Vec2::ZERO,
             angle: 0.0,
             snap_remaining_radians: 0.0,
+            snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
         };
@@ -627,6 +630,7 @@ mod tests {
             position: Vec2::new(3.5, 7.2),
             angle: 1.57,
             snap_remaining_radians: 1.2,
+            snap_total_radians: std::f32::consts::PI,
             snap_speed: 7.85,
             snap_direction: -1.0,
         };
@@ -637,6 +641,7 @@ mod tests {
         assert!((back.position.x - 3.5).abs() < 1e-5);
         assert!((back.angle - 1.57).abs() < 1e-5);
         assert!((back.snap_remaining_radians - 1.2).abs() < 1e-5);
+        assert!((back.snap_total_radians - std::f32::consts::PI).abs() < 1e-5);
         assert!((back.snap_speed - 7.85).abs() < 1e-5);
         assert!((back.snap_direction - -1.0).abs() < 1e-5);
     }

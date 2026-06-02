@@ -188,6 +188,7 @@ pub(crate) fn receive_client_intent(
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct ServerQuickTurn {
     pub remaining_radians: f32,
+    pub total_radians: f32,
     pub speed: f32,
     pub direction: f32,
 }
@@ -209,6 +210,7 @@ impl ServerQuickTurn {
         }
         let params = carcinisation_fps_core::snap_turn_params(kind, quick_turn_duration_secs);
         self.remaining_radians = params.remaining_radians;
+        self.total_radians = params.total_radians;
         self.speed = params.speed;
         self.direction = params.direction;
     }
@@ -388,6 +390,7 @@ pub fn send_input_acks(
                 position: player.position,
                 angle: player.angle,
                 snap_remaining_radians: snap_turn.remaining_radians,
+                snap_total_radians: snap_turn.total_radians,
                 snap_speed: snap_turn.speed,
                 snap_direction: snap_turn.direction,
             },
