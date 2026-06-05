@@ -214,12 +214,16 @@ pub fn collect_and_send_intent(
     }
 
     // -- Build intent --
+    // LEGACY(strafe): aim_held/aim_offset are always false/0.0 in Legacy mode.
+    // AimCommitment mode will populate these from the chord FSM AimMode state.
     let intent = ClientIntent {
         sequence: input_sequence.0,
         movement,
         turn,
         fire_held,
         actions,
+        aim_held: false,
+        aim_offset: 0.0,
     };
 
     // -- Send policy --

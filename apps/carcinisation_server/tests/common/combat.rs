@@ -52,6 +52,8 @@ pub fn queue_fire(app: &mut App, seq: u32) {
             movement: Vec2::ZERO,
             turn: 0.0,
             fire_held: true,
+            aim_held: false,
+            aim_offset: 0.0,
             actions: PlayerActions::default(),
         });
 }
@@ -72,6 +74,8 @@ pub fn queue_switch(app: &mut App, seq: u32) {
             movement: Vec2::ZERO,
             turn: 0.0,
             fire_held: false,
+            aim_held: false,
+            aim_offset: 0.0,
             actions: PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
         });
 }

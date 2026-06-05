@@ -10,6 +10,23 @@ use bevy::prelude::ReflectResource;
 use carapace::constrained::{FiniteF32, PositiveFiniteF32};
 use std::num::{NonZeroU64, NonZeroUsize};
 
+/// Combat control mode — determines how aiming and strafing work.
+///
+/// `Legacy` preserves Wolf3D-style B=strafe, fire-anytime controls.
+/// `AimCommitment` enables RE4-style immobile aim with offset-based fire direction.
+/// Default is `Legacy` until `AimCommitment` is validated through playtesting.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, bevy::prelude::Reflect,
+)]
+pub enum CombatControlMode {
+    /// Wolf3D-style: B = strafe, fire anytime, free movement while shooting.
+    #[default]
+    Legacy,
+    /// RE4-style: B = immobile aim commitment, fire only while aiming,
+    /// aim offset controls shot direction. Body locked during aim.
+    AimCommitment,
+}
+
 /// Hot-reloadable FPS movement tuning.
 ///
 /// Loaded from `assets/config/fp/movement.ron`.
@@ -316,6 +333,16 @@ pub struct FpsCombatConfig {
     /// Soft body-occupancy and separation tuning.
     #[serde(default)]
     pub occupancy: OccupancyConfig,
+    // -- Aim Mode --
+    /// Combat control mode. `Legacy` = Wolf3D strafe, `AimCommitment` = RE4 aim.
+    #[serde(default)]
+    pub combat_control_mode: CombatControlMode,
+    /// Maximum horizontal aim offset in radians (±). Clamp applied every tick.
+    #[serde(default = "FpsCombatConfig::default_max_aim_offset")]
+    pub max_aim_offset: f32,
+    /// Aim reticle sensitivity (radians per second at full input).
+    #[serde(default = "FpsCombatConfig::default_aim_sensitivity")]
+    pub aim_sensitivity: f32,
 }
 
 /// Soft occupancy separation tuning.
@@ -361,6 +388,14 @@ impl FpsCombatConfig {
     #[must_use]
     pub fn load() -> Self {
         carcinisation_core::ron_config!("assets/config/fp/combat.ron")
+    }
+
+    const fn default_max_aim_offset() -> f32 {
+        0.5 // ~±29°
+    }
+
+    const fn default_aim_sensitivity() -> f32 {
+        2.0 // radians per second at full input
     }
 
     /// Legacy alias — equivalent to `self.mosquiton_shoot_cooldown`.
@@ -470,6 +505,9 @@ impl Default for FpsCombatConfig {
             ground_fire_flame_count: NonZeroUsize::new(6).unwrap(),
             ground_fire_max: 32,
             occupancy: OccupancyConfig::default(),
+            combat_control_mode: CombatControlMode::default(),
+            max_aim_offset: Self::default_max_aim_offset(),
+            aim_sensitivity: Self::default_aim_sensitivity(),
         }
     }
 }

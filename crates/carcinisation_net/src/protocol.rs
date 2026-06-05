@@ -135,9 +135,17 @@ pub struct ClientIntent {
     /// Server scales by `turn_speed` × dt. Suppressed by server during snap turn animation.
     pub turn: f32,
     /// Fire button held. Server uses for pistol cooldown and flamethrower continuous fire.
+    /// In `AimCommitment` mode, only respected when `aim_held` is true.
     pub fire_held: bool,
     /// Edge-triggered one-shot actions for this tick.
     pub actions: PlayerActions,
+    /// Aim mode active (FSM entered AimMode, not merely B physically held).
+    /// In `Legacy` mode this field is ignored.
+    pub aim_held: bool,
+    /// Horizontal aim offset in radians. Positive = aim right of body centre.
+    /// Server clamps to `[-max_aim_offset, +max_aim_offset]` every tick.
+    /// In `Legacy` mode this field is ignored.
+    pub aim_offset: f32,
 }
 
 impl ClientIntent {
@@ -149,6 +157,8 @@ impl ClientIntent {
             turn: 0.0,
             fire_held: false,
             actions: PlayerActions::default(),
+            aim_held: false,
+            aim_offset: 0.0,
         }
     }
 
@@ -329,6 +339,9 @@ pub struct InputAck {
     pub impulse_remaining: f32,
     /// Push impulse total duration (seconds). Used for decay curve.
     pub impulse_duration: f32,
+    /// Authoritative aim offset for prediction reconciliation (radians).
+    /// Zero when not aiming. Follows snap turn / speed modifier pattern.
+    pub aim_offset: f32,
 }
 
 /// Net-safe pickup kind enum.
@@ -357,6 +370,8 @@ mod tests {
             turn: -1.0,
             fire_held: true,
             actions: PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
+            aim_held: false,
+            aim_offset: 0.0,
         };
         let back = roundtrip(&intent);
         assert_eq!(back.sequence.0, 42);
@@ -398,6 +413,8 @@ mod tests {
             turn: 1e-7,
             fire_held: false,
             actions: PlayerActions::default(),
+            aim_held: false,
+            aim_offset: 0.0,
         };
         assert!(tiny.is_idle(), "tiny values should be idle");
 
@@ -408,6 +425,8 @@ mod tests {
             turn: 0.0,
             fire_held: false,
             actions: PlayerActions::default(),
+            aim_held: false,
+            aim_offset: 0.0,
         };
         assert!(!moving.is_idle(), "0.5 movement should not be idle");
 
@@ -418,6 +437,8 @@ mod tests {
             turn: 0.0,
             fire_held: true,
             actions: PlayerActions::default(),
+            aim_held: false,
+            aim_offset: 0.0,
         };
         assert!(!firing.is_idle(), "fire held should not be idle");
     }
@@ -622,6 +643,7 @@ mod tests {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
+            aim_offset: 0.0,
         };
         let bytes = postcard::to_allocvec(&ack).unwrap();
         // Try every truncation length — none should panic.
@@ -673,6 +695,7 @@ mod tests {
             impulse_strength: 4.24,
             impulse_remaining: 0.15,
             impulse_duration: 0.25,
+            aim_offset: -0.3,
         };
         let back = roundtrip(&ack);
         assert_eq!(back.player_id.0, 7);
@@ -691,5 +714,6 @@ mod tests {
         assert!((back.impulse_strength - 4.24).abs() < 1e-5);
         assert!((back.impulse_remaining - 0.15).abs() < 1e-5);
         assert!((back.impulse_duration - 0.25).abs() < 1e-5);
+        assert!((back.aim_offset - -0.3).abs() < 1e-5);
     }
 }

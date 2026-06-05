@@ -414,6 +414,7 @@ pub fn send_input_acks(
                 impulse_strength: player_impulse.map_or(0.0, |i| i.0.strength),
                 impulse_remaining: player_impulse.map_or(0.0, |i| i.0.remaining),
                 impulse_duration: player_impulse.map_or(0.0, |i| i.0.duration),
+                aim_offset: 0.0, // TODO(aim-mode): populate from server aim state
             },
         });
     }
@@ -431,6 +432,8 @@ mod tests {
             turn,
             fire_held: fire,
             actions,
+            aim_held: false,
+            aim_offset: 0.0,
         }
     }
 
@@ -535,6 +538,8 @@ mod tests {
             turn: 3.0,
             fire_held: false,
             actions: PlayerActions::default(),
+            aim_held: false,
+            aim_offset: 0.0,
         };
         if intent.movement.length_squared() > 1.0001 {
             intent.movement = intent.movement.normalize();

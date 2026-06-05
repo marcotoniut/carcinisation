@@ -105,6 +105,8 @@ fn forward() -> ClientIntent {
         movement: Vec2::new(0.0, 1.0),
         turn: 0.0,
         fire_held: false,
+        aim_held: false,
+        aim_offset: 0.0,
         actions: PlayerActions::default(),
     }
 }
@@ -115,6 +117,8 @@ fn turn_left() -> ClientIntent {
         movement: Vec2::ZERO,
         turn: 1.0,
         fire_held: false,
+        aim_held: false,
+        aim_offset: 0.0,
         actions: PlayerActions::default(),
     }
 }
@@ -125,6 +129,8 @@ const fn action(flag: u8) -> ClientIntent {
         movement: Vec2::ZERO,
         turn: 0.0,
         fire_held: false,
+        aim_held: false,
+        aim_offset: 0.0,
         actions: PlayerActions::from_raw(flag),
     }
 }
@@ -369,6 +375,8 @@ fn dead_player_ignores_input() {
                 movement: Vec2::Y,
                 turn: 1.0,
                 fire_held: true,
+                aim_held: false,
+                aim_offset: 0.0,
                 actions: PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
             },
         );

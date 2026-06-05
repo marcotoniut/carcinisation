@@ -462,6 +462,8 @@ pub fn inject_intent(server: &mut App, pid: u32, movement: Vec2, fire_held: bool
             movement,
             turn: 0.0,
             fire_held,
+            aim_held: false,
+            aim_offset: 0.0,
             actions: PlayerActions::default(),
         },
     );

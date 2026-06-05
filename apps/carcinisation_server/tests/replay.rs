@@ -86,6 +86,8 @@ fn inject_intent(
             movement,
             turn: 0.0,
             fire_held,
+            aim_held: false,
+            aim_offset: 0.0,
             actions: PlayerActions::default(),
         },
     );

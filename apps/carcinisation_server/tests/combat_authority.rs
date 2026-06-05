@@ -202,6 +202,8 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
                     movement: Vec2::ZERO,
                     turn: 0.0,
                     fire_held: true,
+                    aim_held: false,
+                    aim_offset: 0.0,
                     actions: PlayerActions::default(),
                 },
             );
