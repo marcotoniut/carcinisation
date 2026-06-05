@@ -160,6 +160,37 @@ pub struct SpideyCombatConfig {
     pub web_slow_duration: f32,
     pub recover_secs: f32,
     pub death_secs: f32,
+    /// Total displacement applied to the player on a successful lunge hit
+    /// (map units). Delivered as a multi-tick decaying impulse over
+    /// `lunge_push_duration` seconds, replayed by client prediction.
+    #[serde(default = "SpideyCombatConfig::default_lunge_player_push_distance")]
+    pub lunge_player_push_distance: f32,
+    /// Duration of the player push impulse (seconds). The push decays
+    /// linearly over this period. Replicated via `InputAck` for client
+    /// prediction parity.
+    ///
+    /// **Upgrade path**: when a `PredictionEvent` system is built, these
+    /// `InputAck` impulse fields should migrate to event delivery. The
+    /// `OccupancyImpulse::tick()` apply function remains the same.
+    #[serde(default = "SpideyCombatConfig::default_lunge_push_duration")]
+    pub lunge_push_duration: f32,
+    /// One-shot displacement applied to the Spidey as recoil after a successful
+    /// lunge (map units). Applied immediately through `try_move`. Spidey recoil
+    /// remains one-shot because enemies are not client-predicted.
+    #[serde(default = "SpideyCombatConfig::default_lunge_spidey_recoil_distance")]
+    pub lunge_spidey_recoil_distance: f32,
+}
+
+impl SpideyCombatConfig {
+    const fn default_lunge_player_push_distance() -> f32 {
+        0.5
+    }
+    const fn default_lunge_push_duration() -> f32 {
+        0.25
+    }
+    const fn default_lunge_spidey_recoil_distance() -> f32 {
+        0.2
+    }
 }
 
 impl Default for SpideyCombatConfig {
@@ -189,6 +220,9 @@ impl Default for SpideyCombatConfig {
             web_slow_duration: 3.0,
             recover_secs: 0.5,
             death_secs: 0.6,
+            lunge_player_push_distance: Self::default_lunge_player_push_distance(),
+            lunge_push_duration: Self::default_lunge_push_duration(),
+            lunge_spidey_recoil_distance: Self::default_lunge_spidey_recoil_distance(),
         }
     }
 }
@@ -278,6 +312,49 @@ pub struct FpsCombatConfig {
     pub ground_fire_flame_count: NonZeroUsize,
     /// Maximum number of ground fires that can exist simultaneously.
     pub ground_fire_max: usize,
+    // -- Occupancy --
+    /// Soft body-occupancy and separation tuning.
+    #[serde(default)]
+    pub occupancy: OccupancyConfig,
+}
+
+/// Soft occupancy separation tuning.
+///
+/// Controls how entities avoid overlapping. Enemies yield more than
+/// players so the player can squeeze through tight spaces. Separation is
+/// server-authoritative and not client-predicted.
+#[derive(Clone, Copy, Debug, serde::Deserialize, bevy::prelude::Reflect)]
+pub struct OccupancyConfig {
+    /// Maximum displacement per tick from separation (map units).
+    /// Prevents teleportation from large overlap.
+    pub max_separation_step: f32,
+    /// Weight for player entities. Higher = less displaced by separation.
+    pub player_weight: f32,
+    /// Weight for enemy entities. Lower = displaced more by separation.
+    pub enemy_weight: f32,
+    /// Separation strength exerted by players on overlapping entities.
+    /// Low/zero so enemies yield to the player, not vice versa.
+    pub player_separation_strength: f32,
+    /// Separation strength exerted by enemies on overlapping entities.
+    pub enemy_separation_strength: f32,
+    /// Default vertical body height for occupancy overlap checks (map units).
+    pub body_height: f32,
+}
+
+impl Default for OccupancyConfig {
+    fn default() -> Self {
+        Self {
+            max_separation_step: 0.08,
+            player_weight: 5.0,
+            enemy_weight: 1.0,
+            // Player exerts strong separation force — enemies yield to the player.
+            player_separation_strength: 1.0,
+            // Enemies exert weak separation force on the player so the player
+            // can squeeze through, but normal force on other enemies.
+            enemy_separation_strength: 0.3,
+            body_height: 0.8,
+        }
+    }
 }
 
 impl FpsCombatConfig {
@@ -392,6 +469,7 @@ impl Default for FpsCombatConfig {
             ground_fire_visual_radius: 0.35,
             ground_fire_flame_count: NonZeroUsize::new(6).unwrap(),
             ground_fire_max: 32,
+            occupancy: OccupancyConfig::default(),
         }
     }
 }

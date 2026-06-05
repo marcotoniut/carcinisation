@@ -36,7 +36,7 @@ pub use camera::Camera;
 pub use collision::try_move;
 pub use combat::{flame_hits_position, flame_hits_position_configured};
 pub use config::{
-    FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, PlayerFlamethrowerConfig,
+    FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, OccupancyConfig, PlayerFlamethrowerConfig,
     ScreenParticleConfig, SizeTierConfig, SpideyCombatConfig,
 };
 pub use enemy::{

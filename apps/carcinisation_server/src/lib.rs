@@ -30,6 +30,9 @@ use systems::admin::{poll_admin_socket, setup_admin_socket};
 use systems::combat::process_combat;
 use systems::diagnostics::{DiagnosticsState, tick_diagnostics_end, tick_diagnostics_start};
 use systems::input::{apply_buffered_movement, receive_client_intent, send_input_acks};
+use systems::occupancy::{
+    OccupancySet, resolve_soft_occupancy, sync_enemy_occupancy_profiles, tick_player_impulses,
+};
 use systems::reset::{MapResetRequested, handle_map_reset};
 use systems::{
     BurnContactCooldowns, EnemyAiSet, EnemyAttackSet, FireCooldownMap, FlameActiveTracker,
@@ -220,6 +223,7 @@ impl Plugin for ServerPlugin {
                     MovementSet,
                     EnemyAiSet,
                     EnemyAttackSet,
+                    OccupancySet,
                     ProjectileSet,
                     CombatSet,
                     PickupSet,
@@ -230,9 +234,15 @@ impl Plugin for ServerPlugin {
             .add_systems(FixedUpdate, apply_buffered_movement.in_set(MovementSet))
             .add_systems(
                 FixedUpdate,
-                send_input_acks
+                tick_player_impulses
                     .in_set(MovementSet)
                     .after(apply_buffered_movement),
+            )
+            .add_systems(
+                FixedUpdate,
+                send_input_acks
+                    .in_set(MovementSet)
+                    .after(tick_player_impulses),
             )
             .add_systems(FixedUpdate, tick_net_enemy_ai.in_set(EnemyAiSet))
             .add_systems(FixedUpdate, tick_enemy_attacks.in_set(EnemyAttackSet))
@@ -243,6 +253,16 @@ impl Plugin for ServerPlugin {
                     .in_set(EnemyAttackSet)
                     .after(tick_enemy_attacks)
                     .after(tick_spidey_attacks),
+            )
+            .add_systems(
+                FixedUpdate,
+                sync_enemy_occupancy_profiles.in_set(OccupancySet),
+            )
+            .add_systems(
+                FixedUpdate,
+                resolve_soft_occupancy
+                    .in_set(OccupancySet)
+                    .after(sync_enemy_occupancy_profiles),
             )
             .add_systems(FixedUpdate, tick_projectiles_server.in_set(ProjectileSet))
             .add_systems(FixedUpdate, process_combat.in_set(CombatSet))
@@ -386,17 +406,19 @@ fn handle_client_connect(
     mut palette_pool: ResMut<AvatarPalettePool>,
     transport: Res<NetcodeServerTransport>,
     network_ids: Query<&NetworkId>,
+    combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
+    movement_config: Res<carcinisation_fps_core::FpsMovementConfig>,
 ) {
     let client_entity = trigger.event().entity;
 
     // Determine connect mode from user_data embedded in the renet2 handshake.
-    let connect_mode = if let Ok(nid) = network_ids.get(client_entity) {
-        transport
-            .user_data(nid.get())
-            .map_or(ConnectMode::Player, |ud| ConnectMode::from_user_data(&ud))
-    } else {
-        ConnectMode::Player
-    };
+    let connect_mode = network_ids
+        .get(client_entity)
+        .map_or(ConnectMode::Player, |nid| {
+            transport
+                .user_data(nid.get())
+                .map_or(ConnectMode::Player, |ud| ConnectMode::from_user_data(&ud))
+        });
 
     let client_id = bevy_replicon::prelude::ClientId::Client(client_entity);
 
@@ -450,6 +472,7 @@ fn handle_client_connect(
                     max: 100.0,
                 },
                 ServerQuickTurn::default(),
+                systems::occupancy::player_occupancy(&combat_config, &movement_config),
                 Replicated,
             ));
         }
@@ -600,6 +623,7 @@ fn spawn_map_enemies(mut commands: Commands, map_entities: Res<MapEntities>) {
 pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnData]) -> u32 {
     use carcinisation_fps_core::pickup::PickupKind;
 
+    let combat = carcinisation_fps_core::FpsCombatConfig::load();
     let mut next_id = 1_u32;
     let mut count = 0u32;
 
@@ -627,6 +651,16 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
                 crate::systems::combat::ServerBurnState::default(),
                 Replicated,
             ));
+            // Attach occupancy with type-appropriate collision radius.
+            let collision_radius = match &spawn.kind {
+                EntitySpawnKind::Spidey { .. } => combat.spidey.collision_radius,
+                _ => combat.mosquiton_collision_radius,
+            };
+            enemy_commands.insert(systems::occupancy::enemy_occupancy(
+                &combat,
+                collision_radius,
+            ));
+
             if let Some(ai_config) = server_enemy_ai_config_from_spawn(spawn) {
                 enemy_commands.insert(ai_config);
             }
@@ -644,7 +678,6 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
             if let EntitySpawnKind::Spidey { speed, .. } = &spawn.kind {
                 let seed =
                     carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
-                let combat = carcinisation_fps_core::FpsCombatConfig::load();
                 enemy_commands.insert((
                     ServerSpideySim {
                         seed,
@@ -719,7 +752,7 @@ mod pool_tests {
     #[test]
     fn first_six_assignments_are_all_unique() {
         let variants = unique_variants(AvatarPaletteVariant::COUNT);
-        let mut dedup = variants.clone();
+        let mut dedup = variants;
         dedup.sort_by_key(|v| variant_index(*v));
         dedup.dedup_by_key(|v| variant_index(*v));
         assert_eq!(

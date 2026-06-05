@@ -4,6 +4,7 @@ pub mod diagnostics;
 pub mod enemy_ai;
 pub mod enemy_attack;
 pub mod input;
+pub mod occupancy;
 pub mod pickup;
 pub mod player_lifecycle;
 pub mod projectile;
@@ -24,6 +25,7 @@ pub use enemy_attack::{
     tick_spidey_attacks,
 };
 pub use input::{PlayerInputTracker, PlayerIntentBuffer, ServerQuickTurn, send_input_acks};
+pub use occupancy::{OccupancySet, OccupiesSpace, ServerPlayerImpulse};
 pub use pickup::pickup_system;
 pub use player_lifecycle::{RespawnTimer, tick_player_lifecycle};
 pub use projectile::{ProjectileSet, ProjectileTtl, tick_projectiles_server};

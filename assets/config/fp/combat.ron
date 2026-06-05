@@ -31,7 +31,7 @@ FpsCombatConfig(
         hop_distance: 1.2,
         hop_duration: 0.4,
         hop_visual_height: 0.3,
-        lunge_range: 2.0,
+        lunge_range: 2.5,
         lunge_speed: 7.0,
         lunge_melee_damage: 20,
         lunge_windup_secs: 0.2,
@@ -47,6 +47,9 @@ FpsCombatConfig(
         web_slow_duration: 3.0,
         recover_secs: 0.5,
         death_secs: 0.6,
+        lunge_player_push_distance: 0.53,
+        lunge_push_duration: 0.25,
+        lunge_spidey_recoil_distance: 0.4,
     ),
     // Burn contact
     burn_contact_radius: 1.1,
@@ -65,4 +68,13 @@ FpsCombatConfig(
     ground_fire_visual_radius: 0.35,
     ground_fire_flame_count: 6,
     ground_fire_max: 32,
+    // Soft body occupancy / separation
+    occupancy: (
+        max_separation_step: 0.08,
+        player_weight: 5.0,
+        enemy_weight: 1.0,
+        player_separation_strength: 1.0,
+        enemy_separation_strength: 0.3,
+        body_height: 0.8,
+    ),
 )

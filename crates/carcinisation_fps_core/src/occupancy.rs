@@ -95,6 +95,11 @@ pub struct OccupancyEntry {
     pub pushable: bool,
     /// Strength of the separation force this entity exerts on others.
     pub separation_strength: f32,
+    /// Stable identity for deterministic coincident-entity fallback direction.
+    /// The caller must assign a unique, deterministic value per entity (e.g.
+    /// `Entity` index or `NetworkObjectId`). Used only when two entities are
+    /// at the exact same position to break directional symmetry.
+    pub stable_index: u32,
 }
 
 // ---------------------------------------------------------------------------
@@ -168,23 +173,29 @@ impl OccupancyImpulse {
 /// Additional invariants maintained internally:
 /// - Single pass, no iterative relaxation.
 /// - Coincident entities (distance < epsilon) receive a deterministic fallback
-///   push along `+X`, using the same penetration/weight formula as the normal
-///   overlap path. No random jitter.
+///   push direction derived from `stable_index` ordering. The entity with the
+///   lower index is pushed in `+X`, the higher in `-X`, breaking directional
+///   symmetry so coincident pairs separate rather than drifting in lockstep.
+///   No random jitter.
 /// - No platform-specific approximation beyond IEEE 754 `f32` arithmetic
 ///   (same assumptions as the rest of `carcinisation_fps_core`).
 #[must_use]
 pub fn compute_separation(
-    entity: &OccupancyEntry,
-    others: &[OccupancyEntry],
+    self_index: usize,
+    entries: &[OccupancyEntry],
     max_separation_step: f32,
 ) -> Vec2 {
+    let entity = &entries[self_index];
     if !entity.pushable || entity.mode == OccupancyMode::Disabled {
         return Vec2::ZERO;
     }
 
     let mut total = Vec2::ZERO;
 
-    for other in others {
+    for (i, other) in entries.iter().enumerate() {
+        if i == self_index {
+            continue;
+        }
         if other.mode == OccupancyMode::Disabled {
             continue;
         }
@@ -208,10 +219,16 @@ pub fn compute_separation(
         }
 
         // Penetration depth and push direction. Coincident entities use a
-        // deterministic +X fallback direction with full combined_radius as
-        // penetration, keeping the same formula as the normal overlap path.
+        // deterministic fallback direction derived from stable_index ordering:
+        // lower index → +X, higher index → -X. This breaks symmetry so
+        // coincident pairs separate rather than drifting in lockstep.
         let (penetration, push_dir) = if dist < f32::EPSILON {
-            (combined_radius, Vec2::X)
+            let dir = if entity.stable_index <= other.stable_index {
+                Vec2::X
+            } else {
+                Vec2::NEG_X
+            };
+            (combined_radius, dir)
         } else {
             (combined_radius - dist, diff / dist)
         };
@@ -240,7 +257,7 @@ pub fn compute_separation(
 mod tests {
     use super::*;
 
-    fn grounded_entry(x: f32, y: f32, radius: f32) -> OccupancyEntry {
+    fn grounded_entry_idx(x: f32, y: f32, radius: f32, idx: u32) -> OccupancyEntry {
         OccupancyEntry {
             position: Vec2::new(x, y),
             height_offset: 0.0,
@@ -253,7 +270,18 @@ mod tests {
             weight: 1.0,
             pushable: true,
             separation_strength: 1.0,
+            stable_index: idx,
         }
+    }
+
+    fn grounded_entry(x: f32, y: f32, radius: f32) -> OccupancyEntry {
+        grounded_entry_idx(x, y, radius, 0)
+    }
+
+    /// Helper: compute separation for entity (index 0) against one other.
+    fn sep(entity: &OccupancyEntry, other: &OccupancyEntry, max_step: f32) -> Vec2 {
+        let entries = [*entity, *other];
+        compute_separation(0, &entries, max_step)
     }
 
     const MAX_STEP: f32 = 0.15;
@@ -266,7 +294,7 @@ mod tests {
     fn no_overlap_returns_zero() {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         let other = grounded_entry(2.0, 0.0, 0.3);
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -274,7 +302,7 @@ mod tests {
     fn xz_overlap_returns_separation() {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         let other = grounded_entry(0.4, 0.0, 0.3);
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert!(result.x < 0.0, "expected negative X push, got {result:?}");
         assert!(
             result.y.abs() < f32::EPSILON,
@@ -287,7 +315,7 @@ mod tests {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         // Distance = 0.6 = combined_radius → no overlap (>=).
         let other = grounded_entry(0.6, 0.0, 0.3);
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -300,7 +328,7 @@ mod tests {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         let mut other = grounded_entry(0.4, 0.0, 0.3);
         other.height_offset = 1.0; // Y range: 1.0..1.8, entity: 0.0..0.8
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -309,7 +337,7 @@ mod tests {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         let mut other = grounded_entry(0.4, 0.0, 0.3);
         other.height_offset = 0.5; // Y range: 0.5..1.3, overlaps 0.5..0.8.
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert!(result.x < 0.0, "expected separation, got {result:?}");
     }
 
@@ -319,7 +347,7 @@ mod tests {
         let mut other = grounded_entry(0.4, 0.0, 0.3);
         // Entity Y: 0.0..0.8, other Y: 0.8..1.6 — touching but not overlapping (<=).
         other.height_offset = 0.8;
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -332,7 +360,7 @@ mod tests {
         let mut entity = grounded_entry(0.0, 0.0, 0.3);
         entity.mode = OccupancyMode::Disabled;
         let other = grounded_entry(0.2, 0.0, 0.3);
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -341,7 +369,7 @@ mod tests {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         let mut other = grounded_entry(0.2, 0.0, 0.3);
         other.mode = OccupancyMode::Disabled;
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -354,7 +382,7 @@ mod tests {
         let mut entity = grounded_entry(0.0, 0.0, 0.3);
         entity.pushable = false;
         let other = grounded_entry(0.2, 0.0, 0.3);
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert_eq!(result, Vec2::ZERO);
     }
 
@@ -363,7 +391,7 @@ mod tests {
         let entity = grounded_entry(0.0, 0.0, 0.3);
         let mut other = grounded_entry(0.4, 0.0, 0.3);
         other.pushable = false;
-        let result = compute_separation(&entity, &[other], MAX_STEP);
+        let result = sep(&entity, &other, MAX_STEP);
         assert!(
             result.x < 0.0,
             "non-pushable other should still push entity, got {result:?}"
@@ -375,32 +403,44 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn coincident_entities_deterministic_fallback() {
-        let entity = grounded_entry(1.0, 1.0, 0.3);
-        let other = grounded_entry(1.0, 1.0, 0.3);
-        let result = compute_separation(&entity, &[other], MAX_STEP);
-        assert!(result.x > 0.0, "expected +X fallback, got {result:?}");
+    fn coincident_entities_lower_index_pushed_positive_x() {
+        let entity = grounded_entry_idx(1.0, 1.0, 0.3, 0);
+        let other = grounded_entry_idx(1.0, 1.0, 0.3, 1);
+        let result = sep(&entity, &other, MAX_STEP);
+        assert!(result.x > 0.0, "lower index should get +X, got {result:?}");
+    }
+
+    #[test]
+    fn coincident_entities_higher_index_pushed_negative_x() {
+        let entity = grounded_entry_idx(1.0, 1.0, 0.3, 1);
+        let other = grounded_entry_idx(1.0, 1.0, 0.3, 0);
+        let result = sep(&entity, &other, MAX_STEP);
+        assert!(result.x < 0.0, "higher index should get -X, got {result:?}");
+    }
+
+    #[test]
+    fn coincident_pair_separates_in_opposite_directions() {
+        let a = grounded_entry_idx(1.0, 1.0, 0.3, 0);
+        let b = grounded_entry_idx(1.0, 1.0, 0.3, 1);
+        let entries = [a, b];
+        let push_a = compute_separation(0, &entries, 1.0);
+        let push_b = compute_separation(1, &entries, 1.0);
         assert!(
-            result.y.abs() < f32::EPSILON,
-            "expected zero Y, got {result:?}"
+            push_a.x > 0.0 && push_b.x < 0.0,
+            "pair should separate: a={push_a:?}, b={push_b:?}"
         );
     }
 
     #[test]
     fn coincident_fallback_uses_proportional_formula() {
-        // Coincident path should use penetration = combined_radius and weight
-        // ratio, same as normal overlap. Verify against a nearly-coincident pair.
-        let entity = grounded_entry(0.0, 0.0, 0.3);
-        let other = grounded_entry(0.0, 0.0, 0.3);
-        let coincident = compute_separation(&entity, &[other], 1.0);
+        let entity = grounded_entry_idx(0.0, 0.0, 0.3, 0);
+        let other = grounded_entry_idx(0.0, 0.0, 0.3, 1);
+        let coincident = sep(&entity, &other, 1.0);
 
-        // Nearly coincident (epsilon apart, same radii).
         let near_entity = grounded_entry(0.0, 0.0, 0.3);
         let near_other = grounded_entry(0.001, 0.0, 0.3);
-        let near = compute_separation(&near_entity, &[near_other], 1.0);
+        let near = sep(&near_entity, &near_other, 1.0);
 
-        // Coincident penetration = 0.6 (full combined radius).
-        // Near penetration ≈ 0.599. Magnitudes should be very close.
         let ratio = coincident.length() / near.length();
         assert!(
             (ratio - 1.0).abs() < 0.01,
@@ -410,10 +450,10 @@ mod tests {
 
     #[test]
     fn coincident_fallback_clamped_by_max_step() {
-        let entity = grounded_entry(0.0, 0.0, 0.5);
-        let other = grounded_entry(0.0, 0.0, 0.5);
+        let entity = grounded_entry_idx(0.0, 0.0, 0.5, 0);
+        let other = grounded_entry_idx(0.0, 0.0, 0.5, 1);
         let tiny_max = 0.01;
-        let result = compute_separation(&entity, &[other], tiny_max);
+        let result = sep(&entity, &other, tiny_max);
         let len = result.length();
         assert!(
             len <= tiny_max + f32::EPSILON,
@@ -430,12 +470,12 @@ mod tests {
         let entity_light = grounded_entry(0.0, 0.0, 0.3);
         let mut other_heavy = grounded_entry(0.4, 0.0, 0.3);
         other_heavy.weight = 5.0;
-        let light_result = compute_separation(&entity_light, &[other_heavy], 1.0);
+        let light_result = sep(&entity_light, &other_heavy, 1.0);
 
         let mut entity_heavy = grounded_entry(0.0, 0.0, 0.3);
         entity_heavy.weight = 5.0;
         let other_light = grounded_entry(0.4, 0.0, 0.3);
-        let heavy_result = compute_separation(&entity_heavy, &[other_light], 1.0);
+        let heavy_result = sep(&entity_heavy, &other_light, 1.0);
 
         assert!(
             light_result.length() > heavy_result.length(),
@@ -454,11 +494,45 @@ mod tests {
         let entity = grounded_entry(0.0, 0.0, 0.5);
         let other = grounded_entry(0.1, 0.0, 0.5);
         let tiny_max = 0.01;
-        let result = compute_separation(&entity, &[other], tiny_max);
+        let result = sep(&entity, &other, tiny_max);
         let len = result.length();
         assert!(
             len <= tiny_max + f32::EPSILON,
             "expected clamped to {tiny_max}, got {len}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Separation — airborne Y-elevation
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn airborne_entity_above_grounded_skips_separation() {
+        let grounded = grounded_entry(3.5, 3.5, 0.3);
+        let mut airborne = grounded_entry(3.6, 3.5, 0.3);
+        // Elevated above body_height (0.8): Y range becomes 0.9..1.7,
+        // no overlap with grounded 0.0..0.8.
+        airborne.height_offset = 0.9;
+        airborne.mode = OccupancyMode::Airborne;
+        let result = sep(&grounded, &airborne, MAX_STEP);
+        assert_eq!(
+            result,
+            Vec2::ZERO,
+            "elevated airborne should skip separation"
+        );
+    }
+
+    #[test]
+    fn airborne_entity_partially_overlapping_still_separates() {
+        let grounded = grounded_entry(3.5, 3.5, 0.3);
+        let mut airborne = grounded_entry(3.6, 3.5, 0.3);
+        // Partially elevated: Y range 0.4..1.2, overlaps grounded 0.0..0.8 at 0.4..0.8.
+        airborne.height_offset = 0.4;
+        airborne.mode = OccupancyMode::Airborne;
+        let result = sep(&grounded, &airborne, MAX_STEP);
+        assert!(
+            result != Vec2::ZERO,
+            "partially overlapping airborne should still separate"
         );
     }
 

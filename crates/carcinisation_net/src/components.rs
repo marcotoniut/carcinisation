@@ -112,8 +112,13 @@ pub struct NetEnemy {
     /// animation detection. Defaults to 0.0 for backward compatibility.
     #[serde(default)]
     pub visual_height: f32,
-    /// Presentation-only normalized animation phase for enemies whose visual
-    /// height is non-monotonic, such as Spidey hops.
+    /// Presentation-only normalized animation phase (0.0–1.0).
+    ///
+    /// **Semantic overload**: during hop/lunge movement this is the arc phase
+    /// (t=0 start, t=0.5 midpoint, t=1.0 landing). During `Dying` /
+    /// `BurningCorpse` states the server repurposes this as death animation
+    /// progress (t=0 just died, t=1.0 animation complete). Clients should
+    /// check `state` before interpreting the value.
     #[serde(default)]
     pub visual_phase: f32,
 }
