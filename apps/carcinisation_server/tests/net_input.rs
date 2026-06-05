@@ -56,7 +56,6 @@ fn queue_forward(app: &mut App, seq: u32) {
             turn: 0.0,
             fire_held: false,
             aim_held: false,
-            aim_offset: 0.0,
             actions: PlayerActions::default(),
         });
 }
@@ -80,7 +79,6 @@ fn queue_turn_left(app: &mut App, seq: u32) {
             turn: 1.0,
             fire_held: false,
             aim_held: false,
-            aim_offset: 0.0,
             actions: PlayerActions::default(),
         });
 }

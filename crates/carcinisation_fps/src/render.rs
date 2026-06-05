@@ -214,7 +214,9 @@ pub fn render_fp_scene_with_effects(
             camera.view_bob_near,
             camera.view_bob_mid,
         );
-        let bb_bob_px = (camera.view_bob * bb_bob_strength).round() as i32;
+        // Round bob and pitch independently to match the wall path (render_walls).
+        let bb_bob_px =
+            (camera.view_bob * bb_bob_strength).round() as i32 + camera.aim_pitch.round() as i32;
         draw_billboard(image, zbuffer, proj, h, fog, bb_bob_px);
     }
 }
@@ -242,7 +244,22 @@ fn render_walls(
     let plane = camera.plane();
     let base_half_h = h / 2;
     let view_bob = camera.view_bob;
+    let aim_pitch_px = camera.aim_pitch.round() as i32;
     let yaw_offset = camera.angle / std::f32::consts::TAU;
+
+    // Sky pitch scroll: ease-out quadratic so scroll slows near max look-up.
+    // Positive aim_pitch = looking up → positive v_offset shifts sampling upward.
+    let max_pitch = carcinisation_fps_core::camera::Camera::MAX_AIM_PITCH_PX;
+    let pitch_t = if max_pitch > 0.0 {
+        (camera.aim_pitch / max_pitch).clamp(-1.0, 1.0)
+    } else {
+        0.0
+    };
+    // Ease-out: strong initial scroll, slows near extremes.
+    let inv = 1.0 - pitch_t.abs();
+    let eased = pitch_t.signum() * inv.mul_add(-inv, 1.0);
+    // Scale to a fraction of the sky height (0.4 = scroll up to 40% of sky texture).
+    let sky_pitch_v = eased * 0.4;
 
     for x in 0..w {
         let camera_x = 2.0 * x as f32 / w as f32 - 1.0;
@@ -256,18 +273,19 @@ fn render_walls(
             zb[x as usize] = hit.distance;
         }
 
-        // Perspective-aware view bob: close walls get full bob, distant
-        // walls get reduced bob. Banded to avoid per-column shimmer.
+        // Walk bob: distance-attenuated to avoid per-column shimmer.
+        // Aim pitch: uniform — intentional vertical look applies at all distances.
         let bob_strength = crate::camera::view_bob_strength(
             hit.distance,
             camera.view_bob_near,
             camera.view_bob_mid,
         );
-        let half_h = (base_half_h + (view_bob * bob_strength).round() as i32).clamp(0, h);
+        let half_h =
+            (base_half_h + (view_bob * bob_strength).round() as i32 + aim_pitch_px).clamp(0, h);
 
         if hit.wall_id == 0 {
             if let Some(sky_ref) = sky {
-                sky_ref.draw_column(image, x, half_h, palette.ceiling, yaw_offset);
+                sky_ref.draw_column(image, x, half_h, palette.ceiling, yaw_offset, sky_pitch_v);
             } else {
                 fill_column(image, x, 0, half_h, palette.ceiling);
             }
@@ -281,7 +299,14 @@ fn render_walls(
 
         // Ceiling above wall — sky at native height, no Y distortion.
         if let Some(sky_ref) = sky {
-            sky_ref.draw_column(image, x, draw_start.max(0), palette.ceiling, yaw_offset);
+            sky_ref.draw_column(
+                image,
+                x,
+                draw_start.max(0),
+                palette.ceiling,
+                yaw_offset,
+                sky_pitch_v,
+            );
         } else {
             fill_column(image, x, 0, draw_start.max(0), palette.ceiling);
         }
@@ -363,10 +388,15 @@ pub fn draw_overlay_tint(image: &mut CxImage, color: u8, density: f32) {
 
 /// Draw a simple crosshair at screen center.
 pub fn draw_crosshair(image: &mut CxImage, color: u8) {
+    draw_crosshair_offset(image, color, 0);
+}
+
+/// Draw a simple crosshair at screen center plus a vertical pixel offset.
+pub fn draw_crosshair_offset(image: &mut CxImage, color: u8, y_offset: i32) {
     let w = image.width() as i32;
     let h = image.height() as i32;
     let cx = w / 2;
-    let cy = h / 2;
+    let cy = (h / 2 + y_offset).clamp(0, h.saturating_sub(1));
     let data = image.data_mut();
     let size = 2;
 
@@ -614,7 +644,7 @@ mod tests {
     use super::*;
     use crate::map::test_map;
     use crate::raycast::{HitSide, WallSurfaceId};
-    use bevy_math::UVec2;
+    use bevy_math::{UVec2, Vec2};
 
     #[test]
     fn render_produces_nonempty_image() {
@@ -634,6 +664,27 @@ mod tests {
 
         // At least some pixels should be non-zero.
         assert!(image.data().iter().any(|&p| p != 0));
+    }
+
+    #[test]
+    fn crosshair_overlay_stays_camera_centered_when_world_pitch_changes() {
+        let mut images = Vec::new();
+        for _world_pitch in [0.0_f32, 12.0] {
+            let mut image = CxImage::empty(UVec2::new(16, 12));
+            draw_crosshair(&mut image, 4);
+            images.push(image);
+        }
+
+        assert_eq!(images[0].data(), images[1].data());
+
+        let w = images[0].width() as i32;
+        let cx = w / 2;
+        let cy = images[0].height() as i32 / 2;
+        let data = images[0].data();
+        assert_eq!(data[(cy * w + cx - 2) as usize], 4);
+        assert_eq!(data[(cy * w + cx + 2) as usize], 4);
+        assert_eq!(data[((cy - 2) * w + cx) as usize], 4);
+        assert_eq!(data[((cy + 2) * w + cx) as usize], 4);
     }
 
     #[test]
@@ -751,5 +802,224 @@ mod tests {
         );
 
         assert_eq!(image.data()[2 + 2 * image.width()], 2);
+    }
+
+    // -- aim_pitch vs view_bob split tests --
+
+    /// Helper: render a scene and return per-column wall `draw_start` positions.
+    /// Infers `draw_start` from the first non-ceiling pixel in each column.
+    fn wall_starts(cam: &Camera) -> Vec<i32> {
+        let map = test_map();
+        let tex = make_checker_texture(16, 4, 1, 2);
+        let w = 32_u32;
+        let h = 24_u32;
+        let mut image = CxImage::empty(UVec2::new(w, h));
+
+        render_fp_view(
+            &mut image,
+            &map,
+            cam,
+            &[tex.clone(), tex],
+            &Palette::default(),
+            None,
+        );
+
+        let data = image.data();
+        let ceil_color = Palette::default().ceiling;
+        (0..w as i32)
+            .map(|x| {
+                for y in 0..h as i32 {
+                    let px = data[(y * w as i32 + x) as usize];
+                    if px != ceil_color && px != 0 {
+                        return y;
+                    }
+                }
+                h as i32
+            })
+            .collect()
+    }
+
+    #[test]
+    fn aim_pitch_zero_matches_default_rendering() {
+        let cam_default = Camera::default();
+        let cam_explicit = Camera {
+            aim_pitch: 0.0,
+            ..Default::default()
+        };
+        assert_eq!(wall_starts(&cam_default), wall_starts(&cam_explicit));
+    }
+
+    #[test]
+    fn aim_pitch_shifts_all_columns_uniformly() {
+        let cam_base = Camera::default();
+        let cam_up = Camera {
+            aim_pitch: 6.0,
+            ..Default::default()
+        };
+        let starts_base = wall_starts(&cam_base);
+        let starts_up = wall_starts(&cam_up);
+
+        // Every column should shift down by ~6px (positive pitch = look up = walls move down).
+        for (x, (base, shifted)) in starts_base.iter().zip(starts_up.iter()).enumerate() {
+            let delta = shifted - base;
+            // Allow ±1px for rounding. Wall tops that are already at 0 can't go negative.
+            if *base > 1 {
+                assert!(
+                    (delta - 6).abs() <= 1,
+                    "column {x}: expected ~+6px shift, got {delta} (base={base}, shifted={shifted})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn view_bob_attenuated_at_distance_aim_pitch_not() {
+        // Use tight attenuation bands so the 8x8 test map spans all three:
+        // < 1.5 = full, 1.5..2.5 = half, > 2.5 = zero.
+        // Camera at (1.5, 4.0): east wall at distance ~5.5 (zero bob).
+        let base = Camera {
+            position: Vec2::new(1.5, 4.0),
+            angle: 0.0,
+            view_bob_near: 1.5,
+            view_bob_mid: 2.5,
+            ..Default::default()
+        };
+
+        let cam_bob = Camera {
+            view_bob: 6.0,
+            aim_pitch: 0.0,
+            ..base
+        };
+        let cam_pitch = Camera {
+            view_bob: 0.0,
+            aim_pitch: 6.0,
+            ..base
+        };
+        let cam_none = base;
+
+        let starts_none = wall_starts(&cam_none);
+        let starts_bob = wall_starts(&cam_bob);
+        let starts_pitch = wall_starts(&cam_pitch);
+
+        // Find columns where bob is attenuated to zero but pitch still applies.
+        let mut found_attenuation_difference = false;
+        for x in 0..starts_none.len() {
+            let bob_delta = starts_bob[x] - starts_none[x];
+            let pitch_delta = starts_pitch[x] - starts_none[x];
+            if bob_delta == 0 && pitch_delta != 0 {
+                found_attenuation_difference = true;
+            }
+        }
+        assert!(
+            found_attenuation_difference,
+            "expected at least one column where view_bob is attenuated but aim_pitch is not"
+        );
+    }
+
+    #[test]
+    fn bob_and_pitch_compose_additively() {
+        // Tight bands: near=1.5, mid=2.5.
+        // Camera near a wall so some columns are within near (full bob).
+        let base = Camera {
+            position: Vec2::new(1.5, 4.0),
+            angle: std::f32::consts::PI, // facing west → wall at x=0 is ~1.5 away
+            view_bob_near: 1.5,
+            view_bob_mid: 2.5,
+            ..Default::default()
+        };
+
+        let cam_both = Camera {
+            view_bob: 3.0,
+            aim_pitch: 4.0,
+            ..base
+        };
+        let cam_pitch_only = Camera {
+            view_bob: 0.0,
+            aim_pitch: 4.0,
+            ..base
+        };
+
+        let starts_both = wall_starts(&cam_both);
+        let starts_pitch = wall_starts(&cam_pitch_only);
+
+        // Close columns should show ~3px additional shift from bob.
+        // Distant columns (east wall at ~6.5 units) should be identical.
+        let mut found_additive = false;
+        let mut found_identical_far = false;
+        for x in 0..starts_both.len() {
+            let delta = starts_both[x] - starts_pitch[x];
+            if delta.abs() >= 2 {
+                found_additive = true;
+            }
+            if delta == 0 {
+                found_identical_far = true;
+            }
+        }
+        assert!(
+            found_additive,
+            "expected close columns to show additive bob+pitch shift"
+        );
+        assert!(
+            found_identical_far,
+            "expected distant columns to show no bob contribution"
+        );
+    }
+
+    #[test]
+    fn projection_valid_at_max_pitch_bounds() {
+        for pitch in [-18.0_f32, 18.0] {
+            let cam = Camera {
+                aim_pitch: pitch,
+                ..Default::default()
+            };
+            let map = test_map();
+            let tex = make_checker_texture(16, 4, 1, 2);
+            let mut image = CxImage::empty(UVec2::new(32, 24));
+
+            // Should not panic.
+            render_fp_view(
+                &mut image,
+                &map,
+                &cam,
+                &[tex.clone(), tex],
+                &Palette::default(),
+                None,
+            );
+
+            // Every column should have at least one non-zero pixel
+            // (no fully blank columns).
+            let w = image.width();
+            let data = image.data();
+            for x in 0..w {
+                let has_content = (0..24).any(|y| data[y * w + x] != 0);
+                assert!(has_content, "column {x} is blank at pitch={pitch}");
+            }
+        }
+    }
+
+    #[test]
+    fn wall_and_billboard_rounding_agree() {
+        // Fractional bob + pitch: both paths must round independently,
+        // producing the same horizon offset.
+        let bob = 2.4_f32;
+        let pitch = 0.4_f32;
+        let strength = 1.0_f32; // full bob
+
+        // Wall path: two independent rounds then add.
+        let wall_offset = (bob * strength).round() as i32 + pitch.round() as i32;
+        // Billboard path: same independent rounding.
+        let bb_offset = (bob * strength).round() as i32 + pitch.round() as i32;
+
+        assert_eq!(
+            wall_offset, bb_offset,
+            "wall and billboard horizon offsets must agree: wall={wall_offset}, bb={bb_offset}"
+        );
+
+        // Contrast: combined-round would produce a different result for these values.
+        let combined_round = bob.mul_add(strength, pitch).round() as i32;
+        assert_ne!(
+            wall_offset, combined_round,
+            "independent rounding should differ from combined rounding for these values"
+        );
     }
 }

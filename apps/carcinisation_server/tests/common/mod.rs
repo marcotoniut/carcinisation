@@ -449,8 +449,19 @@ pub fn force_player_attack(server: &mut App, pid: u32, attack: NetAttackId) {
 }
 
 /// Inject a fire-held intent for the given player into the server's intent buffer.
+/// Sets `aim_held: true` so fire works in both Legacy and `AimCommitment` modes.
 pub fn inject_fire(server: &mut App, pid: u32) {
-    inject_intent(server, pid, Vec2::ZERO, true);
+    server.world_mut().resource_mut::<PlayerIntentBuffer>().set(
+        PlayerId(pid),
+        &ClientIntent {
+            sequence: InputSequence(0),
+            movement: Vec2::ZERO,
+            turn: 0.0,
+            fire_held: true,
+            aim_held: true,
+            actions: PlayerActions::default(),
+        },
+    );
 }
 
 /// Inject an intent with arbitrary movement and fire state.
@@ -463,7 +474,6 @@ pub fn inject_intent(server: &mut App, pid: u32, movement: Vec2, fire_held: bool
             turn: 0.0,
             fire_held,
             aim_held: false,
-            aim_offset: 0.0,
             actions: PlayerActions::default(),
         },
     );

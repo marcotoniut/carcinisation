@@ -6,6 +6,7 @@ use bevy_math::Vec2;
 
 use crate::burning::BurnState;
 use crate::camera::Camera;
+use crate::combat::{FirePose2d, wall_obstruction_distance_for_pose};
 use crate::fire_death::{DamageKind, corpse_seed};
 use crate::map::Map;
 use crate::raycast::{cast_ray, has_line_of_sight};
@@ -617,10 +618,19 @@ pub fn hitscan_generic(
     map: &Map,
     targets: impl Iterator<Item = (Vec2, f32, bool)>,
 ) -> Option<(usize, f32)> {
-    let dir = camera.direction();
-    let origin = camera.position;
-    let wall_hit = cast_ray(map, origin, dir);
-    let max_dist = wall_hit.distance;
+    hitscan_generic_from_pose(FirePose2d::from(camera), map, targets)
+}
+
+/// Generic hitscan ray-circle intersection from a shared 2D fire pose.
+#[must_use]
+pub fn hitscan_generic_from_pose(
+    pose: FirePose2d,
+    map: &Map,
+    targets: impl Iterator<Item = (Vec2, f32, bool)>,
+) -> Option<(usize, f32)> {
+    let dir = pose.direction();
+    let origin = pose.origin_xy;
+    let max_dist = wall_obstruction_distance_for_pose(map, pose, f32::MAX);
 
     let mut closest: Option<(usize, f32)> = None;
 
@@ -653,10 +663,16 @@ pub fn hitscan_generic(
 /// hit that is nearer than the first wall.
 #[must_use]
 pub fn hitscan(camera: &Camera, enemies: &[Enemy], map: &Map) -> HitscanResult {
-    let max_dist = cast_ray(map, camera.position, camera.direction()).distance;
+    hitscan_from_pose(FirePose2d::from(camera), enemies, map)
+}
 
-    match hitscan_generic(
-        camera,
+/// Fire a hitscan ray from a shared 2D fire pose and check for enemy hits.
+#[must_use]
+pub fn hitscan_from_pose(pose: FirePose2d, enemies: &[Enemy], map: &Map) -> HitscanResult {
+    let max_dist = wall_obstruction_distance_for_pose(map, pose, f32::MAX);
+
+    match hitscan_generic_from_pose(
+        pose,
         map,
         enemies.iter().map(|e| (e.position, e.radius, e.is_alive())),
     ) {
@@ -988,10 +1004,19 @@ pub fn hitscan_projectiles(
     projectiles: &[Projectile],
     map: &Map,
 ) -> Option<(usize, f32)> {
-    let dir = camera.direction();
-    let origin = camera.position;
-    let wall_hit = cast_ray(map, origin, dir);
-    let max_dist = wall_hit.distance;
+    hitscan_projectiles_from_pose(FirePose2d::from(camera), projectiles, map)
+}
+
+/// Hitscan against active projectiles from a shared 2D fire pose.
+#[must_use]
+pub fn hitscan_projectiles_from_pose(
+    pose: FirePose2d,
+    projectiles: &[Projectile],
+    map: &Map,
+) -> Option<(usize, f32)> {
+    let dir = pose.direction();
+    let origin = pose.origin_xy;
+    let max_dist = wall_obstruction_distance_for_pose(map, pose, f32::MAX);
 
     let mut closest: Option<(usize, f32)> = None;
     for (idx, projectile) in projectiles.iter().enumerate() {

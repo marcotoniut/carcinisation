@@ -192,6 +192,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
     }
 
     // Inject fire_held for both players.
+    // aim_held=true so fire works in both Legacy and AimCommitment modes.
     {
         let mut buf = server.world_mut().resource_mut::<PlayerIntentBuffer>();
         for pid in [1u32, 2] {
@@ -202,8 +203,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
                     movement: Vec2::ZERO,
                     turn: 0.0,
                     fire_held: true,
-                    aim_held: false,
-                    aim_offset: 0.0,
+                    aim_held: true,
                     actions: PlayerActions::default(),
                 },
             );

@@ -75,8 +75,8 @@
 
 use bevy::prelude::*;
 use carcinisation_fps::plugin::{MapRes, PlayerDead};
-use carcinisation_fps_core::FpsMovementConfig;
 use carcinisation_fps_core::movement::{snap_turn_params, tick_snap_turn};
+use carcinisation_fps_core::{FpsCombatConfig, FpsMovementConfig};
 use carcinisation_net::prediction::{
     ClientMap, PredictedInput, PredictionEntry, PredictionHistory, PredictionSnapshot,
 };
@@ -175,9 +175,6 @@ pub struct PredictedPlayerState {
     pub impulse_remaining: f32,
     /// Push impulse total duration (seconds).
     pub impulse_duration: f32,
-    /// Authoritative aim offset from server (radians). Reconciled from `InputAck`.
-    /// Used to sync client reticle with server-clamped value.
-    pub aim_offset: f32,
     /// Set to `true` once initialised from the first replicated `NetPlayer`.
     pub initialised: bool,
 }
@@ -197,7 +194,6 @@ impl Default for PredictedPlayerState {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
-            aim_offset: 0.0,
             initialised: false,
         }
     }
@@ -379,7 +375,6 @@ pub fn init_predicted_state(
     predicted.impulse_strength = 0.0;
     predicted.impulse_remaining = 0.0;
     predicted.impulse_duration = 0.0;
-    predicted.aim_offset = 0.0;
     predicted.initialised = true;
     render_state.seed(local_np.position, local_np.angle);
     info!(
@@ -423,6 +418,7 @@ pub fn apply_predicted_movement(
     enabled: Res<PredictionEnabled>,
     client_map: Option<Res<ClientMap>>,
     movement_config: Option<Res<FpsMovementConfig>>,
+    combat_config: Option<Res<FpsCombatConfig>>,
     player_dead: Option<Res<PlayerDead>>,
     fixed_time: Res<Time<Fixed>>,
     mut stale: ResMut<StaleInput>,
@@ -434,7 +430,9 @@ pub fn apply_predicted_movement(
     }
 
     // Cannot predict without collision map or config.
-    let (Some(client_map), Some(movement_config)) = (client_map, movement_config) else {
+    let (Some(client_map), Some(movement_config), Some(combat_config)) =
+        (client_map, movement_config, combat_config)
+    else {
         return;
     };
 
@@ -492,7 +490,6 @@ pub fn apply_predicted_movement(
             turn,
             snap_turn: None, // edge-triggered actions never repeat
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         let stale_state = &mut *predicted;
@@ -504,6 +501,7 @@ pub fn apply_predicted_movement(
             movement_config.turn_speed,
             movement_config.collision_margin,
             movement_config.quick_turn_duration_secs,
+            combat_config.aim_turn_speed,
             dt,
         );
 
@@ -568,6 +566,7 @@ pub fn apply_predicted_movement(
         movement_config.turn_speed,
         movement_config.collision_margin,
         movement_config.quick_turn_duration_secs,
+        combat_config.aim_turn_speed,
         dt,
     );
 
@@ -641,6 +640,7 @@ pub fn handle_input_ack(
     mut diag: ResMut<PredictionDiagnostics>,
     client_map: Option<Res<ClientMap>>,
     movement_config: Option<Res<FpsMovementConfig>>,
+    combat_config: Option<Res<FpsCombatConfig>>,
 ) {
     let ack = trigger.event();
 
@@ -675,11 +675,13 @@ pub fn handle_input_ack(
     predicted.impulse_strength = ack.impulse_strength;
     predicted.impulse_remaining = ack.impulse_remaining;
     predicted.impulse_duration = ack.impulse_duration;
-    predicted.aim_offset = ack.aim_offset;
 
     // 3. Replay remaining unacked inputs.
     let Some(client_map) = client_map else { return };
     let Some(cfg) = movement_config else { return };
+    let Some(combat_cfg) = combat_config else {
+        return;
+    };
 
     // Collect entries to avoid borrow conflict (prune already done).
     let entries: Vec<_> = history.iter_all().cloned().collect();
@@ -693,6 +695,7 @@ pub fn handle_input_ack(
             cfg.turn_speed,
             cfg.collision_margin,
             cfg.quick_turn_duration_secs,
+            combat_cfg.aim_turn_speed,
             entry.dt,
         );
     }
@@ -724,14 +727,14 @@ pub fn apply_prediction_tick(
     turn_speed: f32,
     collision_margin: f32,
     quick_turn_duration_secs: f32,
+    aim_turn_speed: f32,
     dt: f32,
 ) -> bool {
     if !state.initialised {
         return false;
     }
 
-    // AimCommitment: body locked while aiming — skip movement and turn.
-    // Snap turn and impulse still tick (they're server-authoritative forces).
+    // AimCommitment: feet locked while aiming — suppress translation, allow turn.
     let aim_suppressed = input.aim_held;
 
     // Snap turn.
@@ -753,9 +756,15 @@ pub fn apply_prediction_tick(
         dt,
     );
 
-    // Continuous turn (suppressed while aiming).
-    if !aim_suppressed && state.snap_remaining_radians <= 0.0 && input.turn != 0.0 {
-        state.angle += input.turn * turn_speed * dt;
+    // Continuous turn (allowed while aiming — body rotates, feet stay).
+    // AimMode uses configurable aim_turn_speed for steadier aiming.
+    if state.snap_remaining_radians <= 0.0 && input.turn != 0.0 {
+        let effective_turn_speed = if aim_suppressed {
+            aim_turn_speed
+        } else {
+            turn_speed
+        };
+        state.angle += input.turn * effective_turn_speed * dt;
         state.angle = state.angle.rem_euclid(std::f32::consts::TAU);
     }
 
@@ -868,7 +877,6 @@ mod tests {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
-            aim_offset: 0.0,
             initialised: true,
         }
     }
@@ -887,11 +895,10 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         let before_x = state.position.x;
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         assert!(state.position.x > before_x, "should move east");
     }
@@ -906,11 +913,10 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         let before = state.position;
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         assert_eq!(state.position, before);
         assert!((state.angle - 0.0).abs() < 1e-6);
@@ -926,10 +932,10 @@ mod tests {
             turn: 1.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
-        let applied = apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        let applied =
+            apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         assert!(!applied);
         assert_eq!(state.position, Vec2::ZERO);
@@ -947,10 +953,9 @@ mod tests {
             turn: 1.0, // turn left
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         assert!(state.angle > 0.0, "angle should increase for left turn");
     }
@@ -965,10 +970,9 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::QuickTurn),
             aim_held: false,
-            aim_offset: 0.0,
         };
 
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         // Quick turn is 180° — after one tick the angle should have shifted.
         assert!(state.angle.abs() > 0.01, "snap turn should rotate angle");
@@ -986,9 +990,18 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::Left),
             aim_held: false,
-            aim_offset: 0.0,
         };
-        apply_prediction_tick(&mut state, &snap_input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut state,
+            &snap_input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
 
         let angle_after_snap_start = state.angle;
         assert!(state.snap_remaining_radians > 0.0, "snap should be active");
@@ -999,9 +1012,18 @@ mod tests {
             turn: -1.0, // try to turn right
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
-        apply_prediction_tick(&mut state, &turn_input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut state,
+            &turn_input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
 
         // The angle should only have changed from the snap turn continuation,
         // not from the continuous turn input.
@@ -1027,12 +1049,11 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Apply many ticks — position should not pass through the wall.
         for _ in 0..100 {
-            apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, qtd, DT);
+            apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, qtd, 3.5, DT);
         }
 
         assert!(
@@ -1055,7 +1076,6 @@ mod tests {
                 turn: 0.0,
                 snap_turn: None,
                 aim_held: false,
-                aim_offset: 0.0,
             },
             result: PredictionSnapshot {
                 position: Vec2::new(2.5, 2.5),
@@ -1092,11 +1112,10 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         let seq = InputSequence(42);
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
         history.push(PredictionEntry {
             sequence: seq,
             input: input.clone(),
@@ -1128,9 +1147,8 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         // Direct apply_movement (what the server does).
         let mut server_pos = start;
@@ -1166,20 +1184,19 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // -- Ground truth: apply all 5 inputs from scratch --
         let mut truth = state_at(start.x, start.y, start_angle);
         for _ in 0..5 {
-            apply_prediction_tick(&mut truth, &input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut truth, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // -- Client path: apply 5 inputs, record history --
         let mut client = state_at(start.x, start.y, start_angle);
         let mut history = PredictionHistory::default();
         for seq in 1..=5u32 {
-            apply_prediction_tick(&mut client, &input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut client, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
             history.push(PredictionEntry {
                 sequence: InputSequence(seq),
                 input: input.clone(),
@@ -1194,7 +1211,17 @@ mod tests {
         // -- Simulate ack at seq=3: compute server state after 3 inputs --
         let mut server_at_3 = state_at(start.x, start.y, start_angle);
         for _ in 0..3 {
-            apply_prediction_tick(&mut server_at_3, &input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(
+                &mut server_at_3,
+                &input,
+                &map,
+                spd,
+                tspd,
+                margin,
+                qtd,
+                3.5,
+                DT,
+            );
         }
 
         // 1. Prune through acked sequence.
@@ -1218,6 +1245,7 @@ mod tests {
                 tspd,
                 margin,
                 qtd,
+                3.5,
                 entry.dt,
             );
         }
@@ -1252,18 +1280,27 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Ground truth: apply all 3 from scratch.
         let mut truth = state_at(2.5, 2.5, 0.0);
         for &dt in &dts {
-            apply_prediction_tick(&mut truth, &input, &map, spd, tspd, margin, qtd, dt);
+            apply_prediction_tick(&mut truth, &input, &map, spd, tspd, margin, qtd, 3.5, dt);
         }
 
         // Reconciled: ack at entry 1, replay entries 2+3.
         let mut ack_state = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut ack_state, &input, &map, spd, tspd, margin, qtd, dts[0]);
+        apply_prediction_tick(
+            &mut ack_state,
+            &input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            dts[0],
+        );
         // ack_state is now the server position after entry 1.
 
         let mut reconciled = PredictedPlayerState {
@@ -1279,13 +1316,22 @@ mod tests {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
-            aim_offset: 0.0,
             initialised: true,
         };
 
         // Replay entries 2+3 with their stored dt.
         for &dt in &dts[1..] {
-            apply_prediction_tick(&mut reconciled, &input, &map, spd, tspd, margin, qtd, dt);
+            apply_prediction_tick(
+                &mut reconciled,
+                &input,
+                &map,
+                spd,
+                tspd,
+                margin,
+                qtd,
+                3.5,
+                dt,
+            );
         }
 
         assert!(
@@ -1312,19 +1358,28 @@ mod tests {
                     None
                 },
                 aim_held: false,
-                aim_offset: 0.0,
             })
             .collect();
 
         // Ground truth: apply all 5.
         let mut truth = state_at(2.5, 2.5, 0.0);
         for input in &inputs {
-            apply_prediction_tick(&mut truth, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut truth, input, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Ack after entry 1 (before snap turn starts).
         let mut ack_state = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut ack_state, &inputs[0], &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut ack_state,
+            &inputs[0],
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
 
         // Reconcile: reset to ack, replay entries 2..5.
         let mut reconciled = PredictedPlayerState {
@@ -1340,11 +1395,20 @@ mod tests {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
-            aim_offset: 0.0,
             initialised: true,
         };
         for input in &inputs[1..] {
-            apply_prediction_tick(&mut reconciled, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(
+                &mut reconciled,
+                input,
+                &map,
+                spd,
+                tspd,
+                margin,
+                qtd,
+                3.5,
+                DT,
+            );
         }
 
         assert!(
@@ -1379,27 +1443,26 @@ mod tests {
                     None
                 },
                 aim_held: false,
-                aim_offset: 0.0,
             })
             .collect();
 
         // Ground truth.
         let mut truth = state_at(2.5, 2.5, 0.0);
         for input in &inputs {
-            apply_prediction_tick(&mut truth, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut truth, input, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Server state at ack (includes snap progress through ack_seq).
         let mut server = state_at(2.5, 2.5, 0.0);
         for input in &inputs[..ack_seq as usize] {
-            apply_prediction_tick(&mut server, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, input, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Production reconciliation: restore snap state from server ack.
         let mut history = PredictionHistory::default();
         let mut s = state_at(2.5, 2.5, 0.0);
         for (i, input) in inputs.iter().enumerate() {
-            apply_prediction_tick(&mut s, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut s, input, &map, spd, tspd, margin, qtd, 3.5, DT);
             history.push(PredictionEntry {
                 sequence: InputSequence(i as u32 + 1),
                 input: input.clone(),
@@ -1425,7 +1488,6 @@ mod tests {
             impulse_strength: server.impulse_strength,
             impulse_remaining: server.impulse_remaining,
             impulse_duration: server.impulse_duration,
-            aim_offset: server.aim_offset,
             initialised: true,
         };
         let entries: Vec<_> = history.iter_all().cloned().collect();
@@ -1438,6 +1500,7 @@ mod tests {
                 tspd,
                 margin,
                 qtd,
+                3.5,
                 entry.dt,
             );
         }
@@ -1560,7 +1623,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: Some(SnapTurnKind::QuickTurn),
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
             (
@@ -1570,7 +1632,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
         ];
@@ -1597,7 +1658,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: Some(SnapTurnKind::Left),
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
             (
@@ -1607,7 +1667,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: Some(SnapTurnKind::Right),
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
         ];
@@ -1628,7 +1687,6 @@ mod tests {
                 turn: 0.5,
                 snap_turn: Some(SnapTurnKind::QuickTurn),
                 aim_held: false,
-                aim_offset: 0.0,
             },
         )];
 
@@ -1648,7 +1706,6 @@ mod tests {
                     turn: 1.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
             (
@@ -1658,7 +1715,6 @@ mod tests {
                     turn: -1.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
         ];
@@ -1678,7 +1734,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: Some(SnapTurnKind::Left),
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
             (
@@ -1688,7 +1743,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
             (
@@ -1698,7 +1752,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
         ];
@@ -1727,7 +1780,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
             (
@@ -1737,7 +1789,6 @@ mod tests {
                     turn: 0.0,
                     snap_turn: None,
                     aim_held: false,
-                    aim_offset: 0.0,
                 },
             ),
         ]);
@@ -1750,7 +1801,7 @@ mod tests {
             // Would normally apply prediction tick here.
             let (_, input) = pending.0.pop().unwrap();
             pending.0.clear();
-            apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
             history.push(PredictionEntry {
                 sequence: InputSequence(2),
                 input,
@@ -1902,16 +1953,15 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // --- Server path: apply seq=1 then stale_ticks more with same data ---
         let mut server = state_at(start.x, start.y, 0.0);
         // Tick 1: apply seq=1's input.
-        apply_prediction_tick(&mut server, &forward, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut server, &forward, &map, spd, tspd, margin, qtd, 3.5, DT);
         // Stale ticks: server reapplies same movement data.
         for _ in 0..stale_ticks {
-            apply_prediction_tick(&mut server, &forward, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, &forward, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // --- Client path: apply seq=1, optionally apply stale ticks ---
@@ -1919,7 +1969,7 @@ mod tests {
         let mut history = PredictionHistory::default();
 
         // Apply seq=1.
-        apply_prediction_tick(&mut client, &forward, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut client, &forward, &map, spd, tspd, margin, qtd, 3.5, DT);
         history.push(PredictionEntry {
             sequence: InputSequence(1),
             input: forward.clone(),
@@ -1933,7 +1983,7 @@ mod tests {
         // Stale ticks on client (if enabled).
         if apply_stale_on_client {
             for _ in 0..stale_ticks {
-                apply_prediction_tick(&mut client, &forward, &map, spd, tspd, margin, qtd, DT);
+                apply_prediction_tick(&mut client, &forward, &map, spd, tspd, margin, qtd, 3.5, DT);
                 // Stale ticks are NOT stored in history (server doesn't
                 // advance sequence, so ack prune will handle them).
             }
@@ -1997,31 +2047,49 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::QuickTurn),
             aim_held: false,
-            aim_offset: 0.0,
         };
         let idle = PredictedInput {
             movement: Vec2::ZERO,
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Server: apply snap (tick 1), then 3 stale ticks (idle, snap continues).
         let mut server = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut server, &snap_input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut server,
+            &snap_input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
         for _ in 0..3 {
-            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Client: apply snap (tick 1), then 3 stale ticks.
         let mut client = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut client, &snap_input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut client,
+            &snap_input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
         for _ in 0..3 {
             // Stale input: movement=ZERO, turn=0, no snap_turn.
             // tick_snap_turn still advances the snap because
             // snap_remaining_radians > 0.
-            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Both should have the same angle (4 ticks of snap turn).
@@ -2048,21 +2116,29 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::QuickTurn),
             aim_held: false,
-            aim_offset: 0.0,
         };
         let idle = PredictedInput {
             movement: Vec2::ZERO,
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Server: apply snap (tick 1), then 11 idle ticks (snap completes at ~12).
         let mut server = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut server, &snap_input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut server,
+            &snap_input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
         for _ in 0..11 {
-            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
         assert!(
             server.snap_remaining_radians <= 0.0,
@@ -2074,9 +2150,19 @@ mod tests {
         // would have stale.age_ticks >= 5 after 5 idle ticks, but snap
         // should continue because snap_remaining > 0.
         let mut client = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut client, &snap_input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut client,
+            &snap_input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
         for _ in 0..11 {
-            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
         assert!(
             client.snap_remaining_radians <= 0.0,
@@ -2112,14 +2198,12 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::QuickTurn),
             aim_held: false,
-            aim_offset: 0.0,
         };
         let idle = PredictedInput {
             movement: Vec2::ZERO,
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Build full sequence: snap at tick 1, idle for 13 more ticks.
@@ -2131,7 +2215,7 @@ mod tests {
         let mut server = state_at(2.5, 2.5, 0.0);
         let mut server_states = Vec::new();
         for input in &inputs {
-            apply_prediction_tick(&mut server, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, input, &map, spd, tspd, margin, qtd, 3.5, DT);
             server_states.push((server.angle, server.snap_remaining_radians));
         }
 
@@ -2139,7 +2223,17 @@ mod tests {
         let mut client = state_at(2.5, 2.5, 0.0);
         let mut history = PredictionHistory::default();
         // Only tick 1 and 2 have real sequences; rest are stale.
-        apply_prediction_tick(&mut client, &inputs[0], &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut client,
+            &inputs[0],
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
         history.push(PredictionEntry {
             sequence: InputSequence(1),
             input: inputs[0].clone(),
@@ -2149,7 +2243,17 @@ mod tests {
             },
             dt: DT,
         });
-        apply_prediction_tick(&mut client, &inputs[1], &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut client,
+            &inputs[1],
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
         history.push(PredictionEntry {
             sequence: InputSequence(2),
             input: inputs[1].clone(),
@@ -2161,7 +2265,7 @@ mod tests {
         });
         // Ticks 3-14: stale (no history entries, just advance prediction).
         for input in &inputs[2..] {
-            apply_prediction_tick(&mut client, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut client, input, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Simulate ack arriving at tick 8 (mid-snap, seq=2).
@@ -2170,7 +2274,7 @@ mod tests {
 
         let mut h2 = PredictionHistory::default();
         let mut s2 = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut s2, &inputs[0], &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut s2, &inputs[0], &map, spd, tspd, margin, qtd, 3.5, DT);
         h2.push(PredictionEntry {
             sequence: InputSequence(1),
             input: inputs[0].clone(),
@@ -2180,7 +2284,7 @@ mod tests {
             },
             dt: DT,
         });
-        apply_prediction_tick(&mut s2, &inputs[1], &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut s2, &inputs[1], &map, spd, tspd, margin, qtd, 3.5, DT);
         h2.push(PredictionEntry {
             sequence: InputSequence(2),
             input: inputs[1].clone(),
@@ -2206,13 +2310,22 @@ mod tests {
             impulse_strength: server.impulse_strength,
             impulse_remaining: server.impulse_remaining,
             impulse_duration: server.impulse_duration,
-            aim_offset: server.aim_offset,
             initialised: true,
         };
         // No history entries to replay (pruned through seq=2).
         // Continue stale prediction for remaining ticks (9-14 = 6 more ticks).
         for input in &inputs[8..] {
-            apply_prediction_tick(&mut reconciled, input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(
+                &mut reconciled,
+                input,
+                &map,
+                spd,
+                tspd,
+                margin,
+                qtd,
+                3.5,
+                DT,
+            );
         }
 
         // Final angle should match server.
@@ -2238,20 +2351,18 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::QuickTurn),
             aim_held: false,
-            aim_offset: 0.0,
         };
         let idle = PredictedInput {
             movement: Vec2::ZERO,
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // First QuickTurn: run to completion.
-        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         for _ in 0..15 {
-            apply_prediction_tick(&mut state, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut state, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
         assert!(
             state.snap_remaining_radians <= 0.0,
@@ -2264,13 +2375,13 @@ mod tests {
         );
 
         // Second QuickTurn: should be accepted (first is done).
-        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         assert!(
             state.snap_remaining_radians > 0.0,
             "second snap should start"
         );
         for _ in 0..15 {
-            apply_prediction_tick(&mut state, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut state, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
         assert!(
             state.snap_remaining_radians <= 0.0,
@@ -2298,16 +2409,15 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::QuickTurn),
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Start first snap.
-        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         let remaining_after_first = state.snap_remaining_radians;
         assert!(remaining_after_first > 0.0);
 
         // Try second snap while first is active — should be rejected.
-        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         // snap_remaining should have DECREASED (ticked), not reset to PI.
         assert!(
             state.snap_remaining_radians < remaining_after_first,
@@ -2327,28 +2437,26 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::Left),
             aim_held: false,
-            aim_offset: 0.0,
         };
         let idle = PredictedInput {
             movement: Vec2::ZERO,
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Server: snap + 8 idle (more than STALE_INPUT_TICKS=5).
         let mut server = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut server, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut server, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         for _ in 0..8 {
-            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         // Client: same sequence.
         let mut client = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut client, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut client, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         for _ in 0..8 {
-            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         assert!(
@@ -2385,26 +2493,24 @@ mod tests {
             turn: 0.0,
             snap_turn: Some(SnapTurnKind::Right),
             aim_held: false,
-            aim_offset: 0.0,
         };
         let idle = PredictedInput {
             movement: Vec2::ZERO,
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         let mut server = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut server, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut server, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         for _ in 0..8 {
-            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut server, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         let mut client = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut client, &snap, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut client, &snap, &map, spd, tspd, margin, qtd, 3.5, DT);
         for _ in 0..8 {
-            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut client, &idle, &map, spd, tspd, margin, qtd, 3.5, DT);
         }
 
         let drift = shortest_angle_delta(client.angle, server.angle).abs();
@@ -2441,7 +2547,6 @@ mod tests {
                 turn: 0.3,
                 snap_turn: None,
                 aim_held: false,
-                aim_offset: 0.0,
             },
             result: PredictionSnapshot {
                 position: Vec2::new(2.5, 2.5),
@@ -2504,11 +2609,10 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         for i in 1..=10u32 {
-            apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+            apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
             history.push(PredictionEntry {
                 sequence: InputSequence(i),
                 input: input.clone(),
@@ -2538,6 +2642,7 @@ mod tests {
                 tspd,
                 margin,
                 qtd,
+                3.5,
                 DT,
             );
         }
@@ -2558,7 +2663,6 @@ mod tests {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
-            aim_offset: 0.0,
             initialised: true,
         };
         for entry in history.iter_all() {
@@ -2570,6 +2674,7 @@ mod tests {
                 tspd,
                 margin,
                 qtd,
+                3.5,
                 entry.dt,
             );
         }
@@ -2614,7 +2719,6 @@ mod tests {
             impulse_strength: 0.0,
             impulse_remaining: 0.0,
             impulse_duration: 0.0,
-            aim_offset: 0.0,
             initialised: true,
         };
         for entry in history.iter_all() {
@@ -2626,6 +2730,7 @@ mod tests {
                 tspd,
                 margin,
                 qtd,
+                3.5,
                 entry.dt,
             );
         }
@@ -2658,15 +2763,14 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
-        apply_prediction_tick(&mut full, &input, &map, spd, 2.0, margin, 0.4, DT);
+        apply_prediction_tick(&mut full, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
 
         // With modifier: 70% speed.
         let mut slowed = state_at(2.5, 2.5, 0.0);
         slowed.speed_modifier_multiplier = 0.7;
         slowed.speed_modifier_remaining = 5.0;
-        apply_prediction_tick(&mut slowed, &input, &map, spd, 2.0, margin, 0.4, DT);
+        apply_prediction_tick(&mut slowed, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
 
         // Slowed should travel less distance.
         let full_dist = full.position.distance(Vec2::new(2.5, 2.5));
@@ -2692,7 +2796,6 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         let mut state = state_at(2.5, 2.5, 0.0);
@@ -2701,7 +2804,7 @@ mod tests {
         state.speed_modifier_remaining = 0.01;
 
         // Tick once — modifier should expire.
-        apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, 0.4, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
 
         assert!(
             state.speed_modifier_remaining <= 0.0
@@ -2713,7 +2816,7 @@ mod tests {
 
         // Second tick should be at full speed.
         let pos_after_one = state.position;
-        apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, 0.4, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
         let second_tick_dist = state.position.distance(pos_after_one);
         let expected_full = spd * DT;
         assert!(
@@ -2732,12 +2835,21 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Prediction tick.
         let mut predicted = state_at(2.5, 2.5, 0.0);
-        apply_prediction_tick(&mut predicted, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(
+            &mut predicted,
+            &input,
+            &map,
+            spd,
+            tspd,
+            margin,
+            qtd,
+            3.5,
+            DT,
+        );
 
         // Direct movement (what the server does without modifier).
         let mut server_pos = Vec2::new(2.5, 2.5);
@@ -2768,7 +2880,6 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
         let modifier_mult = 0.7;
         let modifier_budget = 5.0;
@@ -2794,7 +2905,7 @@ mod tests {
         let mut client = state_at(2.5, 2.5, 0.0);
         client.speed_modifier_multiplier = modifier_mult;
         client.speed_modifier_remaining = modifier_budget;
-        apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, DT);
+        apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
 
         assert!(
             client.position.distance(server_pos) < 1e-6,
@@ -2824,7 +2935,6 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
         let modifier_mult = 0.7;
         let modifier_budget = 5.0;
@@ -2856,7 +2966,7 @@ mod tests {
             server_mod.tick(DT, moved);
 
             // Client: apply_prediction_tick (handles modifier internally).
-            apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, DT);
+            apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
 
             // Verify parity each tick.
             let pos_drift = client.position.distance(server_pos);
@@ -2886,7 +2996,6 @@ mod tests {
             turn: 0.0,
             snap_turn: None,
             aim_held: false,
-            aim_offset: 0.0,
         };
 
         // Small budget that expires within ~3 ticks.
@@ -2928,7 +3037,7 @@ mod tests {
             }
 
             // Client path.
-            apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, DT);
+            apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, 3.5, DT);
 
             let pos_drift = client.position.distance(server_pos);
             assert!(
@@ -2943,51 +3052,34 @@ mod tests {
         );
     }
 
-    // ── Aim offset reconciliation ─────────────────────────────────────
+    // ── Aim held suppression ────────────────────────────────────────────
 
-    /// Reconciliation restores authoritative aim_offset from InputAck.
+    /// aim_held suppresses translation but allows turn.
     #[test]
-    fn aim_offset_reconciled_from_ack() {
+    fn aim_held_suppresses_movement_allows_turn() {
         let map = open_map();
         let (spd, tspd, margin, qtd) = default_config();
 
         let mut state = state_at(2.5, 2.5, 0.0);
-        // Client has local aim_offset = 0.3 (unclamped client value).
-        state.aim_offset = 0.3;
 
-        // Server ack carries clamped value 0.2 (e.g. server's max_aim_offset is lower).
-        let ack_offset = 0.2;
-
-        // Simulate reconciliation: reset aim_offset from ack.
-        state.aim_offset = ack_offset;
-
-        // After reconciliation, client state should reflect server's clamped value.
-        assert!(
-            (state.aim_offset - ack_offset).abs() < f32::EPSILON,
-            "aim_offset should be reconciled to server value: got {}, expected {}",
-            state.aim_offset,
-            ack_offset
-        );
-
-        // Replay with aim_held=true should not affect position (body locked).
         let input = PredictedInput {
             movement: Vec2::new(0.0, 1.0),
             turn: 1.0,
             snap_turn: None,
             aim_held: true,
-            aim_offset: ack_offset,
         };
         let pos_before = state.position;
         let angle_before = state.angle;
-        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, DT);
+        apply_prediction_tick(&mut state, &input, &map, spd, tspd, margin, qtd, 3.5, DT);
 
         assert!(
             state.position.distance(pos_before) < f32::EPSILON,
             "movement should be suppressed while aim_held"
         );
+        // Turn is now allowed while aiming (free upper-body rotation).
         assert!(
-            (state.angle - angle_before).abs() < f32::EPSILON,
-            "turn should be suppressed while aim_held"
+            (state.angle - angle_before).abs() > f32::EPSILON,
+            "turn should be allowed while aim_held"
         );
     }
 }

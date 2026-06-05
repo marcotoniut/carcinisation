@@ -27,12 +27,14 @@ use carcinisation_fps::directional_billboard::{
     resolve_billboard,
 };
 use carcinisation_fps::player_attack::{
-    AttackInput, AttackLoadout, PlayerAttackSprites, PlayerAttackState, PlayerFlamethrower3pConfig,
+    AttackId, AttackInput, AttackLoadout, PlayerAttackSprites, PlayerAttackState,
+    PlayerFlamethrower3pConfig,
 };
 use carcinisation_fps::plugin::CharDecals;
 use carcinisation_fps::plugin::{
     Active, BloodShotSprites, CameraRes, CameraShakeState, Config, DeathViewState, MapRes,
-    MosquitonSprites, SpiderShotSprites, SpideySprites, Systems, request_camera_shake,
+    MosquitonSprites, QuickTurnState, SpiderShotSprites, SpideySprites, Systems, TurnChordState,
+    request_camera_shake,
 };
 use carcinisation_fps::raycast::{HitSide, WallSurfaceId};
 use carcinisation_fps::render::CharDecal;
@@ -196,6 +198,7 @@ impl Plugin for FpsClientPlugin {
             .init_resource::<input::ClientInputSequence>()
             .init_resource::<input::InputSendTimer>()
             .init_resource::<carcinisation_fps::plugin::TurnChordState>()
+            .init_resource::<carcinisation_fps::plugin::SelectActionTurnState>()
             .init_resource::<carcinisation_fps::plugin::QuickTurnState>()
             .init_resource::<LocalPlayerId>()
             .init_resource::<LocalFlameActive>()
@@ -280,6 +283,7 @@ impl Plugin for FpsClientPlugin {
                     .after(tick_player_interpolation)
                     .after(tick_enemy_interpolation)
                     .after(prediction::tick_predicted_render)
+                    .before(Systems)
                     .run_if(resource_exists::<Active>)
                     .run_if(is_connected),
             )
@@ -300,6 +304,7 @@ impl Plugin for FpsClientPlugin {
             .add_systems(
                 Update,
                 sync_weapon_hud_and_flame_visual
+                    .after(prediction::tick_predicted_render)
                     .before(Systems)
                     .run_if(resource_exists::<Active>)
                     .run_if(is_connected),
@@ -478,6 +483,7 @@ fn try_spawn_health_pickup_screen_feedback(
     screen_feedback.last_burst_at_secs = Some(now_secs);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_damage_effect(
     trigger: On<DamageEffect>,
     local_id: Res<LocalPlayerId>,
@@ -486,6 +492,11 @@ fn handle_damage_effect(
     visual_config: Res<carcinisation_fps_core::FpsVisualConfig>,
     mut flickers: ResMut<EnemyDamageFlickers>,
     mut health: ResMut<carcinisation_fps::plugin::PlayerHealth>,
+    time: Res<Time>,
+    action: Option<Res<leafwing_input_manager::prelude::ActionState<carcinisation_input::GBInput>>>,
+    combat_config: Option<Res<carcinisation_fps_core::FpsCombatConfig>>,
+    mut turn_chord: Option<ResMut<TurnChordState>>,
+    mut quick_turn: Option<ResMut<QuickTurnState>>,
 ) {
     let effect = trigger.event();
     debug!(
@@ -498,6 +509,31 @@ fn handle_damage_effect(
     if is_local {
         request_camera_shake(&mut camera_shake, &config);
         health.0 = effect.remaining_health.ceil() as u32;
+        let aim_commitment = combat_config.as_ref().is_some_and(|cfg| {
+            matches!(
+                cfg.combat_control_mode,
+                carcinisation_fps_core::CombatControlMode::AimCommitment
+            )
+        });
+        if aim_commitment
+            && let (Some(chord), Some(turn)) =
+                (turn_chord.as_deref_mut(), quick_turn.as_deref_mut())
+        {
+            let (b, down, left, right) =
+                action
+                    .as_ref()
+                    .map_or((false, false, false, false), |input| {
+                        (
+                            input.pressed(&carcinisation_input::GBInput::B),
+                            input.pressed(&carcinisation_input::GBInput::Down),
+                            input.pressed(&carcinisation_input::GBInput::Left),
+                            input.pressed(&carcinisation_input::GBInput::Right),
+                        )
+                    });
+            if chord.interrupt_aim_mode(time.elapsed_secs(), b, down, left, right) {
+                turn.reset_aim_pitch_offset();
+            }
+        }
     }
 
     // Trigger damage flicker for enemies (not players).
@@ -860,32 +896,48 @@ fn tick_enemy_interpolation(
 ///
 /// The replicated field acts as a reconciliation fallback — if an event is
 /// dropped, the next replication tick corrects the local state.
+const WEAPON_BOB_MIN_DISPLACEMENT_SQUARED: f32 = 0.000_001;
+
+fn body_displacement_drives_weapon_bob(previous: &mut Option<Vec2>, current: Vec2) -> bool {
+    let Some(prev) = *previous else {
+        *previous = Some(current);
+        return false;
+    };
+    *previous = Some(current);
+    current.distance_squared(prev) > WEAPON_BOB_MIN_DISPLACEMENT_SQUARED
+}
+
 fn sync_weapon_hud_and_flame_visual(
     net_players: Query<&NetPlayer>,
     local_id: Res<LocalPlayerId>,
-    mut loadout: ResMut<AttackLoadout>,
+    loadout: Res<AttackLoadout>,
+    mut attack_state: ResMut<PlayerAttackState>,
     mut attack_input: ResMut<AttackInput>,
     mut flame_active: ResMut<LocalFlameActive>,
     mut was_flame_active: Local<bool>,
     mut prev_angle: Local<f32>,
+    mut prev_bob_position: Local<Option<Vec2>>,
     time: Res<Time>,
-    action: Res<leafwing_input_manager::prelude::ActionState<carcinisation_input::GBInput>>,
+    predicted_state: Option<Res<PredictedPlayerState>>,
+    render_state: Option<Res<prediction::PredictedRenderState>>,
+    combat_config: Option<Res<carcinisation_fps_core::FpsCombatConfig>>,
+    turn_chord: Option<Res<TurnChordState>>,
 ) {
     let Some(my_id) = local_id.0 else {
         *was_flame_active = false;
+        *prev_bob_position = None;
         return;
     };
     let Some(player) = net_players.iter().find(|p| p.player_id == my_id) else {
         *was_flame_active = false;
+        *prev_bob_position = None;
         return;
     };
-    let target_idx = match player.current_attack {
-        NetAttackId::Projectile => 0,                // Flamethrower
-        NetAttackId::None | NetAttackId::Melee => 1, // Pistol (Melee falls back)
+    let target_attack = match player.current_attack {
+        NetAttackId::Projectile => AttackId::Flamethrower,
+        NetAttackId::None | NetAttackId::Melee => AttackId::Pistol,
     };
-    if loadout.index != target_idx {
-        loadout.index = target_idx;
-    }
+    attack_state.sync_to_authoritative_weapon(loadout.current(), target_attack);
 
     // Derive aim_turn_velocity from replicated angle delta so the
     // flamethrower chain bends (whip effect) during turns.
@@ -896,9 +948,26 @@ fn sync_weapon_hud_and_flame_visual(
     );
     *prev_angle = player.angle;
 
-    // Drive weapon walk-bob from local movement input.
-    attack_input.moving_forward_back = action.pressed(&carcinisation_input::GBInput::Up)
-        || action.pressed(&carcinisation_input::GBInput::Down);
+    // Drive weapon walk-bob from actual body displacement, not raw input.
+    let bob_position =
+        predicted_state
+            .as_ref()
+            .filter(|p| p.initialised)
+            .map_or(player.position, |predicted| {
+                render_state
+                    .as_ref()
+                    .map_or(predicted.position, |r| r.interpolated_position())
+            });
+    attack_input.moving_forward_back =
+        body_displacement_drives_weapon_bob(&mut prev_bob_position, bob_position);
+    let aim_commitment = combat_config.as_ref().is_some_and(|cfg| {
+        matches!(
+            cfg.combat_control_mode,
+            carcinisation_fps_core::CombatControlMode::AimCommitment
+        )
+    });
+    attack_input.aim_held =
+        aim_commitment && turn_chord.as_ref().is_some_and(|chord| chord.is_aim_mode());
 
     // Reconcile: replicated state overrides event-driven state if they disagree.
     // This recovers from dropped FlameActive events within one replication tick.
@@ -906,7 +975,10 @@ fn sync_weapon_hud_and_flame_visual(
         flame_active.0 = player.flame_active;
     }
 
-    let active = flame_active.0 && matches!(player.current_attack, NetAttackId::Projectile);
+    let active = flame_active.0
+        && matches!(player.current_attack, NetAttackId::Projectile)
+        && loadout.current() == AttackId::Flamethrower
+        && !attack_state.has_pending_weapon_switch();
     if active {
         attack_input.shoot_held = true;
         if !*was_flame_active {
@@ -1235,6 +1307,9 @@ struct SyncSpriteResources<'w> {
 struct PredictionVisualParams<'w> {
     predicted_state: Option<Res<'w, PredictedPlayerState>>,
     render_state: Option<Res<'w, prediction::PredictedRenderState>>,
+    quick_turn_state: Option<Res<'w, QuickTurnState>>,
+    turn_chord_state: Option<Res<'w, TurnChordState>>,
+    combat_config: Option<Res<'w, carcinisation_fps_core::FpsCombatConfig>>,
     diag: Option<ResMut<'w, prediction::PredictionDiagnostics>>,
 }
 
@@ -1305,7 +1380,6 @@ fn sync_camera_from_net_player(
         camera_res.0.position = local_np.position;
         camera_res.0.angle = local_np.angle;
     }
-
     // Record diagnostics.
     if let Some(ref mut diag) = prediction_visual.diag {
         diag.camera_position = camera_res.0.position;
@@ -2059,19 +2133,17 @@ fn push_remote_flame_billboards(
     player_angle: f32,
     flame_cfg: &carcinisation_fps_core::PlayerFlamethrowerConfig,
 ) {
-    use carcinisation_fps::raycast::cast_ray;
-
     let dir = Vec2::new(player_angle.cos(), player_angle.sin());
     let range_plus_nozzle = flame_cfg.range + flame_3p_cfg.nozzle_forward;
 
     // Wall-hit distance measured from player origin along current facing.
     let max_dist = map.map_or(range_plus_nozzle, |m| {
-        let hit = cast_ray(&m.0, player_position, dir);
-        if hit.wall_id > 0 {
-            hit.distance.min(range_plus_nozzle)
-        } else {
-            range_plus_nozzle
-        }
+        carcinisation_fps_core::flame_visual_max_distance(
+            &m.0,
+            player_position,
+            dir,
+            range_plus_nozzle,
+        )
     });
 
     let max_age = flame_cfg.range / params.speed;
@@ -2316,10 +2388,306 @@ mod tests {
     use super::*;
     use carcinisation_fps::camera::Camera;
     use carcinisation_fps::mosquiton::make_mosquiton_billboard_sprites;
+    use carcinisation_fps::player_attack::{SnapTurnVisualInput, process_player_attacks};
     use carcinisation_fps::plugin::{CameraRes, PlayerHealth};
     use carcinisation_fps::spidey::make_spidey_billboard_sprites;
     use carcinisation_fps_core::presentation::{AttackPresentationKind, EnemyPresentationState};
     use carcinisation_net::{NetPickupKind, NetworkObjectId, PlayerNetState};
+
+    #[test]
+    fn weapon_bob_displacement_source_ignores_stationary_input() {
+        let mut previous = None;
+        let position = Vec2::new(2.0, 3.0);
+
+        assert!(!body_displacement_drives_weapon_bob(
+            &mut previous,
+            position
+        ));
+        assert!(!body_displacement_drives_weapon_bob(
+            &mut previous,
+            position
+        ));
+    }
+
+    #[test]
+    fn weapon_bob_displacement_source_detects_body_movement() {
+        let mut previous = None;
+
+        assert!(!body_displacement_drives_weapon_bob(
+            &mut previous,
+            Vec2::new(2.0, 3.0)
+        ));
+        assert!(body_displacement_drives_weapon_bob(
+            &mut previous,
+            Vec2::new(2.01, 3.0)
+        ));
+    }
+
+    #[test]
+    fn stationary_body_weapon_sync_does_not_bob() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.init_resource::<AttackLoadout>();
+        app.init_resource::<PlayerAttackState>();
+        app.insert_resource(AttackInput {
+            moving_forward_back: true,
+            ..default()
+        });
+        app.init_resource::<LocalFlameActive>();
+        app.add_systems(Update, sync_weapon_hud_and_flame_visual);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+            avatar_palette_variant: None,
+        });
+
+        app.update();
+        assert!(
+            !app.world().resource::<AttackInput>().moving_forward_back,
+            "stationary body must not bob even if previous state was moving"
+        );
+        app.update();
+        assert!(
+            !app.world().resource::<AttackInput>().moving_forward_back,
+            "stationary body must stay non-bobbing across frames"
+        );
+    }
+
+    #[test]
+    fn replicated_loadout_sync_requests_visual_switch_without_immediate_commit() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.init_resource::<AttackLoadout>();
+        app.init_resource::<PlayerAttackState>();
+        app.init_resource::<AttackInput>();
+        app.init_resource::<LocalFlameActive>();
+        app.add_systems(Update, sync_weapon_hud_and_flame_visual);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+            avatar_palette_variant: None,
+        });
+
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<AttackLoadout>().current(),
+            AttackId::Flamethrower
+        );
+        assert!(
+            app.world()
+                .resource::<PlayerAttackState>()
+                .has_pending_weapon_switch()
+        );
+    }
+
+    #[test]
+    fn replicated_loadout_sync_cancels_pending_switch_when_authority_returns_to_current() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.init_resource::<AttackLoadout>();
+        app.init_resource::<PlayerAttackState>();
+        app.init_resource::<AttackInput>();
+        app.init_resource::<LocalFlameActive>();
+        app.add_systems(Update, sync_weapon_hud_and_flame_visual);
+
+        app.world_mut()
+            .resource_mut::<PlayerAttackState>()
+            .request_weapon_switch_to(AttackId::Pistol);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::Projectile,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+            avatar_palette_variant: None,
+        });
+
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<AttackLoadout>().current(),
+            AttackId::Flamethrower
+        );
+        assert!(
+            !app.world()
+                .resource::<PlayerAttackState>()
+                .has_pending_weapon_switch()
+        );
+    }
+
+    #[test]
+    fn replicated_flame_input_suppressed_until_visual_weapon_sync_commits() {
+        let sprites = PlayerAttackSprites::load();
+        let camera = Camera::default();
+        let map = carcinisation_fps_core::map::test_map();
+        let mut loadout = AttackLoadout::default();
+        let mut attack_state = PlayerAttackState::default();
+        let mut input = AttackInput {
+            cycle_requested: true,
+            cursor_x: 80.0,
+            ..default()
+        };
+        let mut shoot = false;
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut attack_state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            1.0,
+            &mut input,
+            &mut loadout,
+            &mut attack_state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+        assert_eq!(loadout.current(), AttackId::Pistol);
+        assert!(!attack_state.has_pending_weapon_switch());
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(loadout);
+        app.insert_resource(attack_state);
+        app.init_resource::<AttackInput>();
+        app.init_resource::<LocalFlameActive>();
+        app.add_systems(Update, sync_weapon_hud_and_flame_visual);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::Projectile,
+            state: PlayerNetState::Alive,
+            flame_active: true,
+            avatar_palette_variant: None,
+        });
+
+        app.update();
+
+        let input = app.world().resource::<AttackInput>();
+        assert!(!input.shoot_held);
+        assert!(!input.shoot_just_pressed);
+        assert_eq!(
+            app.world().resource::<AttackLoadout>().current(),
+            AttackId::Pistol
+        );
+        assert!(
+            app.world()
+                .resource::<PlayerAttackState>()
+                .has_pending_weapon_switch()
+        );
+    }
+
+    #[test]
+    fn local_damage_effect_interrupts_aim_mode_and_resets_offsets() {
+        let mut chord = TurnChordState::default();
+        let start = carcinisation_fps::plugin::TurnChordInput {
+            b_pressed: true,
+            b_just_pressed: true,
+            now_secs: 0.0,
+            ..default()
+        };
+        let held = carcinisation_fps::plugin::TurnChordInput {
+            b_pressed: true,
+            now_secs: 0.21,
+            ..default()
+        };
+        let _ = carcinisation_fps::plugin::resolve_turn_chord(&start, &mut chord, true);
+        let _ = carcinisation_fps::plugin::resolve_turn_chord(&held, &mut chord, true);
+        assert!(chord.is_aim_mode());
+
+        let combat = carcinisation_fps_core::FpsCombatConfig {
+            combat_control_mode: carcinisation_fps_core::CombatControlMode::AimCommitment,
+            ..Default::default()
+        };
+        let mut quick_turn = QuickTurnState::default();
+        quick_turn.aim_pitch_offset = 6.0;
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_observer(handle_damage_effect);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(CameraShakeState::default());
+        app.insert_resource(Config::default());
+        app.insert_resource(carcinisation_fps_core::FpsVisualConfig::default());
+        app.init_resource::<EnemyDamageFlickers>();
+        app.insert_resource(PlayerHealth(100));
+        app.insert_resource(combat);
+        app.insert_resource(chord);
+        app.insert_resource(quick_turn);
+
+        app.world_mut().trigger(DamageEffect {
+            target_id: NetworkObjectId(1),
+            damage: 10.0,
+            remaining_health: 90.0,
+            was_player: true,
+        });
+
+        assert!(
+            !app.world().resource::<TurnChordState>().is_aim_mode(),
+            "local damage should interrupt AimMode"
+        );
+        let quick_turn = app.world().resource::<QuickTurnState>();
+        assert_eq!(quick_turn.aim_pitch_offset, 0.0);
+    }
 
     fn init_sync_test_app(app: &mut App) {
         app.init_resource::<carcinisation_fps::plugin::ExtraBillboards>();

@@ -58,8 +58,7 @@ use crate::{
     },
 };
 
-/// Maximum time B can be held before the chord window expires.
-/// If no valid direction is pressed within this window, the chord is cancelled.
+/// Maximum time B can be held before the Legacy snap-turn chord window expires.
 const CHORD_WINDOW_SECS: f32 = 0.20;
 
 /// Configuration for the First-person plugin.
@@ -320,15 +319,15 @@ pub struct PlayerIntent {
 /// Which kind of snap turn to perform.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TurnKind {
-    /// 180° turn (B + Down).
+    /// 180° turn.
     QuickTurn,
-    /// 90° turn left (B + Left).
+    /// 90° turn left.
     SideTurnLeft,
-    /// 90° turn right (B + Right).
+    /// 90° turn right.
     SideTurnRight,
 }
 
-/// Hold-to-select, release-to-commit chord state machine for snap/quick turns.
+/// Hold-to-select, release-to-commit chord state machine for Legacy snap/quick turns.
 ///
 /// Flow:
 /// 1. B `just_pressed` → `ChordMode { since, selected: None }`
@@ -338,7 +337,11 @@ pub enum TurnKind {
 /// 5. Window expires before direction release → cancel
 /// 6. Directions already held when B is pressed are blocked from selection.
 ///
-/// Movement/turn is suppressed while in `ChordMode`.
+/// In `AimCommitment`, B does not use this chord path: B held mirrors directly
+/// to `AimMode`, and snap turns are resolved by [`resolve_select_action_turn`]
+/// from SELECT+direction outside `AimMode`.
+///
+/// Movement/turn is suppressed by callers while in `ChordMode`.
 /// Priority when multiple directions pressed same frame: Down > Left > Right.
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct TurnChordState {
@@ -353,11 +356,29 @@ impl TurnChordState {
         matches!(self.phase, TurnChordPhase::ChordMode { .. })
     }
 
-    /// Whether the FSM is in AimMode (AimCommitment: B held past chord window).
-    /// Body is locked, aim offset is active, fire is allowed.
+    /// Whether the FSM is in `AimMode` (`AimCommitment`: B held).
+    /// Feet locked, body turns freely, fire is allowed.
     #[must_use]
     pub const fn is_aim_mode(&self) -> bool {
         matches!(self.phase, TurnChordPhase::AimMode)
+    }
+
+    /// Interrupt current `AimMode`. Returns `true` when active aim was interrupted.
+    pub const fn interrupt_aim_mode(
+        &mut self,
+        _now_secs: f32,
+        _b_pressed: bool,
+        _down_pressed: bool,
+        _left_pressed: bool,
+        _right_pressed: bool,
+    ) -> bool {
+        if !self.is_aim_mode() {
+            return false;
+        }
+        // AimCommitment now enters aim immediately while B is held. The next
+        // input collection tick may re-enter if B remains held.
+        self.phase = TurnChordPhase::Idle;
+        true
     }
 }
 
@@ -375,7 +396,8 @@ enum TurnChordPhase {
     },
     /// Chord fired or window expired; wait for all keys to release.
     BlockedUntilRelease,
-    /// AimCommitment: B held past chord window. Body locked, aim offset active.
+    /// `AimCommitment`: B held.
+    /// Feet locked, body turn active, fire allowed.
     /// Exits to Idle on B release.
     AimMode,
 }
@@ -398,6 +420,52 @@ pub struct TurnChordInput {
     pub now_secs: f32,
 }
 
+pub const SELECT_ACTION_TURN_WINDOW_SECS: f32 = 0.15;
+
+/// Raw button state for the `AimCommitment` SELECT action-turn resolver.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SelectActionTurnInput {
+    pub select_pressed: bool,
+    pub select_just_pressed: bool,
+    pub select_just_released: bool,
+    pub down_pressed: bool,
+    pub down_just_pressed: bool,
+    pub left_pressed: bool,
+    pub left_just_pressed: bool,
+    pub right_pressed: bool,
+    pub right_just_pressed: bool,
+    pub now_secs: f32,
+}
+
+/// Output from the `AimCommitment` SELECT action-turn resolver.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectActionOutcome {
+    WeaponSwitch,
+    SnapTurn(TurnKind),
+}
+
+/// `AimCommitment` SELECT FSM.
+///
+/// SELECT tap/release switches weapon. SELECT+Down/Left/Right within
+/// [`SELECT_ACTION_TURN_WINDOW_SECS`] triggers quick/snap turn when `actions_allowed`
+/// is true. When `actions_allowed` is false (`AimMode`), the chord is consumed and
+/// produces no snap or switch.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct SelectActionTurnState {
+    phase: SelectActionTurnPhase,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+enum SelectActionTurnPhase {
+    #[default]
+    Idle,
+    Waiting {
+        since: f32,
+        blocked_dirs: u8,
+    },
+    ConsumedUntilRelease,
+}
+
 /// Runtime state for a smooth quick-turn or side-turn animation.
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct QuickTurnState {
@@ -408,12 +476,14 @@ pub struct QuickTurnState {
     speed: f32,
     /// +1.0 for left, -1.0 for right.
     direction: f32,
-    /// Accumulated aim offset in radians (AimCommitment only).
-    /// Reset to 0.0 when AimMode exits.
-    pub aim_offset: f32,
+    /// Visual-only vertical aim offset in pixels (`AimCommitment` only).
+    /// Positive shifts the horizon up. Gameplay raycasts remain horizontal.
+    pub aim_pitch_offset: f32,
 }
 
 impl QuickTurnState {
+    pub const MAX_AIM_PITCH_OFFSET_PX: f32 = 18.0;
+
     /// Returns `true` while a turn animation is playing.
     #[must_use]
     pub fn is_active(&self) -> bool {
@@ -436,6 +506,28 @@ impl QuickTurnState {
     #[must_use]
     pub const fn direction(&self) -> f32 {
         self.direction
+    }
+
+    pub const fn reset_aim_pitch_offset(&mut self) {
+        self.aim_pitch_offset = 0.0;
+    }
+
+    /// Update vertical aim pitch only. Used when yaw is handled by normal
+    /// body turn (`AimCommitment` with free upper-body rotation).
+    ///
+    /// `pitch_speed`: pixels per second at full input (from `FpsCombatConfig::aim_pitch_speed`).
+    pub fn update_aim_pitch(&mut self, up: bool, down: bool, pitch_speed: f32, dt: f32) {
+        let mut pitch = self.aim_pitch_offset;
+        if up {
+            pitch += pitch_speed * dt;
+        }
+        if down {
+            pitch -= pitch_speed * dt;
+        }
+        self.aim_pitch_offset = pitch.clamp(
+            -Self::MAX_AIM_PITCH_OFFSET_PX,
+            Self::MAX_AIM_PITCH_OFFSET_PX,
+        );
     }
 }
 
@@ -474,8 +566,40 @@ const fn dir_preheld_mask(input: &TurnChordInput) -> u8 {
     m
 }
 
+const fn select_dir_preheld_mask(input: &SelectActionTurnInput) -> u8 {
+    let mut m = 0u8;
+    if input.down_pressed && !input.down_just_pressed {
+        m |= DIR_DOWN;
+    }
+    if input.left_pressed && !input.left_just_pressed {
+        m |= DIR_LEFT;
+    }
+    if input.right_pressed && !input.right_just_pressed {
+        m |= DIR_RIGHT;
+    }
+    m
+}
+
 /// Identify which direction was just pressed and not blocked. Priority: Down > Left > Right.
 const fn identify_just_pressed_direction(input: &TurnChordInput, blocked: u8) -> Option<TurnKind> {
+    if input.down_just_pressed && blocked & DIR_DOWN == 0 {
+        return Some(TurnKind::QuickTurn);
+    }
+    if input.left_just_pressed && blocked & DIR_LEFT == 0 {
+        return Some(TurnKind::SideTurnLeft);
+    }
+    if input.right_just_pressed && blocked & DIR_RIGHT == 0 {
+        return Some(TurnKind::SideTurnRight);
+    }
+    None
+}
+
+/// Identify which SELECT action-turn direction was just pressed and not blocked.
+/// Priority: Down > Left > Right.
+const fn identify_select_just_pressed_direction(
+    input: &SelectActionTurnInput,
+    blocked: u8,
+) -> Option<TurnKind> {
     if input.down_just_pressed && blocked & DIR_DOWN == 0 {
         return Some(TurnKind::QuickTurn);
     }
@@ -513,6 +637,15 @@ pub fn resolve_turn_chord(
     state: &mut TurnChordState,
     aim_commitment: bool,
 ) -> Option<TurnKind> {
+    if aim_commitment {
+        state.phase = if input.b_pressed {
+            TurnChordPhase::AimMode
+        } else {
+            TurnChordPhase::Idle
+        };
+        return None;
+    }
+
     match state.phase {
         TurnChordPhase::Idle => {
             if input.b_just_pressed {
@@ -532,13 +665,9 @@ pub fn resolve_turn_chord(
             mut selected,
             blocked_dirs,
         } => {
-            // Window expired → AimMode (if AimCommitment) or cancel.
+            // Window expired → cancel Legacy snap chord.
             if input.now_secs - since > CHORD_WINDOW_SECS {
-                state.phase = if aim_commitment {
-                    TurnChordPhase::AimMode
-                } else {
-                    TurnChordPhase::BlockedUntilRelease
-                };
+                state.phase = TurnChordPhase::BlockedUntilRelease;
                 return None;
             }
 
@@ -578,6 +707,85 @@ pub fn resolve_turn_chord(
             // B released → exit aim, return to idle.
             if !input.b_pressed {
                 state.phase = TurnChordPhase::Idle;
+            }
+            None
+        }
+    }
+}
+
+/// `AimMode` consumes SELECT actions so weapon switch and quick-turn chords do not fire.
+#[must_use]
+pub const fn select_actions_allowed_outside_aim_mode(in_aim_mode: bool) -> bool {
+    !in_aim_mode
+}
+
+/// Resolve `AimCommitment` SELECT tap/snap behavior.
+#[must_use]
+pub fn resolve_select_action_turn(
+    input: &SelectActionTurnInput,
+    state: &mut SelectActionTurnState,
+    actions_allowed: bool,
+) -> Option<SelectActionOutcome> {
+    match state.phase {
+        SelectActionTurnPhase::Idle => {
+            if !input.select_just_pressed {
+                return None;
+            }
+
+            let blocked_dirs = select_dir_preheld_mask(input);
+            if let Some(kind) = identify_select_just_pressed_direction(input, blocked_dirs) {
+                state.phase = SelectActionTurnPhase::ConsumedUntilRelease;
+                if actions_allowed {
+                    Some(SelectActionOutcome::SnapTurn(kind))
+                } else {
+                    None
+                }
+            } else if input.select_just_released {
+                state.phase = SelectActionTurnPhase::Idle;
+                actions_allowed.then_some(SelectActionOutcome::WeaponSwitch)
+            } else {
+                state.phase = SelectActionTurnPhase::Waiting {
+                    since: input.now_secs,
+                    blocked_dirs,
+                };
+                None
+            }
+        }
+        SelectActionTurnPhase::Waiting {
+            since,
+            blocked_dirs,
+        } => {
+            let within_window = input.now_secs - since <= SELECT_ACTION_TURN_WINDOW_SECS;
+            if within_window
+                && let Some(kind) = identify_select_just_pressed_direction(input, blocked_dirs)
+            {
+                state.phase = SelectActionTurnPhase::ConsumedUntilRelease;
+                return if actions_allowed {
+                    Some(SelectActionOutcome::SnapTurn(kind))
+                } else {
+                    None
+                };
+            }
+
+            if input.select_just_released {
+                state.phase = SelectActionTurnPhase::Idle;
+                return actions_allowed.then_some(SelectActionOutcome::WeaponSwitch);
+            }
+
+            if !input.select_pressed {
+                state.phase = SelectActionTurnPhase::Idle;
+                return None;
+            }
+
+            state.phase = SelectActionTurnPhase::Waiting {
+                since,
+                blocked_dirs,
+            };
+            None
+        }
+        SelectActionTurnPhase::ConsumedUntilRelease => {
+            if !input.select_pressed {
+                state.phase = SelectActionTurnPhase::Idle;
             }
             None
         }
@@ -768,6 +976,7 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.insert_resource(flame_cfg);
         app.init_resource::<QuickTurnState>();
         app.init_resource::<TurnChordState>();
+        app.init_resource::<SelectActionTurnState>();
         app.init_resource::<DeathViewState>();
         app.init_resource::<CameraShakeState>();
         app.insert_resource(ScreenParticleConfig::load());
@@ -1062,15 +1271,27 @@ fn apply_death_view(
     }
 }
 
-/// Apply walk view bob to the camera. Zeroed when dead to avoid bobbing
-/// death camera. Runs after `handle_shooting` computes `view_bob`.
+/// Apply walk view bob and aim pitch to the camera.
+///
+/// `view_bob` = distance-attenuated movement bob (walk animation).
+/// `aim_pitch` = uniform vertical aim offset (intentional look/aim).
+///
+/// Zeroed when dead to avoid bobbing death camera.
+/// Runs after `handle_shooting` computes `view_bob`.
 fn apply_view_bob(
     mut camera: ResMut<CameraRes>,
     attack_state: Res<PlayerAttackState>,
+    quick_turn: Res<QuickTurnState>,
     dead: Res<PlayerDead>,
     visual_config: Res<carcinisation_fps_core::FpsVisualConfig>,
 ) {
-    camera.0.view_bob = if dead.0 { 0.0 } else { attack_state.view_bob };
+    if dead.0 {
+        camera.0.view_bob = 0.0;
+        camera.0.aim_pitch = 0.0;
+    } else {
+        camera.0.view_bob = attack_state.view_bob;
+        camera.0.aim_pitch = quick_turn.aim_pitch_offset;
+    }
     camera.0.view_bob_near = visual_config.view_bob_near;
     camera.0.view_bob_mid = visual_config.view_bob_mid;
 }
@@ -1760,7 +1981,19 @@ struct AttackResources<'w> {
     state: ResMut<'w, PlayerAttackState>,
     sprites: Res<'w, PlayerAttackSprites>,
     burn_config: Res<'w, carcinisation_fps_core::BurnConfig>,
+    combat_config: Res<'w, carcinisation_fps_core::FpsCombatConfig>,
     visual_config: Res<'w, carcinisation_fps_core::FpsVisualConfig>,
+}
+
+const fn weapon_lowered_offset_px(config: &carcinisation_fps_core::FpsCombatConfig) -> f32 {
+    if matches!(
+        config.combat_control_mode,
+        carcinisation_fps_core::CombatControlMode::AimCommitment
+    ) {
+        config.weapon_lowered_offset_px
+    } else {
+        0.0
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1819,6 +2052,7 @@ fn handle_shooting(
             &mut impacts.0,
             &mut char_decals.0,
             config.screen_height as f32,
+            weapon_lowered_offset_px(&attack.combat_config),
             &mut shoot.0,
             &attack.burn_config,
             attack.visual_config.view_bob_amplitude,
@@ -1873,6 +2107,7 @@ fn handle_shooting(
         &mut impacts.0,
         &mut char_decals.0,
         config.screen_height as f32,
+        weapon_lowered_offset_px(&attack.combat_config),
         &mut shoot.0,
         &attack.burn_config,
         attack.visual_config.view_bob_amplitude,
@@ -1990,9 +2225,11 @@ fn update_fp_view(
         },
         &burn_config,
     );
-    let local_flame_bbs = view
-        .attack_state
-        .flame_chain_billboards(&view.camera.0, &view.attack_sprites);
+    let local_flame_bbs = view.attack_state.flame_chain_billboards(
+        &view.camera.0,
+        &view.attack_sprites,
+        view.config.screen_height as f32,
+    );
     let all_bbs: Vec<Billboard> = sources
         .static_bbs
         .0
@@ -2855,11 +3092,100 @@ mod tests {
         chord_input_at(b, down, left, right, 0.0)
     }
 
+    fn select_action_input_at(
+        select: (bool, bool, bool),
+        down: (bool, bool, bool),
+        left: (bool, bool, bool),
+        right: (bool, bool, bool),
+        now_secs: f32,
+    ) -> SelectActionTurnInput {
+        SelectActionTurnInput {
+            select_pressed: select.0,
+            select_just_pressed: select.1,
+            select_just_released: select.2,
+            down_pressed: down.0,
+            down_just_pressed: down.1,
+            left_pressed: left.0,
+            left_just_pressed: left.1,
+            right_pressed: right.0,
+            right_just_pressed: right.1,
+            now_secs,
+        }
+    }
+
     const NONE: (bool, bool, bool) = (false, false, false);
     const B_OFF: (bool, bool, bool) = (false, false, false);
     const B_PRESSED: (bool, bool, bool) = (true, true, false);
     const B_HELD: (bool, bool, bool) = (true, false, false);
     const B_RELEASED: (bool, bool, bool) = (false, false, true);
+    const SELECT_PRESSED: (bool, bool, bool) = (true, true, false);
+    const SELECT_HELD: (bool, bool, bool) = (true, false, false);
+    const SELECT_RELEASED: (bool, bool, bool) = (false, false, true);
+
+    #[test]
+    fn select_tap_release_switches_weapon() {
+        let mut state = SelectActionTurnState::default();
+        let input = select_action_input_at(SELECT_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, true), None);
+
+        let input = select_action_input_at(SELECT_RELEASED, NONE, NONE, NONE, 0.05);
+        assert_eq!(
+            resolve_select_action_turn(&input, &mut state, true),
+            Some(SelectActionOutcome::WeaponSwitch)
+        );
+    }
+
+    #[test]
+    fn select_tap_release_when_actions_disallowed_does_not_switch() {
+        let mut state = SelectActionTurnState::default();
+        let input = select_action_input_at(SELECT_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, false), None);
+
+        let input = select_action_input_at(SELECT_RELEASED, NONE, NONE, NONE, 0.05);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, false), None);
+    }
+
+    #[test]
+    fn select_direction_within_window_snaps() {
+        let mut state = SelectActionTurnState::default();
+        let input = select_action_input_at(SELECT_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, true), None);
+
+        let input = select_action_input_at(SELECT_HELD, (true, true, false), NONE, NONE, 0.05);
+        assert_eq!(
+            resolve_select_action_turn(&input, &mut state, true),
+            Some(SelectActionOutcome::SnapTurn(TurnKind::QuickTurn))
+        );
+    }
+
+    #[test]
+    fn select_direction_after_window_does_not_snap_and_switches_on_release() {
+        let mut state = SelectActionTurnState::default();
+        let input = select_action_input_at(SELECT_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, true), None);
+
+        let input = select_action_input_at(SELECT_HELD, NONE, (true, true, false), NONE, 0.16);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, true), None);
+
+        let input = select_action_input_at(SELECT_RELEASED, NONE, (false, false, true), NONE, 0.17);
+        assert_eq!(
+            resolve_select_action_turn(&input, &mut state, true),
+            Some(SelectActionOutcome::WeaponSwitch)
+        );
+    }
+
+    #[test]
+    fn select_direction_when_snap_disallowed_is_consumed() {
+        let mut state = SelectActionTurnState::default();
+        let input = select_action_input_at(SELECT_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, false), None);
+
+        let input = select_action_input_at(SELECT_HELD, NONE, NONE, (true, true, false), 0.05);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, false), None);
+
+        let input = select_action_input_at(SELECT_RELEASED, NONE, NONE, (false, false, true), 0.06);
+        assert_eq!(resolve_select_action_turn(&input, &mut state, false), None);
+    }
 
     // --- Selection (press selects, does not fire) ---
 
@@ -3240,6 +3566,83 @@ mod tests {
         assert!(!state.is_pending());
     }
 
+    // -- AimMode (AimCommitment) FSM tests --
+
+    #[test]
+    fn aim_commitment_b_pressed_enters_aim_mode_immediately() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state, true), None);
+        assert!(state.is_aim_mode(), "B should enter AimMode immediately");
+        assert!(!state.is_pending());
+    }
+
+    #[test]
+    fn aim_commitment_b_release_exits_aim_mode() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        let _ = resolve_turn_chord(&input, &mut state, true);
+        assert!(state.is_aim_mode());
+
+        let input = chord_input_at(NONE, NONE, NONE, NONE, 0.25);
+        let _ = resolve_turn_chord(&input, &mut state, true);
+        assert!(!state.is_aim_mode(), "should exit AimMode on B release");
+        assert_eq!(state.phase, TurnChordPhase::Idle);
+    }
+
+    #[test]
+    fn aim_interrupt_exits_aim_mode_when_b_released() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        let _ = resolve_turn_chord(&input, &mut state, true);
+        assert!(state.is_aim_mode());
+
+        assert!(state.interrupt_aim_mode(0.3, false, false, false, false));
+
+        assert!(!state.is_aim_mode());
+        assert_eq!(state.phase, TurnChordPhase::Idle);
+    }
+
+    #[test]
+    fn aim_interrupt_with_b_held_can_reenter_on_next_input_tick() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        let _ = resolve_turn_chord(&input, &mut state, true);
+        assert!(state.is_aim_mode());
+
+        assert!(state.interrupt_aim_mode(0.3, true, false, false, false));
+
+        assert!(!state.is_aim_mode());
+
+        let input = chord_input_at(B_HELD, NONE, NONE, NONE, 0.31);
+        let _ = resolve_turn_chord(&input, &mut state, true);
+        assert!(state.is_aim_mode(), "B held re-enters immediately");
+    }
+
+    #[test]
+    fn aim_commitment_b_direction_does_not_fire_snap_turn() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, (true, true, false), NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state, true), None);
+        assert!(state.is_aim_mode());
+
+        let input = chord_input_at(B_HELD, NONE, (false, false, true), NONE, 0.10);
+        assert_eq!(resolve_turn_chord(&input, &mut state, true), None,);
+        assert!(state.is_aim_mode(), "B+direction stays aim, not snap turn");
+    }
+
+    #[test]
+    fn aim_commitment_legacy_false_does_not_enter_aim_mode() {
+        let mut state = TurnChordState::default();
+        // B held past window with aim_commitment=false → BlockedUntilRelease, not AimMode.
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        let _ = resolve_turn_chord(&input, &mut state, false);
+        let input = chord_input_at(B_HELD, NONE, NONE, NONE, 0.21);
+        let _ = resolve_turn_chord(&input, &mut state, false);
+        assert!(!state.is_aim_mode());
+        assert_eq!(state.phase, TurnChordPhase::BlockedUntilRelease);
+    }
+
     #[test]
     fn snap_turn_animates_over_configured_duration() {
         let config = Config::default();
@@ -3578,6 +3981,7 @@ mod tests {
             &mut setup_impacts,
             &mut char_decals,
             144.0,
+            0.0,
             &mut shoot_request,
             &burn_config,
             1.5,

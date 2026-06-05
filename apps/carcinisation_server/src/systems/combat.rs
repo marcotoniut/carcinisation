@@ -9,10 +9,11 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::burning::{self, BurnConfig, BurnState};
-use carcinisation_fps_core::camera::Camera;
-use carcinisation_fps_core::combat::flame_hits_position;
+use carcinisation_fps_core::combat::{
+    FirePose2d, flame_hits_position_configured_from_pose, wall_obstruction_distance_for_pose,
+};
 use carcinisation_fps_core::config::FpsCombatConfig;
-use carcinisation_fps_core::enemy::{Enemy, hitscan};
+use carcinisation_fps_core::enemy::{Enemy, hitscan_from_pose};
 use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
@@ -228,21 +229,12 @@ pub fn process_combat(
         } else {
             raw_firing
         };
-        // Clamp aim offset server-side every tick.
-        let aim_offset = if aim_mode && aim_held {
-            buffer
-                .peek_aim_offset(&player.player_id)
-                .clamp(-combat_config.max_aim_offset, combat_config.max_aim_offset)
-        } else {
-            0.0
-        };
-        // Fire direction: body angle + aim offset (offset is 0 in Legacy mode).
-        let fire_angle = player.angle + aim_offset;
+        let fire_pose = FirePose2d::new(player.position, player.angle, 0.0);
 
         if firing {
             debug!(
-                "Player {:?} combat: attack={:?} fire_held=true aim_offset={:.2}",
-                player.player_id, player.current_attack, aim_offset
+                "Player {:?} combat: attack={:?} fire_held=true",
+                player.player_id, player.current_attack
             );
         }
 
@@ -264,18 +256,12 @@ pub fn process_combat(
                 }
                 *cd = combat_config.fire_cooldown_secs;
 
-                let camera = Camera {
-                    position: player.position,
-                    angle: fire_angle,
-                    ..Camera::default()
-                };
-
                 commands.server_trigger(ToClients {
                     mode: SendMode::Broadcast,
                     message: MuzzleFlash {
                         player_id: player.player_id,
-                        position: player.position,
-                        angle: fire_angle,
+                        position: fire_pose.origin_xy,
+                        angle: fire_pose.yaw,
                     },
                 });
 
@@ -298,7 +284,7 @@ pub fn process_combat(
                     ));
                 }
 
-                let result = hitscan(&camera, &enemy_list, &server_map.0);
+                let result = hitscan_from_pose(fire_pose, &enemy_list, &server_map.0);
 
                 // Also check hitscan against enemy projectiles (player can shoot them down).
                 let wall_dist = result.distance;
@@ -310,8 +296,8 @@ pub fn process_combat(
                     NetProjectileType,
                 )> = None;
                 for (proj_entity, proj) in projectiles.iter() {
-                    let to_proj = proj.position - camera.position;
-                    let along = to_proj.dot(camera.direction());
+                    let to_proj = proj.position - fire_pose.origin_xy;
+                    let along = to_proj.dot(fire_pose.direction());
                     if along <= 0.0 || along > wall_dist {
                         continue;
                     }
@@ -409,7 +395,7 @@ pub fn process_combat(
                     });
                 }
 
-                let dir = Vec2::new(fire_angle.cos(), fire_angle.sin());
+                let dir = fire_pose.direction();
 
                 // Collect hit entities and apply burn exposure (replaces instant damage).
                 for (entity, net_enemy, _, _) in enemies.iter() {
@@ -419,13 +405,11 @@ pub fn process_combat(
                     ) {
                         continue;
                     }
-                    if flame_hits_position(
-                        player.position,
-                        dir,
+                    if flame_hits_position_configured_from_pose(
+                        fire_pose,
                         net_enemy.position,
-                        flame_cfg.range,
-                        flame_cfg.hit_half_width,
                         &server_map.0,
+                        &flame_cfg,
                     ) {
                         flame_exposed_entities.push(entity);
                     }
@@ -435,8 +419,15 @@ pub fn process_combat(
                 let char_cd = char_cooldowns.0.entry(player.player_id).or_insert(0.0);
                 *char_cd = (*char_cd - dt).max(0.0);
                 if *char_cd <= 0.0 {
-                    let wall_hit = cast_ray(&server_map.0, player.position, dir);
-                    if wall_hit.wall_id > 0 && wall_hit.distance <= flame_cfg.range {
+                    let wall_hit = cast_ray(&server_map.0, fire_pose.origin_xy, dir);
+                    if wall_hit.wall_id > 0
+                        && wall_hit.distance
+                            <= wall_obstruction_distance_for_pose(
+                                &server_map.0,
+                                fire_pose,
+                                flame_cfg.range,
+                            )
+                    {
                         *char_cd = FLAME_CHAR_EMIT_INTERVAL;
                         let side = match wall_hit.side {
                             carcinisation_fps_core::HitSide::Vertical => 0u8,

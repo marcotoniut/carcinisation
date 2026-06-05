@@ -41,9 +41,10 @@ struct IntentEntry {
     turn: f32,
     fire_held: bool,
     aim_held: bool,
-    aim_offset: f32,
-    /// Pending one-shot actions. OR'd from network packets, consumed once per tick.
-    pending_actions: PlayerActions,
+    /// Pending one-shot actions from packets that were not aiming.
+    pending_actions_when_not_aiming: PlayerActions,
+    /// Pending one-shot actions from packets that were aiming.
+    pending_actions_when_aiming: PlayerActions,
     /// Ticks since last network update. Reset to 0 on each `set()`.
     age_ticks: u32,
 }
@@ -69,16 +70,19 @@ impl PlayerIntentBuffer {
                 turn: 0.0,
                 fire_held: false,
                 aim_held: false,
-                aim_offset: 0.0,
-                pending_actions: PlayerActions::default(),
+                pending_actions_when_not_aiming: PlayerActions::default(),
+                pending_actions_when_aiming: PlayerActions::default(),
                 age_ticks: 0,
             });
         entry.movement = intent.movement;
         entry.turn = intent.turn;
         entry.fire_held = intent.fire_held;
         entry.aim_held = intent.aim_held;
-        entry.aim_offset = intent.aim_offset;
-        entry.pending_actions.merge(intent.actions);
+        if intent.aim_held {
+            entry.pending_actions_when_aiming.merge(intent.actions);
+        } else {
+            entry.pending_actions_when_not_aiming.merge(intent.actions);
+        }
         entry.age_ticks = 0;
     }
 
@@ -93,7 +97,8 @@ impl PlayerIntentBuffer {
             entry.turn = 0.0;
             entry.fire_held = false;
             entry.aim_held = false;
-            entry.aim_offset = 0.0;
+            entry.pending_actions_when_not_aiming = PlayerActions::default();
+            entry.pending_actions_when_aiming = PlayerActions::default();
             return (Vec2::ZERO, 0.0, false);
         }
         entry.age_ticks += 1;
@@ -102,12 +107,26 @@ impl PlayerIntentBuffer {
 
     /// Consume pending one-shot actions (clears them after reading).
     pub fn take_actions(&mut self, pid: &PlayerId) -> PlayerActions {
+        let (mut not_aiming, aiming) = self.take_actions_by_aim(pid);
+        not_aiming.merge(aiming);
+        not_aiming
+    }
+
+    /// Consume pending one-shot actions split by the packet aim state that produced them.
+    pub fn take_actions_by_aim(&mut self, pid: &PlayerId) -> (PlayerActions, PlayerActions) {
         let Some(entry) = self.entries.get_mut(pid) else {
-            return PlayerActions::default();
+            return (PlayerActions::default(), PlayerActions::default());
         };
-        let actions = entry.pending_actions;
-        entry.pending_actions = PlayerActions::default();
-        actions
+        if entry.age_ticks >= STALE_INPUT_TICKS {
+            entry.pending_actions_when_not_aiming = PlayerActions::default();
+            entry.pending_actions_when_aiming = PlayerActions::default();
+            return (PlayerActions::default(), PlayerActions::default());
+        }
+        let not_aiming = entry.pending_actions_when_not_aiming;
+        let aiming = entry.pending_actions_when_aiming;
+        entry.pending_actions_when_not_aiming = PlayerActions::default();
+        entry.pending_actions_when_aiming = PlayerActions::default();
+        (not_aiming, aiming)
     }
 
     /// Peek `fire_held` without aging (for combat system after movement aged).
@@ -126,15 +145,6 @@ impl PlayerIntentBuffer {
             .get(pid)
             .filter(|e| e.age_ticks < STALE_INPUT_TICKS)
             .is_some_and(|e| e.aim_held)
-    }
-
-    /// Peek `aim_offset` without aging. Returns 0.0 if stale or missing.
-    #[must_use]
-    pub fn peek_aim_offset(&self, pid: &PlayerId) -> f32 {
-        self.entries
-            .get(pid)
-            .filter(|e| e.age_ticks < STALE_INPUT_TICKS)
-            .map_or(0.0, |e| e.aim_offset)
     }
 
     pub fn remove_player(&mut self, pid: &PlayerId) {
@@ -280,25 +290,32 @@ pub fn apply_buffered_movement(
     for (entity, mut player, mut snap_turn, speed_modifier) in &mut players {
         if !matches!(player.state, carcinisation_net::PlayerNetState::Alive) {
             buffer.get_continuous_and_age(&player.player_id);
-            buffer.take_actions(&player.player_id);
+            let _ = buffer.take_actions_by_aim(&player.player_id);
             if speed_modifier.is_some() {
                 commands.entity(entity).remove::<NetSpeedModifier>();
             }
             continue;
         }
 
-        let (mut movement_intent, mut turn_dir, _fire) =
+        let (mut movement_intent, turn_dir, _fire) =
             buffer.get_continuous_and_age(&player.player_id);
         let aim_held = buffer.peek_aim_held(&player.player_id);
-        let actions = buffer.take_actions(&player.player_id);
+        let (actions_when_not_aiming, actions_when_aiming) =
+            buffer.take_actions_by_aim(&player.player_id);
+        let mut actions = actions_when_not_aiming;
+        if !aim_mode {
+            actions.merge(actions_when_aiming);
+        }
 
-        // AimCommitment: body is locked while aiming — suppress movement and turn.
+        // AimCommitment: feet locked while aiming — suppress translation, allow turn.
         if aim_mode && aim_held {
             movement_intent = Vec2::ZERO;
-            turn_dir = 0.0;
         }
 
         // Process one-shot actions (edge-triggered).
+        // TODO: This toggle is safe only for exactly two weapons. Before adding
+        // 3+ weapons, the intent must carry a target weapon or deterministic
+        // cycle index instead of blindly toggling.
         if actions.has(PlayerActions::WEAPON_SWITCH) {
             player.current_attack = match player.current_attack {
                 carcinisation_net::NetAttackId::None => carcinisation_net::NetAttackId::Projectile,
@@ -325,8 +342,14 @@ pub fn apply_buffered_movement(
         snap_turn.tick(&mut player.angle, dt);
 
         // Suppress continuous turn during snap turn animation (matches SP).
+        // AimMode uses configurable aim_turn_speed for steadier aiming.
         if !snap_turn.is_active() && turn_dir != 0.0 {
-            player.angle += turn_dir * movement_config.turn_speed * dt;
+            let turn_speed = if aim_mode && aim_held {
+                combat_config.aim_turn_speed
+            } else {
+                movement_config.turn_speed
+            };
+            player.angle += turn_dir * turn_speed * dt;
             player.angle = player.angle.rem_euclid(std::f32::consts::TAU);
         }
 
@@ -400,9 +423,7 @@ pub fn send_input_acks(
         Option<&NetSpeedModifier>,
         Option<&super::occupancy::ServerPlayerImpulse>,
     )>,
-    buffer: Res<PlayerIntentBuffer>,
     tracker: Res<PlayerInputTracker>,
-    combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
     tick_counter: Res<TickCounter>,
     mut last_acked: Local<HashMap<PlayerId, u32>>,
     mut had_snap: Local<HashMap<PlayerId, bool>>,
@@ -455,19 +476,6 @@ pub fn send_input_acks(
                 impulse_strength: player_impulse.map_or(0.0, |i| i.0.strength),
                 impulse_remaining: player_impulse.map_or(0.0, |i| i.0.remaining),
                 impulse_duration: player_impulse.map_or(0.0, |i| i.0.duration),
-                aim_offset: {
-                    let aim_mode = matches!(
-                        combat_config.combat_control_mode,
-                        carcinisation_fps_core::CombatControlMode::AimCommitment
-                    );
-                    if aim_mode && buffer.peek_aim_held(&player.player_id) {
-                        buffer
-                            .peek_aim_offset(&player.player_id)
-                            .clamp(-combat_config.max_aim_offset, combat_config.max_aim_offset)
-                    } else {
-                        0.0
-                    }
-                },
             },
         });
     }
@@ -486,7 +494,14 @@ mod tests {
             fire_held: fire,
             actions,
             aim_held: false,
-            aim_offset: 0.0,
+        }
+    }
+
+    fn make_aim_intent(actions: PlayerActions) -> ClientIntent {
+        ClientIntent {
+            aim_held: true,
+            actions,
+            ..make_intent(Vec2::ZERO, 0.0, false, PlayerActions::default())
         }
     }
 
@@ -552,6 +567,78 @@ mod tests {
     }
 
     #[test]
+    fn buffer_actions_keep_packet_aim_state() {
+        let mut buf = PlayerIntentBuffer::default();
+        let pid = PlayerId(1);
+        buf.set(
+            pid,
+            &make_intent(
+                Vec2::ZERO,
+                0.0,
+                false,
+                PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
+            ),
+        );
+        buf.set(
+            pid,
+            &make_aim_intent(PlayerActions::from_raw(PlayerActions::SNAP_TURN_LEFT)),
+        );
+
+        let (not_aiming, aiming) = buf.take_actions_by_aim(&pid);
+        assert!(not_aiming.has(PlayerActions::WEAPON_SWITCH));
+        assert!(!not_aiming.has(PlayerActions::SNAP_TURN_LEFT));
+        assert!(aiming.has(PlayerActions::SNAP_TURN_LEFT));
+        assert!(!aiming.has(PlayerActions::WEAPON_SWITCH));
+    }
+
+    #[test]
+    fn buffer_stale_entry_clears_pending_action_buckets() {
+        let mut buf = PlayerIntentBuffer::default();
+        let pid = PlayerId(1);
+        buf.set(
+            pid,
+            &make_intent(
+                Vec2::ZERO,
+                0.0,
+                false,
+                PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
+            ),
+        );
+        buf.set(
+            pid,
+            &make_aim_intent(PlayerActions::from_raw(PlayerActions::SNAP_TURN_LEFT)),
+        );
+
+        for _ in 0..=STALE_INPUT_TICKS {
+            buf.get_continuous_and_age(&pid);
+        }
+
+        let (not_aiming, aiming) = buf.take_actions_by_aim(&pid);
+        assert!(not_aiming.is_empty());
+        assert!(aiming.is_empty());
+    }
+
+    #[test]
+    fn take_actions_by_aim_returns_empty_for_stale_entry() {
+        let mut buf = PlayerIntentBuffer::default();
+        let pid = PlayerId(1);
+        buf.set(
+            pid,
+            &make_intent(
+                Vec2::ZERO,
+                0.0,
+                false,
+                PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
+            ),
+        );
+        buf.entries.get_mut(&pid).unwrap().age_ticks = STALE_INPUT_TICKS;
+
+        let (not_aiming, aiming) = buf.take_actions_by_aim(&pid);
+        assert!(not_aiming.is_empty());
+        assert!(aiming.is_empty());
+    }
+
+    #[test]
     fn peek_fire_held_without_aging() {
         let mut buf = PlayerIntentBuffer::default();
         let pid = PlayerId(1);
@@ -592,7 +679,6 @@ mod tests {
             fire_held: false,
             actions: PlayerActions::default(),
             aim_held: false,
-            aim_offset: 0.0,
         };
         if intent.movement.length_squared() > 1.0001 {
             intent.movement = intent.movement.normalize();

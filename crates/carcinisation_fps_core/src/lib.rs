@@ -34,7 +34,11 @@ pub use burning::{
 };
 pub use camera::Camera;
 pub use collision::try_move;
-pub use combat::{flame_hits_position, flame_hits_position_configured};
+pub use combat::{
+    FirePose2d, flame_hits_position, flame_hits_position_configured,
+    flame_hits_position_configured_from_pose, flame_hits_position_from_pose,
+    flame_visual_max_distance, wall_obstruction_distance, wall_obstruction_distance_for_pose,
+};
 pub use config::{
     CombatControlMode, FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, OccupancyConfig,
     PlayerFlamethrowerConfig, ScreenParticleConfig, SizeTierConfig, SpideyCombatConfig,
@@ -42,7 +46,8 @@ pub use config::{
 pub use enemy::{
     DamageOutcome, Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim,
     EnemyState, FpsEnemyAiState, FpsEnemyKind, HitscanResult, MosquitonAiConfig, Projectile,
-    ProjectileImpact, ProjectileKind, ProjectileSlowEffect, apply_damage, hitscan, hitscan_generic,
+    ProjectileImpact, ProjectileKind, ProjectileSlowEffect, apply_damage, hitscan,
+    hitscan_from_pose, hitscan_generic, hitscan_generic_from_pose, hitscan_projectiles_from_pose,
     is_showing_damage_invert, segment_circle_hit_distance, tick_enemies, tick_enemy_ai,
     tick_projectiles, tick_single_enemy,
 };

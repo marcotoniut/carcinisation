@@ -68,8 +68,7 @@ fn fire_intent() -> ClientIntent {
         movement: Vec2::ZERO,
         turn: 0.0,
         fire_held: true,
-        aim_held: false,
-        aim_offset: 0.0,
+        aim_held: true,
         actions: PlayerActions::default(),
     }
 }
@@ -81,19 +80,6 @@ const fn switch_intent() -> ClientIntent {
         turn: 0.0,
         fire_held: false,
         aim_held: false,
-        aim_offset: 0.0,
-        actions: PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
-    }
-}
-
-const fn switch_and_fire_intent() -> ClientIntent {
-    ClientIntent {
-        sequence: InputSequence(0),
-        movement: Vec2::ZERO,
-        turn: 0.0,
-        fire_held: true,
-        aim_held: false,
-        aim_offset: 0.0,
         actions: PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
     }
 }
@@ -386,8 +372,9 @@ fn flame_lethal_damage_burn_parity() {
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
-    // Switch to flamethrower and fire — burn builds intensity progressively.
-    inject(&mut server, 1, &switch_and_fire_intent());
+    // Switch to flamethrower outside AimMode, then fire while aiming.
+    inject(&mut server, 1, &switch_intent());
+    server.update();
     for _ in 0..60 {
         inject(&mut server, 1, &fire_intent());
         server.update();

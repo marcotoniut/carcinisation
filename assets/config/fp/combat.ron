@@ -77,4 +77,18 @@ FpsCombatConfig(
         enemy_separation_strength: 0.3,
         body_height: 0.8,
     ),
+    // Aim mode (AimCommitment control scheme).
+    // Set combat_control_mode to "AimCommitment" to enable.
+    // Default "Legacy" preserves Wolf3D-style B=strafe controls.
+    // AimCommitment controls:
+    // - B = immediate AimMode.
+    // - A while aiming = fire.
+    // - A alone outside AimMode = reserved action/no-op.
+    // - Select tap/release = weapon switch.
+    // - Select + Down/Left/Right outside AimMode = quick/snap turn.
+    // - Start = menu/pause.
+    combat_control_mode: AimCommitment,
+    aim_turn_speed: 2.0,
+    aim_pitch_speed: 96.0,
+    weapon_lowered_offset_px: 20.0,
 )

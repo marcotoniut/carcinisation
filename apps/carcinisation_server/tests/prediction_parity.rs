@@ -75,7 +75,6 @@ fn queue_intent_with_actions(
             turn,
             fire_held: false,
             aim_held: false,
-            aim_offset: 0.0,
             actions,
         });
 }

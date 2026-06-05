@@ -1,6 +1,9 @@
 //! First-person player attacks and weapon overlays.
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
+use carcinisation_fps_core::{
+    FirePose2d, flame_hits_position_configured_from_pose, flame_visual_max_distance,
+};
 
 /// Snap turn state snapshot passed into the presentation layer.
 ///
@@ -24,12 +27,12 @@ use std::{
 use crate::{
     billboard::Billboard,
     camera::Camera,
-    enemy::{Enemy, Projectile, ProjectileImpact, hitscan, hitscan_projectiles},
+    enemy::{Enemy, Projectile, ProjectileImpact},
     map::Map,
-    mosquiton::{Mosquiton, hitscan_mosquitons},
+    mosquiton::Mosquiton,
     raycast::{WallSurfaceId, cast_ray},
     render::{CharDecal, WallSurfaceSprite},
-    spidey::{Spidey, hitscan_spideys},
+    spidey::Spidey,
 };
 
 /// Load an atlas animation from workspace-relative RON + PXI paths.
@@ -104,8 +107,8 @@ pub enum AttackId {
 #[derive(Resource, Debug, Reflect)]
 #[reflect(Resource)]
 pub struct AttackLoadout {
-    pub options: Vec<AttackId>,
-    pub index: usize,
+    options: Vec<AttackId>,
+    index: usize,
 }
 
 impl Default for AttackLoadout {
@@ -119,13 +122,33 @@ impl Default for AttackLoadout {
 
 impl AttackLoadout {
     #[must_use]
+    pub fn options(&self) -> &[AttackId] {
+        &self.options
+    }
+
+    #[must_use]
+    pub fn contains(&self, weapon: AttackId) -> bool {
+        self.options.contains(&weapon)
+    }
+
+    #[must_use]
     pub fn current(&self) -> AttackId {
         self.options[self.index]
     }
 
-    pub fn cycle(&mut self) -> AttackId {
-        self.index = (self.index + 1) % self.options.len();
-        self.current()
+    #[must_use]
+    pub fn next(&self) -> AttackId {
+        self.options[(self.index + 1) % self.options.len()]
+    }
+
+    /// Internal commit point for weapon changes.
+    ///
+    /// Direct current-weapon mutation is only allowed when the presentation FSM
+    /// reaches the deterministic visual swap point.
+    fn commit_presented_weapon(&mut self, attack: AttackId) {
+        if let Some(index) = self.options.iter().position(|&option| option == attack) {
+            self.index = index;
+        }
     }
 }
 
@@ -137,6 +160,7 @@ pub struct AttackInput {
     pub shoot_just_released: bool,
     pub melee_triggered: bool,
     pub cycle_requested: bool,
+    pub aim_held: bool,
     pub moving_forward_back: bool,
     pub cursor_x: f32,
     pub aim_turn_velocity: f32,
@@ -151,6 +175,7 @@ impl Default for AttackInput {
             shoot_just_released: false,
             melee_triggered: false,
             cycle_requested: false,
+            aim_held: false,
             moving_forward_back: false,
             cursor_x: 80.0,
             aim_turn_velocity: 0.0,
@@ -166,6 +191,16 @@ impl AttackInput {
         self.melee_triggered = false;
         self.cycle_requested = false;
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WeaponPresentationPhase {
+    Lowered,
+    Raising,
+    Raised,
+    Lowering,
+    SwitchingOut,
+    SwitchingIn,
 }
 
 /// First-person flamethrower visual config.
@@ -500,6 +535,11 @@ pub struct PlayerAttackState {
     /// Current vertical offset for the idle-lowered / shooting-raised tween.
     /// Starts at the active weapon's `weapon_raise_px` (lowered) and lerps to 0 when shooting.
     weapon_raise_offset: f32,
+    /// Presentation-only base weapon pose offset. `0.0` = raised; positive = lowered.
+    weapon_base_pose_offset: f32,
+    weapon_phase: WeaponPresentationPhase,
+    weapon_presented: AttackId,
+    weapon_switch_target: Option<AttackId>,
     /// Presentation-only offset applied during active snap turns.
     snap_turn_offset: Vec2,
     config: PlayerFlamethrower1pConfig,
@@ -534,6 +574,10 @@ impl Default for PlayerAttackState {
             weapon_bob_offset: Vec2::ZERO,
             view_bob: 0.0,
             weapon_raise_offset,
+            weapon_base_pose_offset: 0.0,
+            weapon_phase: WeaponPresentationPhase::Raised,
+            weapon_presented: AttackId::Flamethrower,
+            weapon_switch_target: None,
             snap_turn_offset: Vec2::ZERO,
             config,
             shared,
@@ -565,6 +609,10 @@ impl PlayerAttackState {
             snap_turn_offset: Vec2::ZERO,
             view_bob: 0.0,
             weapon_raise_offset,
+            weapon_base_pose_offset: 0.0,
+            weapon_phase: WeaponPresentationPhase::Raised,
+            weapon_presented: AttackId::Flamethrower,
+            weapon_switch_target: None,
             config,
             shared,
             gun_config,
@@ -581,6 +629,60 @@ impl PlayerAttackState {
         &self.shared
     }
 
+    #[must_use]
+    pub const fn weapon_pose_phase(&self) -> WeaponPresentationPhase {
+        self.weapon_phase
+    }
+
+    #[must_use]
+    pub const fn weapon_pose_offset_px(&self) -> f32 {
+        self.weapon_base_pose_offset
+    }
+
+    fn request_weapon_switch(&mut self, target: AttackId) {
+        if self.weapon_switch_target == Some(target) || self.weapon_presented == target {
+            return;
+        }
+        self.weapon_switch_target = Some(target);
+        self.weapon_phase = WeaponPresentationPhase::SwitchingOut;
+    }
+
+    pub fn request_weapon_switch_to(&mut self, target: AttackId) {
+        self.request_weapon_switch(target);
+    }
+
+    pub fn sync_to_authoritative_weapon(&mut self, current_weapon: AttackId, target: AttackId) {
+        if self.weapon_switch_target == Some(target) {
+            return;
+        }
+
+        if target == current_weapon || target == self.weapon_presented {
+            self.weapon_switch_target = None;
+            if matches!(
+                self.weapon_phase,
+                WeaponPresentationPhase::SwitchingOut | WeaponPresentationPhase::SwitchingIn
+            ) {
+                self.weapon_phase = WeaponPresentationPhase::Lowering;
+            }
+            return;
+        }
+
+        self.weapon_switch_target = Some(target);
+        if !matches!(self.weapon_phase, WeaponPresentationPhase::SwitchingOut) {
+            self.weapon_phase = WeaponPresentationPhase::SwitchingOut;
+        }
+    }
+
+    #[must_use]
+    pub const fn has_pending_weapon_switch(&self) -> bool {
+        self.weapon_switch_target.is_some()
+    }
+
+    #[must_use]
+    pub fn presented_attack(&self, current_weapon: AttackId) -> AttackId {
+        self.presented_weapon(current_weapon)
+    }
+
     /// Whether the flamethrower has been activated but is no longer spawning
     /// new samples (ammo depleted, draining). Used to suppress `fire_held`
     /// so the server clears `flame_active` for 3P rendering.
@@ -590,12 +692,24 @@ impl PlayerAttackState {
     }
 
     /// Produce world-space billboards from the active flame stream samples.
+    ///
+    /// `screen_height_px` is the framebuffer height in pixels, used to convert
+    /// `Camera::aim_pitch` (a pixel offset) into a world-space height slope so
+    /// the flame visually follows vertical aim. **Cosmetic only** — flame
+    /// damage remains 2D horizontal; real vertical gameplay requires
+    /// height-aware combat later.
+    ///
+    /// Remote player flames use a separate 3P rendering path that does not
+    /// apply pitch bias — only the local player's flame is pitched.
     #[must_use]
     pub fn flame_chain_billboards(
         &self,
         camera: &Camera,
         sprites: &PlayerAttackSprites,
+        screen_height_px: f32,
     ) -> Vec<Billboard> {
+        const MAX_PITCH_HEIGHT_BIAS: f32 = 1.5;
+
         let Some(active) = &self.flamethrower else {
             return Vec::new();
         };
@@ -603,6 +717,18 @@ impl PlayerAttackState {
         let shared = &self.shared;
         let max_age = shared.max_stream_age();
 
+        // Visual-only pitch slope: converts the camera's pixel-space aim pitch
+        // into a world-space height-per-distance gradient. Each flame billboard
+        // gains `pitch_slope * forward_distance` extra height, making the whip
+        // visually aim up/down to match the pitched camera. Damage direction
+        // and hit detection remain purely horizontal (2D).
+        let pitch_slope = if screen_height_px > 0.0 {
+            camera.aim_pitch / screen_height_px
+        } else {
+            0.0
+        };
+        // Clamp total pitch-induced height offset to avoid silly billboard
+        // positions when extreme range/speed values are set in config.
         let mut billboards = Vec::new();
         if active.spawning {
             let dir = camera.direction();
@@ -612,9 +738,11 @@ impl PlayerAttackState {
                 config.nozzle_forward,
                 config.nozzle_lateral,
             );
+            let nozzle_pitch_bias = (pitch_slope * config.nozzle_forward)
+                .clamp(-MAX_PITCH_HEIGHT_BIAS, MAX_PITCH_HEIGHT_BIAS);
             billboards.push(Billboard {
                 position: nozzle_pos,
-                height: config.nozzle_height,
+                height: config.nozzle_height + nozzle_pitch_bias,
                 world_height: config.billboard_scale_near * config.nozzle_head_scale,
                 sprite: Arc::clone(sprites.flame_frame_loop(active.elapsed + 0.07)),
                 flip_x: false,
@@ -628,7 +756,11 @@ impl PlayerAttackState {
             let world_scale = config.billboard_scale_near
                 + (config.billboard_scale_far - config.billboard_scale_near) * t;
             #[allow(clippy::suboptimal_flops)]
-            let height = config.nozzle_height * (1.0 - t);
+            let base_height = config.nozzle_height * (1.0 - t);
+            let forward_distance = sample.age * shared.speed;
+            let pitch_bias = (pitch_slope * forward_distance)
+                .clamp(-MAX_PITCH_HEIGHT_BIAS, MAX_PITCH_HEIGHT_BIAS);
+            let height = base_height + pitch_bias;
             #[allow(clippy::suboptimal_flops)]
             let phase = active.elapsed + sample.age * 0.5;
 
@@ -676,6 +808,7 @@ struct ActiveFpFlamethrower {
 struct FlameStreamSample {
     emit_position: Vec2,
     emit_direction: Vec2,
+    max_distance: f32,
     age: f32,
     #[allow(dead_code)]
     seed: u32,
@@ -683,7 +816,8 @@ struct FlameStreamSample {
 
 impl FlameStreamSample {
     fn world_position(&self, speed: f32) -> Vec2 {
-        self.emit_position + self.emit_direction * speed * self.age
+        let distance = (speed * self.age).min(self.max_distance);
+        self.emit_position + self.emit_direction * distance
     }
 }
 
@@ -713,14 +847,17 @@ pub fn process_player_attacks(
     impacts: &mut Vec<ProjectileImpact>,
     char_decals: &mut Vec<CharDecal>,
     screen_height_px: f32,
+    weapon_lowered_offset_px: f32,
     legacy_shoot_request: &mut bool,
     burn_config: &carcinisation_fps_core::BurnConfig,
     view_bob_amplitude: f32,
     view_bob_freq_mult: f32,
     snap_turn: SnapTurnVisualInput,
 ) {
+    let fire_pose = FirePose2d::from(camera);
+
     if input.cycle_requested {
-        loadout.cycle();
+        state.request_weapon_switch(loadout.next());
     }
 
     let legacy_shot = *legacy_shoot_request;
@@ -733,7 +870,7 @@ pub fn process_player_attacks(
             position: MELEE_EFFECT_POS,
         });
         apply_hitscan_damage(
-            camera,
+            fire_pose,
             map,
             enemies,
             mosquitons,
@@ -754,7 +891,7 @@ pub fn process_player_attacks(
                         position: PISTOL_EFFECT_POS,
                     });
                     apply_hitscan_damage(
-                        camera,
+                        fire_pose,
                         map,
                         enemies,
                         mosquitons,
@@ -767,7 +904,7 @@ pub fn process_player_attacks(
                 }
             }
             AttackId::Flamethrower => update_flamethrower_attack(
-                camera,
+                fire_pose,
                 map,
                 dt,
                 elapsed_secs,
@@ -785,12 +922,7 @@ pub fn process_player_attacks(
         }
     }
 
-    if loadout.current() != AttackId::Flamethrower {
-        state.flamethrower = None;
-    }
-    if loadout.current() != AttackId::Pistol {
-        state.gun_muzzle_flash_elapsed = None;
-    }
+    clear_inactive_weapon_state(state, loadout.current());
 
     // Tick muzzle flash timer; expire when animation duration is exceeded.
     if let Some(elapsed) = &mut state.gun_muzzle_flash_elapsed {
@@ -800,18 +932,32 @@ pub fn process_player_attacks(
         }
     }
 
-    update_weapon_presentation(
+    if let Some(committed_weapon) = update_weapon_presentation(
         state,
         loadout.current(),
+        input.aim_held,
+        weapon_lowered_offset_px,
         input.moving_forward_back,
         &snap_turn,
         dt,
         elapsed_secs,
         view_bob_amplitude,
         view_bob_freq_mult,
-    );
+    ) {
+        loadout.commit_presented_weapon(committed_weapon);
+        clear_inactive_weapon_state(state, loadout.current());
+    }
     tick_one_shot_effects(&mut state.one_shots, dt, &state.shared);
     input.clear_edges();
+}
+
+fn clear_inactive_weapon_state(state: &mut PlayerAttackState, current_weapon: AttackId) {
+    if current_weapon != AttackId::Flamethrower {
+        state.flamethrower = None;
+    }
+    if current_weapon != AttackId::Pistol {
+        state.gun_muzzle_flash_elapsed = None;
+    }
 }
 
 /// Compute presentation-only weapon displacement during an active snap turn.
@@ -840,18 +986,90 @@ pub fn snap_turn_visual_offset(
     )
 }
 
+const WEAPON_BASE_POSE_SPEED_PX_PER_SEC: f32 = 220.0;
+
+fn move_towards(current: f32, target: f32, max_delta: f32) -> f32 {
+    let delta = target - current;
+    if delta.abs() <= max_delta {
+        target
+    } else {
+        delta.signum().mul_add(max_delta, current)
+    }
+}
+
+fn reached_pose(current: f32, target: f32) -> bool {
+    (current - target).abs() <= 0.01
+}
+
 fn update_weapon_presentation(
     state: &mut PlayerAttackState,
     current_weapon: AttackId,
+    aim_held: bool,
+    weapon_lowered_offset_px: f32,
     moving_forward_back: bool,
     snap_turn: &SnapTurnVisualInput,
     dt: f32,
     elapsed_secs: f32,
     view_bob_amplitude: f32,
     view_bob_freq_mult: f32,
-) {
+) -> Option<AttackId> {
+    let lowered_px = weapon_lowered_offset_px.max(0.0);
+    if state.weapon_switch_target.is_none() && state.weapon_presented != current_weapon {
+        state.request_weapon_switch(current_weapon);
+    }
+
+    let mut committed_weapon = None;
+    let max_pose_delta = WEAPON_BASE_POSE_SPEED_PX_PER_SEC * dt.max(0.0);
+    match state.weapon_phase {
+        WeaponPresentationPhase::SwitchingOut => {
+            state.weapon_base_pose_offset =
+                move_towards(state.weapon_base_pose_offset, lowered_px, max_pose_delta);
+            if reached_pose(state.weapon_base_pose_offset, lowered_px) {
+                if let Some(target) = state.weapon_switch_target {
+                    state.weapon_presented = target;
+                    committed_weapon = Some(target);
+                }
+                state.weapon_phase = WeaponPresentationPhase::SwitchingIn;
+            }
+        }
+        WeaponPresentationPhase::SwitchingIn => {
+            let target = if aim_held { 0.0 } else { lowered_px };
+            state.weapon_base_pose_offset =
+                move_towards(state.weapon_base_pose_offset, target, max_pose_delta);
+            if reached_pose(state.weapon_base_pose_offset, target) {
+                state.weapon_switch_target = None;
+                state.weapon_phase = if aim_held {
+                    WeaponPresentationPhase::Raised
+                } else {
+                    WeaponPresentationPhase::Lowered
+                };
+            }
+        }
+        WeaponPresentationPhase::Raised
+        | WeaponPresentationPhase::Raising
+        | WeaponPresentationPhase::Lowered
+        | WeaponPresentationPhase::Lowering => {
+            let target = if aim_held { 0.0 } else { lowered_px };
+            state.weapon_phase = if aim_held {
+                WeaponPresentationPhase::Raising
+            } else {
+                WeaponPresentationPhase::Lowering
+            };
+            state.weapon_base_pose_offset =
+                move_towards(state.weapon_base_pose_offset, target, max_pose_delta);
+            if reached_pose(state.weapon_base_pose_offset, target) {
+                state.weapon_phase = if aim_held {
+                    WeaponPresentationPhase::Raised
+                } else {
+                    WeaponPresentationPhase::Lowered
+                };
+            }
+        }
+    }
+
+    let presentation_weapon = state.presented_weapon(current_weapon);
     let (raise_px, raise_speed, bob_enabled, bob_h, bob_v, bob_speed, bob_return, st_h, st_v) =
-        match current_weapon {
+        match presentation_weapon {
             AttackId::Flamethrower => (
                 state.config.weapon_raise_px,
                 state.config.weapon_raise_speed,
@@ -916,11 +1134,12 @@ fn update_weapon_presentation(
         st_h,
         st_v,
     );
+    committed_weapon
 }
 
 #[allow(clippy::too_many_arguments)]
 fn update_flamethrower_attack(
-    camera: &Camera,
+    fire_pose: FirePose2d,
     map: &Map,
     dt: f32,
     _elapsed_secs: f32,
@@ -988,13 +1207,14 @@ fn update_flamethrower_attack(
     // Emit new samples at the nozzle while firing.
     if active.spawning {
         active.spawn_cooldown -= dt;
-        let dir = camera.direction();
+        let dir = fire_pose.direction();
         let nozzle_pos = flame_nozzle_position(
-            camera.position,
+            fire_pose.origin_xy,
             dir,
             config.nozzle_forward,
             config.nozzle_lateral,
         );
+        let max_distance = flame_visual_max_distance(map, nozzle_pos, dir, shared.range);
         let emit_interval = shared.emit_interval_ms.get() as f32 / 1000.0;
         #[allow(clippy::while_float)]
         while active.spawn_cooldown <= 0.0 {
@@ -1002,6 +1222,7 @@ fn update_flamethrower_attack(
             active.samples.push(FlameStreamSample {
                 emit_position: nozzle_pos,
                 emit_direction: dir,
+                max_distance,
                 age: 0.0,
                 seed,
             });
@@ -1011,7 +1232,7 @@ fn update_flamethrower_attack(
     }
 
     // Wall impact detection.
-    active.wall_impact = find_flame_wall_impact(camera, map, config, shared, active);
+    active.wall_impact = find_flame_wall_impact(fire_pose, map, config, shared, active);
     if active.spawning {
         emit_char_decals(
             char_decals,
@@ -1023,7 +1244,7 @@ fn update_flamethrower_attack(
     }
 
     apply_flamethrower_damage(
-        camera,
+        fire_pose,
         map,
         enemies,
         mosquitons,
@@ -1059,14 +1280,14 @@ fn flame_nozzle_position(
 
 /// Check if the flame stream reaches a wall along the camera's forward direction.
 fn find_flame_wall_impact(
-    camera: &Camera,
+    fire_pose: FirePose2d,
     map: &Map,
     config: &PlayerFlamethrower1pConfig,
     shared: &carcinisation_fps_core::PlayerFlamethrowerConfig,
     active: &ActiveFpFlamethrower,
 ) -> Option<FlameWallImpact> {
-    let dir = camera.direction();
-    let ray_hit = cast_ray(map, camera.position, dir);
+    let dir = fire_pose.direction();
+    let ray_hit = cast_ray(map, fire_pose.origin_xy, dir);
     if ray_hit.wall_id == 0 {
         return None;
     }
@@ -1198,12 +1419,11 @@ pub fn destroy_projectiles_touching_active_flamethrower(
     if state.flamethrower.is_none() {
         return;
     }
-    let flame_dir = camera.direction();
+    let fire_pose = FirePose2d::from(camera);
     for projectile in projectiles.iter_mut() {
         if projectile.alive
-            && carcinisation_fps_core::flame_hits_position_configured(
-                camera.position,
-                flame_dir,
+            && flame_hits_position_configured_from_pose(
+                fire_pose,
                 projectile.position,
                 map,
                 &state.shared,
@@ -1222,7 +1442,7 @@ pub fn destroy_projectiles_touching_active_flamethrower(
 
 #[allow(clippy::too_many_arguments)]
 fn apply_flamethrower_damage(
-    camera: &Camera,
+    fire_pose: FirePose2d,
     map: &Map,
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
@@ -1233,19 +1453,11 @@ fn apply_flamethrower_damage(
     flame_cfg: &carcinisation_fps_core::PlayerFlamethrowerConfig,
     dt: f32,
 ) {
-    let flame_dir = camera.direction();
-
     for enemy in enemies.iter_mut() {
         if !enemy.is_alive() {
             continue;
         }
-        if carcinisation_fps_core::flame_hits_position_configured(
-            camera.position,
-            flame_dir,
-            enemy.position,
-            map,
-            flame_cfg,
-        ) {
+        if flame_hits_position_configured_from_pose(fire_pose, enemy.position, map, flame_cfg) {
             carcinisation_fps_core::apply_exposure(
                 &mut enemy.burn_state,
                 burn_config,
@@ -1259,13 +1471,7 @@ fn apply_flamethrower_damage(
         if !mosquiton.is_alive() {
             continue;
         }
-        if carcinisation_fps_core::flame_hits_position_configured(
-            camera.position,
-            flame_dir,
-            mosquiton.position,
-            map,
-            flame_cfg,
-        ) {
+        if flame_hits_position_configured_from_pose(fire_pose, mosquiton.position, map, flame_cfg) {
             carcinisation_fps_core::apply_exposure(
                 &mut mosquiton.burn_state,
                 burn_config,
@@ -1279,13 +1485,7 @@ fn apply_flamethrower_damage(
         if !spidey.is_alive() {
             continue;
         }
-        if carcinisation_fps_core::flame_hits_position_configured(
-            camera.position,
-            flame_dir,
-            spidey.position,
-            map,
-            flame_cfg,
-        ) {
+        if flame_hits_position_configured_from_pose(fire_pose, spidey.position, map, flame_cfg) {
             carcinisation_fps_core::apply_exposure(
                 &mut spidey.burn_state,
                 burn_config,
@@ -1295,22 +1495,20 @@ fn apply_flamethrower_damage(
         }
     }
 
-    destroy_projectiles_touching_flame(camera, map, projectiles, impacts, flame_cfg);
+    destroy_projectiles_touching_flame(fire_pose, map, projectiles, impacts, flame_cfg);
 }
 
 fn destroy_projectiles_touching_flame(
-    camera: &Camera,
+    fire_pose: FirePose2d,
     map: &Map,
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
     flame_cfg: &carcinisation_fps_core::PlayerFlamethrowerConfig,
 ) {
-    let flame_dir = camera.direction();
     for projectile in projectiles.iter_mut() {
         if projectile.alive
-            && carcinisation_fps_core::flame_hits_position_configured(
-                camera.position,
-                flame_dir,
+            && flame_hits_position_configured_from_pose(
+                fire_pose,
                 projectile.position,
                 map,
                 flame_cfg,
@@ -1347,7 +1545,7 @@ fn tick_one_shot_effects(
 
 #[allow(clippy::too_many_arguments)]
 fn apply_hitscan_damage(
-    camera: &Camera,
+    fire_pose: FirePose2d,
     map: &Map,
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
@@ -1357,10 +1555,23 @@ fn apply_hitscan_damage(
     damage: u32,
     max_range: Option<f32>,
 ) {
-    let enemy_hit = hitscan(camera, enemies, map);
-    let mosquiton_hit = hitscan_mosquitons(camera, mosquitons, map);
-    let spidey_hit = hitscan_spideys(camera, spideys, map);
-    let projectile_hit = hitscan_projectiles(camera, projectiles, map);
+    let enemy_hit = carcinisation_fps_core::hitscan_from_pose(fire_pose, enemies, map);
+    let mosquiton_hit = carcinisation_fps_core::hitscan_generic_from_pose(
+        fire_pose,
+        map,
+        mosquitons
+            .iter()
+            .map(|m| (m.position, m.config.collision_radius, m.is_alive())),
+    );
+    let spidey_hit = carcinisation_fps_core::hitscan_generic_from_pose(
+        fire_pose,
+        map,
+        spideys
+            .iter()
+            .map(|s| (s.position, s.config.sim.collision_radius, s.is_alive())),
+    );
+    let projectile_hit =
+        carcinisation_fps_core::hitscan_projectiles_from_pose(fire_pose, projectiles, map);
 
     let mut hit = enemy_hit
         .enemy_idx
@@ -1414,6 +1625,7 @@ enum FpShotHit {
     Projectile(usize),
 }
 
+/// Render weapon HUD overlays (weapon sprite, muzzle flash, idle flame, one-shots).
 pub fn draw_player_attack_overlays(
     image: &mut CxImage,
     _camera: &Camera,
@@ -1436,12 +1648,11 @@ pub fn draw_player_attack_overlays(
         );
     }
 
-    if loadout.current() == AttackId::Flamethrower {
+    let rendered_weapon = state.presented_weapon(loadout.current());
+    if rendered_weapon == AttackId::Flamethrower {
         let config = &state.config;
         let screen_height = image.height() as f32;
-        let presentation_offset = state.weapon_bob_offset
-            + Vec2::new(0.0, state.weapon_raise_offset)
-            + state.snap_turn_offset;
+        let presentation_offset = weapon_presentation_offset(state);
         let weapon_center = flamethrower_weapon_center(screen_height, config, presentation_offset);
 
         // Flame chain is now rendered as world-space billboards via
@@ -1467,12 +1678,10 @@ pub fn draw_player_attack_overlays(
             weapon_center,
             1.0,
         );
-    } else if loadout.current() == AttackId::Pistol {
+    } else if rendered_weapon == AttackId::Pistol {
         let gun_config = &state.gun_config;
         let screen_height = image.height() as f32;
-        let presentation_offset = state.weapon_bob_offset
-            + Vec2::new(0.0, state.weapon_raise_offset)
-            + state.snap_turn_offset;
+        let presentation_offset = weapon_presentation_offset(state);
         let weapon_center = gun_weapon_center(screen_height, gun_config, presentation_offset);
 
         // Muzzle flash (drawn behind weapon).
@@ -1494,6 +1703,28 @@ pub fn draw_player_attack_overlays(
         };
         draw_image_scaled_center(image, gun_frame, weapon_center, 1.0);
     }
+}
+
+impl PlayerAttackState {
+    fn presented_weapon(&self, current_weapon: AttackId) -> AttackId {
+        if self.weapon_presented == current_weapon || self.weapon_switch_target.is_some() {
+            self.weapon_presented
+        } else {
+            current_weapon
+        }
+    }
+}
+
+/// Screen-space weapon HUD offset. Excludes `aim_pitch` because the weapon
+/// overlay is camera/UI-bound and must stay at a fixed screen position while
+/// the world pitches. Flame billboards handle pitch separately via height bias.
+fn weapon_presentation_offset(state: &PlayerAttackState) -> Vec2 {
+    state.weapon_bob_offset
+        + Vec2::new(
+            0.0,
+            state.weapon_base_pose_offset + state.weapon_raise_offset,
+        )
+        + state.snap_turn_offset
 }
 
 fn flamethrower_weapon_animation<'a>(
@@ -1715,6 +1946,46 @@ mod tests {
         }
     }
 
+    fn corridor_map(wall_x: Option<usize>) -> Map {
+        let mut map = Map {
+            width: 6,
+            height: 3,
+            cells: vec![
+                1, 1, 1, 1, 1, 1, //
+                1, 0, 0, 0, 0, 1, //
+                1, 1, 1, 1, 1, 1,
+            ],
+        };
+        if let Some(x) = wall_x {
+            map.cells[map.width + x] = 1;
+        }
+        map
+    }
+
+    fn commit_test_weapon(
+        loadout: &mut AttackLoadout,
+        state: &mut PlayerAttackState,
+        target: AttackId,
+    ) {
+        state.request_weapon_switch_to(target);
+        let committed = update_weapon_presentation(
+            state,
+            loadout.current(),
+            false,
+            0.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+        )
+        .expect("zero-distance test switch should commit immediately");
+        loadout.commit_presented_weapon(committed);
+        state.weapon_switch_target = None;
+        state.weapon_phase = WeaponPresentationPhase::Lowered;
+    }
+
     #[test]
     fn fps_attack_configs_load() {
         let _ = GroundFireVisualConfig::load();
@@ -1723,11 +1994,17 @@ mod tests {
     }
 
     #[test]
-    fn attack_loadout_cycles_flamethrower_pistol() {
-        let mut loadout = AttackLoadout::default();
+    fn attack_loadout_reports_next_without_mutating() {
+        let loadout = AttackLoadout::default();
+        assert_eq!(
+            loadout.options(),
+            &[AttackId::Flamethrower, AttackId::Pistol]
+        );
+        assert!(loadout.contains(AttackId::Flamethrower));
+        assert!(loadout.contains(AttackId::Pistol));
         assert_eq!(loadout.current(), AttackId::Flamethrower);
-        assert_eq!(loadout.cycle(), AttackId::Pistol);
-        assert_eq!(loadout.cycle(), AttackId::Flamethrower);
+        assert_eq!(loadout.next(), AttackId::Pistol);
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
     }
 
     #[test]
@@ -1751,7 +2028,7 @@ mod tests {
         let sprites = PlayerAttackSprites::load();
         let mut state = PlayerAttackState::default();
         let mut loadout = AttackLoadout::default();
-        loadout.cycle(); // switch to Pistol
+        commit_test_weapon(&mut loadout, &mut state, AttackId::Pistol);
         assert_eq!(loadout.current(), AttackId::Pistol);
 
         // No flash initially.
@@ -1794,6 +2071,7 @@ mod tests {
             &mut impacts,
             &mut char_decals,
             144.0,
+            0.0,
             &mut shoot,
             &carcinisation_fps_core::BurnConfig::default(),
             1.5,
@@ -1824,6 +2102,7 @@ mod tests {
             &mut impacts,
             &mut char_decals,
             144.0,
+            0.0,
             &mut shoot,
             &carcinisation_fps_core::BurnConfig::default(),
             1.5,
@@ -1840,7 +2119,7 @@ mod tests {
         let sprites = PlayerAttackSprites::load();
         let mut state = PlayerAttackState::default();
         let mut loadout = AttackLoadout::default();
-        loadout.cycle(); // Pistol
+        commit_test_weapon(&mut loadout, &mut state, AttackId::Pistol);
 
         state.gun_muzzle_flash_elapsed = Some(0.05);
 
@@ -1879,6 +2158,7 @@ mod tests {
             &mut impacts,
             &mut char_decals,
             144.0,
+            0.0,
             &mut shoot,
             &carcinisation_fps_core::BurnConfig::default(),
             1.5,
@@ -1888,6 +2168,384 @@ mod tests {
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
         assert!(state.gun_muzzle_flash_elapsed.is_none());
+    }
+
+    #[test]
+    fn weapon_switch_defers_gameplay_until_visual_swap() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            cycle_requested: true,
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            0.01,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
+        assert_eq!(state.weapon_switch_target, Some(AttackId::Pistol));
+        assert_eq!(state.weapon_presented, AttackId::Flamethrower);
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            1.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Pistol);
+        assert_eq!(state.weapon_presented, AttackId::Pistol);
+    }
+
+    #[test]
+    fn external_weapon_sync_defers_gameplay_until_visual_swap() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        state.request_weapon_switch_to(AttackId::Pistol);
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            0.01,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
+        assert_eq!(state.weapon_presented, AttackId::Flamethrower);
+        assert!(state.has_pending_weapon_switch());
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            1.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Pistol);
+        assert_eq!(state.weapon_presented, AttackId::Pistol);
+        assert_eq!(state.weapon_phase, WeaponPresentationPhase::SwitchingIn);
+        assert_eq!(state.weapon_pose_offset_px(), 20.0);
+    }
+
+    #[test]
+    fn firing_during_external_switching_out_uses_still_presented_weapon() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        state.request_weapon_switch_to(AttackId::Pistol);
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            0.01,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
+        assert_eq!(state.weapon_presented, AttackId::Flamethrower);
+        assert!(state.flamethrower.is_some());
+        assert!(state.gun_muzzle_flash_elapsed.is_none());
+    }
+
+    #[test]
+    fn firing_during_pending_switch_keeps_gameplay_and_presented_weapon_equal() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            cycle_requested: true,
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            0.01,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
+        assert_eq!(state.presented_weapon(loadout.current()), loadout.current());
+        assert!(state.flamethrower.is_some());
+        assert!(state.gun_muzzle_flash_elapsed.is_none());
+    }
+
+    #[test]
+    fn authoritative_current_weapon_cancels_pending_switch_without_commit() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        state.request_weapon_switch_to(AttackId::Pistol);
+        let _ = update_weapon_presentation(
+            &mut state,
+            loadout.current(),
+            false,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            0.01,
+            0.0,
+            0.0,
+            1.0,
+        );
+        let lowered_progress = state.weapon_pose_offset_px();
+
+        state.sync_to_authoritative_weapon(loadout.current(), AttackId::Flamethrower);
+
+        assert!(!state.has_pending_weapon_switch());
+        assert_eq!(state.weapon_presented, AttackId::Flamethrower);
+        assert_eq!(state.weapon_pose_offset_px(), lowered_progress);
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            1.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut [],
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            20.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
+        assert_eq!(state.weapon_presented, AttackId::Flamethrower);
+    }
+
+    #[test]
+    fn repeated_authoritative_target_does_not_reset_switch_progress() {
+        let mut state = PlayerAttackState::default();
+        let loadout = AttackLoadout::default();
+
+        state.request_weapon_switch_to(AttackId::Pistol);
+        let _ = update_weapon_presentation(
+            &mut state,
+            loadout.current(),
+            false,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            0.01,
+            0.0,
+            0.0,
+            1.0,
+        );
+        let phase_before = state.weapon_phase;
+        let progress_before = state.weapon_pose_offset_px();
+
+        state.sync_to_authoritative_weapon(loadout.current(), AttackId::Pistol);
+
+        assert_eq!(state.weapon_switch_target, Some(AttackId::Pistol));
+        assert_eq!(state.weapon_phase, phase_before);
+        assert_eq!(state.weapon_pose_offset_px(), progress_before);
     }
 
     #[test]
@@ -1911,6 +2569,7 @@ mod tests {
             samples: vec![FlameStreamSample {
                 emit_position: Vec2::ZERO,
                 emit_direction: Vec2::Y,
+                max_distance: 10.0,
                 age: 0.0,
                 seed: 0,
             }],
@@ -1993,10 +2652,525 @@ mod tests {
     }
 
     #[test]
+    fn weapon_presentation_offset_keeps_hud_offsets_without_pitch() {
+        let state = PlayerAttackState {
+            weapon_bob_offset: Vec2::new(2.0, 3.0),
+            weapon_raise_offset: 5.0,
+            weapon_base_pose_offset: 13.0,
+            snap_turn_offset: Vec2::new(7.0, 11.0),
+            ..Default::default()
+        };
+
+        assert_eq!(weapon_presentation_offset(&state), Vec2::new(9.0, 32.0));
+    }
+
+    #[test]
+    fn weapon_pose_enter_aim_raises_weapon() {
+        let mut state = PlayerAttackState {
+            weapon_base_pose_offset: 20.0,
+            weapon_phase: WeaponPresentationPhase::Lowered,
+            ..Default::default()
+        };
+
+        let _ = update_weapon_presentation(
+            &mut state,
+            AttackId::Flamethrower,
+            true,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+        );
+
+        assert_eq!(state.weapon_pose_phase(), WeaponPresentationPhase::Raised);
+        assert_eq!(state.weapon_pose_offset_px(), 0.0);
+    }
+
+    #[test]
+    fn weapon_pose_exit_aim_lowers_weapon() {
+        let mut state = PlayerAttackState::default();
+
+        let _ = update_weapon_presentation(
+            &mut state,
+            AttackId::Flamethrower,
+            false,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+        );
+
+        assert_eq!(state.weapon_pose_phase(), WeaponPresentationPhase::Lowered);
+        assert_eq!(state.weapon_pose_offset_px(), 20.0);
+    }
+
+    #[test]
+    fn weapon_pose_interpolates_to_lowered_value() {
+        let mut state = PlayerAttackState::default();
+
+        let _ = update_weapon_presentation(
+            &mut state,
+            AttackId::Flamethrower,
+            false,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            0.05,
+            0.0,
+            0.0,
+            1.0,
+        );
+        assert!(state.weapon_pose_offset_px() > 0.0);
+        assert!(state.weapon_pose_offset_px() < 20.0);
+
+        let _ = update_weapon_presentation(
+            &mut state,
+            AttackId::Flamethrower,
+            false,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+        );
+        assert_eq!(state.weapon_pose_offset_px(), 20.0);
+    }
+
+    #[test]
+    fn weapon_switch_outside_aim_swaps_at_lowered_pose_without_raise_bounce() {
+        let mut state = PlayerAttackState::default();
+
+        assert_eq!(
+            update_weapon_presentation(
+                &mut state,
+                AttackId::Pistol,
+                false,
+                20.0,
+                false,
+                &SnapTurnVisualInput::default(),
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+            ),
+            Some(AttackId::Pistol)
+        );
+
+        assert_eq!(state.weapon_phase, WeaponPresentationPhase::SwitchingIn);
+        assert_eq!(state.weapon_presented, AttackId::Pistol);
+        assert_eq!(state.weapon_pose_offset_px(), 20.0);
+
+        assert_eq!(
+            update_weapon_presentation(
+                &mut state,
+                AttackId::Pistol,
+                false,
+                20.0,
+                false,
+                &SnapTurnVisualInput::default(),
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+            ),
+            None
+        );
+
+        assert_eq!(state.weapon_phase, WeaponPresentationPhase::Lowered);
+        assert_eq!(state.weapon_pose_offset_px(), 20.0);
+    }
+
+    #[test]
+    fn weapon_switch_in_aim_mode_raises_new_weapon() {
+        let mut state = PlayerAttackState::default();
+
+        assert_eq!(
+            update_weapon_presentation(
+                &mut state,
+                AttackId::Pistol,
+                true,
+                20.0,
+                false,
+                &SnapTurnVisualInput::default(),
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+            ),
+            Some(AttackId::Pistol)
+        );
+
+        assert_eq!(state.weapon_phase, WeaponPresentationPhase::SwitchingIn);
+        assert_eq!(state.weapon_pose_offset_px(), 20.0);
+
+        let _ = update_weapon_presentation(
+            &mut state,
+            AttackId::Pistol,
+            true,
+            20.0,
+            false,
+            &SnapTurnVisualInput::default(),
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+        );
+
+        assert_eq!(state.weapon_phase, WeaponPresentationPhase::Raised);
+        assert_eq!(state.weapon_pose_offset_px(), 0.0);
+    }
+
+    /// Helper: fire the flamethrower for several frames so `flame_chain_billboards`
+    /// has stream samples with meaningful age/distance for pitch testing.
+    fn fire_flamethrower_frames(
+        state: &mut PlayerAttackState,
+        loadout: &mut AttackLoadout,
+        frames: u32,
+    ) {
+        let sprites = PlayerAttackSprites::load();
+        let camera = Camera::default();
+        let map = open_test_map();
+        let dt = 1.0 / 30.0;
+        for i in 0..frames {
+            let mut input = AttackInput {
+                shoot_just_pressed: i == 0,
+                shoot_held: true,
+                cursor_x: 80.0,
+                ..Default::default()
+            };
+            let mut shoot = false;
+            process_player_attacks(
+                &camera,
+                &map,
+                &sprites,
+                37,
+                dt,
+                dt * i as f32,
+                &mut input,
+                loadout,
+                state,
+                &mut [],
+                &mut [],
+                &mut [],
+                &mut Vec::new(),
+                &mut Vec::new(),
+                &mut Vec::new(),
+                144.0,
+                0.0,
+                &mut shoot,
+                &carcinisation_fps_core::BurnConfig::default(),
+                1.5,
+                2.0,
+                SnapTurnVisualInput::default(),
+            );
+        }
+    }
+
+    #[test]
+    fn flame_billboard_heights_unchanged_at_zero_pitch() {
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        fire_flamethrower_frames(&mut state, &mut loadout, 10);
+
+        let camera = Camera::default();
+        let sprites = PlayerAttackSprites::load();
+        let bbs_zero = state.flame_chain_billboards(&camera, &sprites, 144.0);
+        assert!(!bbs_zero.is_empty(), "should have flame billboards");
+
+        // With aim_pitch=0.0, heights should equal the base nozzle_height values.
+        let config = state.config();
+        for bb in &bbs_zero {
+            // Nozzle head billboard has height ≈ nozzle_height; stream samples
+            // have height ≈ nozzle_height * (1 - t). All should be <= 0.0
+            // (below eye level) when pitch is zero.
+            assert!(
+                bb.height <= 0.0 + f32::EPSILON,
+                "zero-pitch flame billboard should not rise above eye level: {}",
+                bb.height
+            );
+        }
+
+        // Verify nozzle head billboard uses nozzle_height exactly.
+        assert!(
+            (bbs_zero[0].height - config.nozzle_height).abs() < 0.01,
+            "nozzle head at zero pitch should equal nozzle_height: {} vs {}",
+            bbs_zero[0].height,
+            config.nozzle_height
+        );
+    }
+
+    #[test]
+    fn flame_billboard_heights_increase_with_positive_pitch() {
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        fire_flamethrower_frames(&mut state, &mut loadout, 10);
+
+        let sprites = PlayerAttackSprites::load();
+        let flat_camera = Camera::default();
+        let pitched_camera = Camera {
+            aim_pitch: 12.0,
+            ..Default::default()
+        };
+
+        let bbs_flat = state.flame_chain_billboards(&flat_camera, &sprites, 144.0);
+        let bbs_pitched = state.flame_chain_billboards(&pitched_camera, &sprites, 144.0);
+
+        assert_eq!(bbs_flat.len(), bbs_pitched.len());
+        // Every billboard should be at or above its flat counterpart. Newest
+        // samples (zero distance) have zero bias, so allow equality.
+        let mut any_raised = false;
+        for (i, (flat, pitched)) in bbs_flat.iter().zip(bbs_pitched.iter()).enumerate() {
+            assert!(
+                pitched.height >= flat.height - f32::EPSILON,
+                "positive pitch should not lower billboard[{i}]: pitched={} flat={}",
+                pitched.height,
+                flat.height
+            );
+            if pitched.height > flat.height + f32::EPSILON {
+                any_raised = true;
+            }
+        }
+        assert!(
+            any_raised,
+            "at least one billboard should be raised by positive pitch"
+        );
+    }
+
+    #[test]
+    fn flame_billboard_heights_decrease_with_negative_pitch() {
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        fire_flamethrower_frames(&mut state, &mut loadout, 10);
+
+        let sprites = PlayerAttackSprites::load();
+        let flat_camera = Camera::default();
+        let pitched_camera = Camera {
+            aim_pitch: -10.0,
+            ..Default::default()
+        };
+
+        let bbs_flat = state.flame_chain_billboards(&flat_camera, &sprites, 144.0);
+        let bbs_pitched = state.flame_chain_billboards(&pitched_camera, &sprites, 144.0);
+
+        assert_eq!(bbs_flat.len(), bbs_pitched.len());
+        let mut any_lowered = false;
+        for (i, (flat, pitched)) in bbs_flat.iter().zip(bbs_pitched.iter()).enumerate() {
+            assert!(
+                pitched.height <= flat.height + f32::EPSILON,
+                "negative pitch should not raise billboard[{i}]: pitched={} flat={}",
+                pitched.height,
+                flat.height
+            );
+            if pitched.height < flat.height - f32::EPSILON {
+                any_lowered = true;
+            }
+        }
+        assert!(
+            any_lowered,
+            "at least one billboard should be lowered by negative pitch"
+        );
+    }
+
+    #[test]
+    fn flame_pitch_bias_increases_with_distance() {
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        fire_flamethrower_frames(&mut state, &mut loadout, 10);
+
+        let sprites = PlayerAttackSprites::load();
+        let flat_camera = Camera::default();
+        let pitched_camera = Camera {
+            aim_pitch: 12.0,
+            ..Default::default()
+        };
+
+        let bbs_flat = state.flame_chain_billboards(&flat_camera, &sprites, 144.0);
+        let bbs_pitched = state.flame_chain_billboards(&pitched_camera, &sprites, 144.0);
+
+        // Samples are ordered oldest-first (most distance, most bias) to
+        // newest-last (zero distance, zero bias). Skip nozzle head (index 0).
+        if bbs_flat.len() > 2 {
+            let bias_oldest = bbs_pitched[1].height - bbs_flat[1].height;
+            let bias_newest = bbs_pitched.last().unwrap().height - bbs_flat.last().unwrap().height;
+            assert!(
+                bias_oldest >= bias_newest,
+                "pitch bias should grow with distance: oldest={bias_oldest} newest={bias_newest}"
+            );
+            assert!(
+                bias_oldest > f32::EPSILON,
+                "oldest sample should have nonzero pitch bias: {bias_oldest}"
+            );
+        }
+    }
+
+    #[test]
+    fn hitscan_damage_unaffected_by_visual_pitch() {
+        // Verify that hitscan (pistol) damage does not use aim_pitch — the
+        // ray remains 2D horizontal. Pistol is used instead of flamethrower
+        // because flamethrower damage goes through burn exposure ticks, not
+        // direct health reduction. Uses test_map + (1.5, 1.5) start to match
+        // the known-good hitscan_hits_enemy_in_front test in fps_core.
+        let sprites = PlayerAttackSprites::load();
+        let map = carcinisation_fps_core::map::test_map();
+        let mut state_flat = PlayerAttackState::default();
+        let mut state_pitched = PlayerAttackState::default();
+        let mut loadout_flat = AttackLoadout::default();
+        let mut loadout_pitched = AttackLoadout::default();
+        commit_test_weapon(&mut loadout_flat, &mut state_flat, AttackId::Pistol);
+        commit_test_weapon(&mut loadout_pitched, &mut state_pitched, AttackId::Pistol);
+
+        // Place enemy directly in front of camera at (1.5, 1.5) facing east.
+        let mut enemies_flat = vec![Enemy::new(Vec2::new(3.0, 1.5), 100, 1.0)];
+        let mut enemies_pitched = vec![Enemy::new(Vec2::new(3.0, 1.5), 100, 1.0)];
+
+        let flat_camera = Camera {
+            position: Vec2::new(1.5, 1.5),
+            ..Default::default()
+        };
+        let pitched_camera = Camera {
+            position: Vec2::new(1.5, 1.5),
+            aim_pitch: 18.0,
+            ..Default::default()
+        };
+
+        let mut input = AttackInput {
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut shoot = false;
+
+        // Shoot flat.
+        process_player_attacks(
+            &flat_camera,
+            &map,
+            &sprites,
+            37,
+            1.0 / 60.0,
+            0.0,
+            &mut input.clone(),
+            &mut loadout_flat,
+            &mut state_flat,
+            &mut enemies_flat,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            144.0,
+            0.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        // Shoot pitched.
+        process_player_attacks(
+            &pitched_camera,
+            &map,
+            &sprites,
+            37,
+            1.0 / 60.0,
+            0.0,
+            &mut input,
+            &mut loadout_pitched,
+            &mut state_pitched,
+            &mut enemies_pitched,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            144.0,
+            0.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        // Verify hitscan actually hit the enemy (prevent vacuous pass).
+        assert!(
+            enemies_flat[0].health < 100,
+            "hitscan should have dealt damage: health={}",
+            enemies_flat[0].health
+        );
+        // Both should deal identical damage — pitch is cosmetic.
+        assert_eq!(
+            enemies_flat[0].health, enemies_pitched[0].health,
+            "hitscan damage must be identical regardless of aim pitch"
+        );
+    }
+
+    #[test]
+    fn flame_billboards_with_zero_screen_height_does_not_panic() {
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        fire_flamethrower_frames(&mut state, &mut loadout, 5);
+        let camera = Camera {
+            aim_pitch: 12.0,
+            ..Default::default()
+        };
+        let sprites = PlayerAttackSprites::load();
+        // screen_height_px = 0.0 → pitch_slope = 0.0 → no bias, no division by zero.
+        let bbs = state.flame_chain_billboards(&camera, &sprites, 0.0);
+        assert!(!bbs.is_empty());
+    }
+
+    #[test]
+    fn weapon_overlay_ignores_camera_aim_pitch() {
+        let sprites = PlayerAttackSprites::load();
+        let map = open_test_map();
+        let loadout = AttackLoadout::default();
+        let state = PlayerAttackState::default();
+        let mut flat = CxImage::empty(UVec2::new(160, 144));
+        let mut pitched = CxImage::empty(UVec2::new(160, 144));
+        let flat_camera = Camera::default();
+        let pitched_camera = Camera {
+            aim_pitch: 12.0,
+            ..Default::default()
+        };
+
+        draw_player_attack_overlays(
+            &mut flat,
+            &flat_camera,
+            &map,
+            &sprites,
+            &loadout,
+            &state,
+            0.0,
+        );
+        draw_player_attack_overlays(
+            &mut pitched,
+            &pitched_camera,
+            &map,
+            &sprites,
+            &loadout,
+            &state,
+            0.0,
+        );
+
+        assert_eq!(flat.data(), pitched.data());
+    }
+
+    #[test]
     fn stream_sample_advects_along_direction() {
         let sample = FlameStreamSample {
             emit_position: Vec2::new(1.0, 2.0),
             emit_direction: Vec2::new(1.0, 0.0),
+            max_distance: 10.0,
             age: 0.5,
             seed: 0,
         };
@@ -2089,6 +3263,248 @@ mod tests {
             &map,
             &cfg,
         ));
+    }
+
+    #[test]
+    fn pistol_hitscan_does_not_damage_enemy_behind_wall() {
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(Some(3));
+        let mut enemies = vec![Enemy::new(Vec2::new(4.5, 1.5), 100, 0.0)];
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            37,
+            None,
+        );
+
+        assert_eq!(enemies[0].health, 100);
+    }
+
+    #[test]
+    fn pistol_hitscan_still_damages_unobstructed_enemy() {
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let mut enemies = vec![Enemy::new(Vec2::new(3.5, 1.5), 100, 0.0)];
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            37,
+            None,
+        );
+
+        assert_eq!(enemies[0].health, 63);
+    }
+
+    #[test]
+    fn flamethrower_does_not_apply_exposure_through_wall() {
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(Some(3));
+        let burn_config = carcinisation_fps_core::BurnConfig::default();
+        let flame_config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        let mut enemies = vec![Enemy::new(Vec2::new(4.5, 1.5), 100, 0.0)];
+
+        apply_flamethrower_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &burn_config,
+            &flame_config,
+            1.0 / 30.0,
+        );
+
+        assert_eq!(enemies[0].burn_state.intensity, 0.0);
+    }
+
+    #[test]
+    fn flamethrower_applies_exposure_to_unobstructed_enemy() {
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let burn_config = carcinisation_fps_core::BurnConfig::default();
+        let flame_config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        let mut enemies = vec![Enemy::new(Vec2::new(3.5, 1.5), 100, 0.0)];
+
+        apply_flamethrower_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &burn_config,
+            &flame_config,
+            1.0 / 30.0,
+        );
+
+        assert!(enemies[0].burn_state.intensity > 0.0);
+    }
+
+    #[test]
+    fn flame_visual_samples_clamp_at_wall() {
+        let sprites = PlayerAttackSprites::load();
+        let camera = Camera {
+            position: Vec2::new(1.5, 1.5),
+            angle: 0.0,
+            ..Default::default()
+        };
+        let map = corridor_map(Some(3));
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let mut input = AttackInput {
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut shoot = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut [],
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            144.0,
+            0.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        let positions: Vec<Vec2> = state.flame_world_positions().collect();
+        assert!(!positions.is_empty());
+        assert!(
+            positions.iter().all(|pos| pos.x <= 3.001),
+            "flame positions should stop at wall x=3.0: {positions:?}"
+        );
+    }
+
+    #[test]
+    fn flame_visual_samples_clamp_immediately_when_nozzle_starts_inside_wall() {
+        let sprites = PlayerAttackSprites::load();
+        let camera = Camera {
+            position: Vec2::new(1.5, 1.5),
+            angle: 0.0,
+            ..Default::default()
+        };
+        let map = corridor_map(Some(2));
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        let mut input = AttackInput {
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut shoot = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut [],
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            144.0,
+            0.0,
+            &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
+            SnapTurnVisualInput::default(),
+        );
+
+        let positions: Vec<Vec2> = state.flame_world_positions().collect();
+        assert!(!positions.is_empty());
+        let config = state.config();
+        let nozzle = flame_nozzle_position(
+            camera.position,
+            camera.direction(),
+            config.nozzle_forward,
+            config.nozzle_lateral,
+        );
+        assert!(
+            positions
+                .iter()
+                .all(|pos| (*pos - nozzle).length_squared() < 0.0001),
+            "nozzle inside wall should pin samples at nozzle: nozzle={nozzle:?} positions={positions:?}"
+        );
+    }
+
+    #[test]
+    fn visual_pitch_does_not_affect_flamethrower_damage() {
+        let map = corridor_map(None);
+        let burn_config = carcinisation_fps_core::BurnConfig::default();
+        let flame_config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        let mut flat_enemy = vec![Enemy::new(Vec2::new(3.5, 1.5), 100, 0.0)];
+        let mut pitched_enemy = flat_enemy.clone();
+
+        apply_flamethrower_damage(
+            FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0),
+            &map,
+            &mut flat_enemy,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &burn_config,
+            &flame_config,
+            1.0 / 30.0,
+        );
+        apply_flamethrower_damage(
+            FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 80.0),
+            &map,
+            &mut pitched_enemy,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &burn_config,
+            &flame_config,
+            1.0 / 30.0,
+        );
+
+        assert_eq!(
+            flat_enemy[0].burn_state.intensity,
+            pitched_enemy[0].burn_state.intensity
+        );
     }
 
     // -- snap_turn_visual_offset --

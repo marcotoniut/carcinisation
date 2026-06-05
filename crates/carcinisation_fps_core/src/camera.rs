@@ -24,13 +24,18 @@ pub struct Camera {
     pub angle: f32,
     /// Horizontal field of view in radians.
     pub fov: f32,
-    /// Vertical view bob offset in pixels (positive = look up).
-    /// Driven by walk animation, shifts the horizon line.
+    /// Distance-attenuated movement bob in pixels (positive = look up).
+    /// Driven by walk animation. Attenuated per-column by [`view_bob_strength`]
+    /// so distant walls don't shimmer.
     pub view_bob: f32,
     /// Distance threshold for full view bob (map units).
     pub view_bob_near: f32,
     /// Distance threshold for half view bob (map units). Beyond this, bob is zero.
     pub view_bob_mid: f32,
+    /// Uniform aim pitch offset in pixels (positive = look up).
+    /// NOT distance-attenuated — applies equally to near and far geometry.
+    /// Used for intentional vertical look/aim (e.g. `AimCommitment`).
+    pub aim_pitch: f32,
 }
 
 impl Default for Camera {
@@ -42,11 +47,15 @@ impl Default for Camera {
             view_bob: 0.0,
             view_bob_near: 3.0,
             view_bob_mid: 6.0,
+            aim_pitch: 0.0,
         }
     }
 }
 
 impl Camera {
+    /// Maximum visual aim pitch in pixels (matches `QuickTurnState::MAX_AIM_PITCH_OFFSET_PX`).
+    pub const MAX_AIM_PITCH_PX: f32 = 18.0;
+
     /// Unit direction vector the camera is facing.
     #[must_use]
     pub fn direction(&self) -> Vec2 {
@@ -65,6 +74,7 @@ impl Camera {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -97,6 +107,20 @@ mod tests {
             plane.y < 0.0,
             "plane should point south (right of east), got {plane}"
         );
+    }
+
+    #[test]
+    fn aim_pitch_defaults_to_zero() {
+        let cam = Camera::default();
+        assert_eq!(cam.aim_pitch, 0.0);
+    }
+
+    #[test]
+    fn view_bob_strength_bands() {
+        // near=3.0, mid=6.0 (defaults)
+        assert_eq!(view_bob_strength(1.0, 3.0, 6.0), 1.0);
+        assert_eq!(view_bob_strength(4.0, 3.0, 6.0), 0.5);
+        assert_eq!(view_bob_strength(8.0, 3.0, 6.0), 0.0);
     }
 
     #[test]

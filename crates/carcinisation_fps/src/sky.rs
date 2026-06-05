@@ -153,6 +153,11 @@ impl Sky {
         self.bg.height
     }
 
+    /// Draw one column of sky, optionally scrolling vertically with aim pitch.
+    ///
+    /// `pitch_v_offset`: normalized vertical scroll from aim pitch (0.0 = neutral,
+    /// positive = looking up, samples higher into texture). Applied with ease-out
+    /// so the scroll slows near max look-up, preventing abrupt sky-edge clamping.
     pub fn draw_column(
         &self,
         image: &mut CxImage,
@@ -160,6 +165,7 @@ impl Sky {
         ceil_y: i32,
         ceiling_color: u8,
         yaw_offset: f32,
+        pitch_v_offset: f32,
     ) {
         let img_w = image.width() as i32;
         let img_h = image.height() as i32;
@@ -174,19 +180,21 @@ impl Sky {
         let data = image.data_mut();
 
         for y in 0..y_end {
-            let v = y as f32 / sky_h;
-            if v > 1.0 {
-                data[(y * img_w + x) as usize] = ceiling_color;
-                continue;
-            }
+            // Shift v-coordinate by pitch: positive pitch_v_offset moves the
+            // sampling window upward into the texture (revealing higher sky content).
+            let v = (y as f32 / sky_h) - pitch_v_offset;
 
-            let bg_idx = self.bg.sample(bg_u, v);
+            // Clamp to texture bounds instead of falling back to ceiling_color.
+            // This repeats the top/bottom edge row, avoiding a hard color seam.
+            let v_clamped = v.clamp(0.0, 1.0);
+
+            let bg_idx = self.bg.sample(bg_u, v_clamped);
             if bg_idx > 0 {
                 data[(y * img_w + x) as usize] = bg_idx;
                 continue;
             }
 
-            let fg_idx = self.fg.sample(fg_u, v);
+            let fg_idx = self.fg.sample(fg_u, v_clamped);
             if fg_idx > 0 {
                 data[(y * img_w + x) as usize] = fg_idx;
                 continue;
@@ -242,7 +250,7 @@ mod tests {
     fn sky_column_produces_nonzero_pixels() {
         let sky = make_test_sky();
         let mut image = CxImage::empty(UVec2::new(160, 144));
-        sky.draw_column(&mut image, 80, 72, 1, 0.0);
+        sky.draw_column(&mut image, 80, 72, 1, 0.0, 0.0);
 
         assert!(image.data().iter().any(|&p| p != 0));
         assert_eq!(image.data()[(100 * 160 + 80) as usize], 0);
@@ -254,8 +262,8 @@ mod tests {
         let mut image1 = CxImage::empty(UVec2::new(160, 72));
         let mut image2 = CxImage::empty(UVec2::new(160, 72));
         for x in 0..160 {
-            sky.draw_column(&mut image1, x, 72, 1, 0.0);
-            sky.draw_column(&mut image2, x, 72, 1, 0.5);
+            sky.draw_column(&mut image1, x, 72, 1, 0.0, 0.0);
+            sky.draw_column(&mut image2, x, 72, 1, 0.5, 0.0);
         }
 
         assert_ne!(image1.data(), image2.data());
@@ -270,8 +278,8 @@ mod tests {
         let mut image1 = CxImage::empty(UVec2::new(160, 72));
         let mut image2 = CxImage::empty(UVec2::new(160, 72));
         for x in 0..160 {
-            sky.draw_column(&mut image1, x, 72, 1, 0.0);
-            sky.draw_column(&mut image2, x, 72, 1, 1.0);
+            sky.draw_column(&mut image1, x, 72, 1, 0.0, 0.0);
+            sky.draw_column(&mut image2, x, 72, 1, 1.0, 0.0);
         }
         let diff_count = image1
             .data()
@@ -284,5 +292,39 @@ mod tests {
             "Scrolling should shift many pixels, got {}",
             diff_count
         );
+    }
+
+    #[test]
+    fn sky_pitch_scroll_shifts_vertically() {
+        let sky = make_test_sky();
+        let mut image_neutral = CxImage::empty(UVec2::new(160, 72));
+        let mut image_up = CxImage::empty(UVec2::new(160, 72));
+        for x in 0..160 {
+            sky.draw_column(&mut image_neutral, x, 72, 1, 0.0, 0.0);
+            sky.draw_column(&mut image_up, x, 72, 1, 0.0, 0.3);
+        }
+        // Pitch scroll should produce a visibly different sky.
+        let diff_count = image_neutral
+            .data()
+            .iter()
+            .zip(image_up.data())
+            .filter(|(a, b)| a != b)
+            .count();
+        assert!(
+            diff_count > 10,
+            "Vertical pitch scroll should shift sky pixels, got {diff_count}"
+        );
+    }
+
+    #[test]
+    fn sky_pitch_zero_matches_original() {
+        let sky = make_test_sky();
+        let mut image_a = CxImage::empty(UVec2::new(160, 72));
+        let mut image_b = CxImage::empty(UVec2::new(160, 72));
+        for x in 0..160 {
+            sky.draw_column(&mut image_a, x, 72, 1, 0.0, 0.0);
+            sky.draw_column(&mut image_b, x, 72, 1, 0.0, 0.0);
+        }
+        assert_eq!(image_a.data(), image_b.data());
     }
 }

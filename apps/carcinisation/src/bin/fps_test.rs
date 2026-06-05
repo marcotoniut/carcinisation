@@ -1,8 +1,10 @@
 //! Dev-only first-person raycaster test.
 //!
 //! Renders a Wolf3D-style view of a room loaded from RON.
-//! Arrow keys to move/turn. Hold B (Shift) + Left/Right to strafe.
-//! A (X) to shoot. Enemies chase and attack.
+//! Arrow keys to move/turn. Legacy: hold B (Shift) + Left/Right to strafe.
+//! `AimCommitment`: hold B to aim, A (X) shoots only while aiming.
+//! Outside `AimMode`, A alone is reserved/no-op; Select+Down/Left/Right quick/snap turns.
+//! Select tap/release switches weapon in `AimCommitment`.
 //!
 //! Usage:
 //!   cargo run --bin `fps_test`
@@ -21,8 +23,9 @@ use carcinisation_fps::player_attack::PlayerAttackState;
 use carcinisation_fps::plugin::{
     CameraRes, CameraShakeState, CharDecals, Config, DeathViewState, EnemySpriteIndex, FpsPlugin,
     MapRes, PlayerDead, PlayerHealth, PlayerSpeedModifier, ProjectileImpacts, Projectiles,
-    QuickTurnState, ShootRequest, Systems, TurnChordInput, TurnChordState, request_snap_turn,
-    resolve_turn_chord,
+    QuickTurnState, SelectActionOutcome, SelectActionTurnInput, SelectActionTurnState,
+    ShootRequest, Systems, TurnChordInput, TurnChordState, request_snap_turn,
+    resolve_select_action_turn, resolve_turn_chord, select_actions_allowed_outside_aim_mode,
 };
 use carcinisation_fps::spidey::{Spidey, SpideyConfig};
 use carcinisation_input::{GBInput, init_gb_input};
@@ -82,10 +85,12 @@ fn handle_input(
     map: Res<MapRes>,
     config: Res<Config>,
     movement_config: Res<carcinisation_fps_core::FpsMovementConfig>,
+    combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
     dead: Res<PlayerDead>,
     mut shoot: ResMut<ShootRequest>,
     mut attack_input: ResMut<AttackInput>,
     mut turn_chord: ResMut<TurnChordState>,
+    mut select_action_turn: ResMut<SelectActionTurnState>,
     mut quick_turn_state: ResMut<QuickTurnState>,
     mut speed_modifier: ResMut<PlayerSpeedModifier>,
 ) {
@@ -101,9 +106,17 @@ fn handle_input(
     let a_just_pressed = action.just_pressed(&GBInput::A);
     let select_held = action.pressed(&GBInput::Select);
     let select_just_pressed = action.just_pressed(&GBInput::Select);
-    let turning_left = action.pressed(&GBInput::Left) && !b_held;
-    let turning_right = action.pressed(&GBInput::Right) && !b_held;
+    let select_just_released = action.just_released(&GBInput::Select);
+    let left_held = action.pressed(&GBInput::Left);
+    let right_held = action.pressed(&GBInput::Right);
+    let turning_left = left_held && !b_held;
+    let turning_right = right_held && !b_held;
     let up_held = action.pressed(&GBInput::Up);
+
+    let aim_commitment = matches!(
+        combat_config.combat_control_mode,
+        carcinisation_fps_core::CombatControlMode::AimCommitment
+    );
 
     let chord_input = TurnChordInput {
         b_pressed: b_held,
@@ -121,8 +134,9 @@ fn handle_input(
         now_secs: time.elapsed_secs(),
     };
 
-    // Block snap turns while moving forward; side turns also blocked while moving back.
-    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord, false) {
+    // Legacy keeps B+direction snap turns. AimCommitment uses B as immediate
+    // aim; quick/snap turn moves to Select+direction outside AimMode.
+    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord, aim_commitment) {
         let blocked = up_held
             || (matches!(
                 kind,
@@ -134,36 +148,105 @@ fn handle_input(
         }
     }
 
-    // Suppress manual turning while a snap turn animation is active.
-    let turn_animating = quick_turn_state.is_active();
-    let mut turn_delta = 0.0;
-    if turning_left && !turn_animating {
-        turn_delta += config.turn_speed * dt;
-    }
-    if turning_right && !turn_animating {
-        turn_delta -= config.turn_speed * dt;
-    }
-    cam.angle += turn_delta;
+    let in_aim_mode = aim_commitment && turn_chord.is_aim_mode();
 
-    // Build local-space movement intent (matches MP client → server path).
-    let mut movement = Vec2::ZERO;
-    if action.pressed(&GBInput::Up) {
-        movement.y += 1.0;
+    let select_action = if aim_commitment {
+        resolve_select_action_turn(
+            &SelectActionTurnInput {
+                select_pressed: select_held,
+                select_just_pressed,
+                select_just_released,
+                down_pressed: back_held,
+                down_just_pressed: action.just_pressed(&GBInput::Down),
+                left_pressed: left_held,
+                left_just_pressed: action.just_pressed(&GBInput::Left),
+                right_pressed: right_held,
+                right_just_pressed: action.just_pressed(&GBInput::Right),
+                now_secs: time.elapsed_secs(),
+            },
+            &mut select_action_turn,
+            select_actions_allowed_outside_aim_mode(in_aim_mode),
+        )
+    } else {
+        None
+    };
+
+    let action_turn = match select_action {
+        Some(SelectActionOutcome::SnapTurn(kind)) => Some(kind),
+        _ => None,
+    };
+
+    if let Some(kind) = action_turn {
+        request_snap_turn(&mut quick_turn_state, kind, &config);
     }
-    if back_held {
-        movement.y -= 1.0;
-    }
-    if b_held {
-        if action.pressed(&GBInput::Left) {
-            movement.x -= 1.0;
+
+    // -- Movement / Turn / Aim (branched on AimCommitment) --
+    let turn_delta;
+    let movement;
+
+    if in_aim_mode {
+        // AimCommitment: feet locked, body turns freely, Up/Down = visual pitch.
+        movement = Vec2::ZERO;
+
+        // Turn uses configurable aim_turn_speed for steadier aiming.
+        let turn_animating = quick_turn_state.is_active();
+        let mut td = 0.0;
+        if left_held && !turn_animating {
+            td += combat_config.aim_turn_speed * dt;
         }
-        if action.pressed(&GBInput::Right) {
-            movement.x += 1.0;
+        if right_held && !turn_animating {
+            td -= combat_config.aim_turn_speed * dt;
         }
+        turn_delta = td;
+
+        // Vertical pitch (visual-only).
+        quick_turn_state.update_aim_pitch(
+            action.pressed(&GBInput::Up),
+            back_held,
+            combat_config.aim_pitch_speed,
+            dt,
+        );
+    } else {
+        // LEGACY(strafe) or not-yet-aiming: normal movement/turn.
+        quick_turn_state.reset_aim_pitch_offset();
+
+        // Suppress manual turning while a snap turn animation is active.
+        let turn_animating = quick_turn_state.is_active();
+        let mut td = 0.0;
+        if turning_left && !turn_animating {
+            td += config.turn_speed * dt;
+        }
+        if turning_right && !turn_animating {
+            td -= config.turn_speed * dt;
+        }
+        turn_delta = td;
+
+        // Build local-space movement intent (matches MP client → server path).
+        let mut mv = Vec2::ZERO;
+        if action_turn.is_none() {
+            if action.pressed(&GBInput::Up) {
+                mv.y += 1.0;
+            }
+            if back_held {
+                mv.y -= 1.0;
+            }
+        }
+        // LEGACY(strafe): B + Left/Right = strafe. Only in Legacy mode.
+        if b_held && !aim_commitment {
+            if action.pressed(&GBInput::Left) {
+                mv.x -= 1.0;
+            }
+            if action.pressed(&GBInput::Right) {
+                mv.x += 1.0;
+            }
+        }
+        if mv.length_squared() > 1.0 {
+            mv = mv.normalize();
+        }
+        movement = mv;
     }
-    if movement.length_squared() > 1.0 {
-        movement = movement.normalize();
-    }
+
+    cam.angle += turn_delta;
 
     let pos_before = cam.position;
     if movement != Vec2::ZERO {
@@ -186,23 +269,40 @@ fn handle_input(
         }
     }
 
-    let melee_triggered = (select_held && a_just_pressed) || (select_just_pressed && a_held);
+    // AimCommitment: cannot fire without aiming. Legacy: fire anytime.
+    let fire_allowed = if aim_commitment { in_aim_mode } else { true };
+
+    let melee_triggered =
+        !aim_commitment && ((select_held && a_just_pressed) || (select_just_pressed && a_held));
     attack_input.cursor_x = SCREEN_W as f32 / 2.0;
     attack_input.aim_turn_velocity = if dt > f32::EPSILON {
         -turn_delta / dt
     } else {
         0.0
     };
-    attack_input.strafe_velocity = f32::from(
-        i8::from(action.pressed(&GBInput::Right) && b_held)
-            - i8::from(action.pressed(&GBInput::Left) && b_held),
-    );
+    attack_input.strafe_velocity = if in_aim_mode {
+        0.0
+    } else {
+        f32::from(
+            i8::from(action.pressed(&GBInput::Right) && b_held)
+                - i8::from(action.pressed(&GBInput::Left) && b_held),
+        )
+    };
     attack_input.melee_triggered = melee_triggered;
-    attack_input.cycle_requested = select_just_pressed && !a_held;
-    attack_input.moving_forward_back = action.pressed(&GBInput::Up) || back_held;
-    attack_input.shoot_just_pressed = a_just_pressed && !select_held;
-    attack_input.shoot_held = a_held && !select_held;
-    attack_input.shoot_just_released = action.just_released(&GBInput::A);
+    attack_input.aim_held = in_aim_mode;
+    attack_input.cycle_requested = if aim_commitment {
+        matches!(select_action, Some(SelectActionOutcome::WeaponSwitch))
+    } else {
+        select_just_pressed && !a_held
+    };
+    attack_input.moving_forward_back = if in_aim_mode {
+        false
+    } else {
+        action.pressed(&GBInput::Up) || back_held
+    };
+    attack_input.shoot_just_pressed = fire_allowed && a_just_pressed && !select_held;
+    attack_input.shoot_held = fire_allowed && a_held && !select_held;
+    attack_input.shoot_just_released = fire_allowed && action.just_released(&GBInput::A);
 
     if attack_input.shoot_just_pressed {
         shoot.0 = true;

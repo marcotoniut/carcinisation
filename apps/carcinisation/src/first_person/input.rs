@@ -12,7 +12,9 @@
 use bevy::prelude::*;
 use bevy_replicon::prelude::ClientTriggerExt;
 use carcinisation_fps::plugin::{
-    QuickTurnState, TurnChordInput, TurnChordState, TurnKind, request_snap_turn, resolve_turn_chord,
+    QuickTurnState, SelectActionOutcome, SelectActionTurnInput, SelectActionTurnState,
+    TurnChordInput, TurnChordState, TurnKind, request_snap_turn, resolve_select_action_turn,
+    resolve_turn_chord, select_actions_allowed_outside_aim_mode,
 };
 use carcinisation_input::GBInput;
 use carcinisation_net::{ClientIntent, InputSequence, PlayerActions};
@@ -93,6 +95,31 @@ impl Default for InputSendTimer {
     }
 }
 
+const fn set_snap_action(actions: &mut PlayerActions, kind: TurnKind) {
+    match kind {
+        TurnKind::QuickTurn => actions.set(PlayerActions::QUICK_TURN),
+        TurnKind::SideTurnLeft => actions.set(PlayerActions::SNAP_TURN_LEFT),
+        TurnKind::SideTurnRight => actions.set(PlayerActions::SNAP_TURN_RIGHT),
+    }
+}
+
+fn non_aim_movement_from_input(
+    action_turn: Option<TurnKind>,
+    up_held: bool,
+    down_held: bool,
+) -> Vec2 {
+    let mut movement = Vec2::ZERO;
+    if action_turn.is_none() {
+        if up_held {
+            movement.y += 1.0;
+        }
+        if down_held {
+            movement.y -= 1.0;
+        }
+    }
+    movement
+}
+
 /// Collects `GBInput` state, resolves chords, and sends `ClientIntent` to server.
 ///
 /// Uses the same `ActionState<GBInput>` as singleplayer, ensuring key mapping
@@ -106,6 +133,7 @@ pub fn collect_and_send_intent(
     time: Res<Time>,
     local_player_id: Res<LocalPlayerId>,
     mut turn_chord: ResMut<TurnChordState>,
+    mut select_action_turn: ResMut<SelectActionTurnState>,
     mut quick_turn: ResMut<QuickTurnState>,
     config: Res<carcinisation_fps::plugin::Config>,
     combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
@@ -128,6 +156,7 @@ pub fn collect_and_send_intent(
     let a_just_pressed = action.just_pressed(&GBInput::A);
     let select_held = action.pressed(&GBInput::Select);
     let select_just_pressed = action.just_pressed(&GBInput::Select);
+    let select_just_released = action.just_released(&GBInput::Select);
 
     // -- Chord detection (identical to SP fps_test.rs) --
     let chord_input = TurnChordInput {
@@ -149,8 +178,8 @@ pub fn collect_and_send_intent(
     let mut actions = PlayerActions::default();
 
     // Resolve chord → snap turn action.
-    // LEGACY(strafe): aim_commitment=false in Legacy mode. AimCommitment mode
-    // passes true so the chord FSM can transition to AimMode on window expiry.
+    // Legacy keeps B+direction snap turns. AimCommitment uses B as immediate
+    // aim, so `resolve_turn_chord` only mirrors B to AimMode there.
     let aim_commitment = matches!(
         combat_config.combat_control_mode,
         carcinisation_fps_core::CombatControlMode::AimCommitment
@@ -160,11 +189,7 @@ pub fn collect_and_send_intent(
         let blocked = up_held
             || (matches!(kind, TurnKind::SideTurnLeft | TurnKind::SideTurnRight) && down_held);
         if !blocked {
-            match kind {
-                TurnKind::QuickTurn => actions.set(PlayerActions::QUICK_TURN),
-                TurnKind::SideTurnLeft => actions.set(PlayerActions::SNAP_TURN_LEFT),
-                TurnKind::SideTurnRight => actions.set(PlayerActions::SNAP_TURN_RIGHT),
-            }
+            set_snap_action(&mut actions, kind);
             // Animate locally for client-side turn suppression.
             request_snap_turn(&mut quick_turn, kind, &config);
         }
@@ -172,43 +197,73 @@ pub fn collect_and_send_intent(
 
     let in_aim_mode = aim_commitment && turn_chord.is_aim_mode();
 
+    let select_action = if aim_commitment {
+        resolve_select_action_turn(
+            &SelectActionTurnInput {
+                select_pressed: select_held,
+                select_just_pressed,
+                select_just_released,
+                down_pressed: down_held,
+                down_just_pressed: action.just_pressed(&GBInput::Down),
+                left_pressed: left_held,
+                left_just_pressed: action.just_pressed(&GBInput::Left),
+                right_pressed: right_held,
+                right_just_pressed: action.just_pressed(&GBInput::Right),
+                now_secs: time.elapsed_secs(),
+            },
+            &mut select_action_turn,
+            select_actions_allowed_outside_aim_mode(in_aim_mode),
+        )
+    } else {
+        None
+    };
+
+    let action_turn = match select_action {
+        Some(SelectActionOutcome::SnapTurn(kind)) => Some(kind),
+        _ => None,
+    };
+
+    if let Some(kind) = action_turn {
+        set_snap_action(&mut actions, kind);
+        request_snap_turn(&mut quick_turn, kind, &config);
+    }
+
     // -- Movement / Turn / Aim --
-    let (movement, turn, aim_held, aim_offset, fire_held);
+    let (movement, turn, aim_held, fire_held);
 
     if in_aim_mode {
-        // AimCommitment: body locked, Left/Right control aim offset.
+        // AimCommitment: feet locked, body turns freely, Up/Down = visual pitch.
         movement = Vec2::ZERO;
-        turn = 0.0;
         aim_held = true;
 
-        // Adjust aim offset from Left/Right input.
-        let dt = time.delta_secs();
-        let mut offset = quick_turn.aim_offset;
-        if left_held {
-            offset -= combat_config.aim_sensitivity * dt;
+        // Continuous turn — body rotates while aiming.
+        let mut t: f32 = 0.0;
+        if !quick_turn.is_active() {
+            if left_held {
+                t += 1.0;
+            }
+            if right_held {
+                t -= 1.0;
+            }
         }
-        if right_held {
-            offset += combat_config.aim_sensitivity * dt;
-        }
-        offset = offset.clamp(-combat_config.max_aim_offset, combat_config.max_aim_offset);
-        quick_turn.aim_offset = offset;
-        aim_offset = offset;
+        turn = t;
+
+        // Vertical pitch (visual-only).
+        quick_turn.update_aim_pitch(
+            up_held,
+            down_held,
+            combat_config.aim_pitch_speed,
+            time.delta_secs(),
+        );
 
         // Fire only while aiming.
         fire_held = a_held && !select_held;
     } else {
         // LEGACY(strafe) or not-yet-aiming: normal movement/turn.
         aim_held = false;
-        aim_offset = 0.0;
-        quick_turn.aim_offset = 0.0; // Reset on aim exit.
+        quick_turn.reset_aim_pitch_offset();
 
-        let mut mv = Vec2::ZERO;
-        if up_held {
-            mv.y += 1.0;
-        }
-        if down_held {
-            mv.y -= 1.0;
-        }
+        let mut mv = non_aim_movement_from_input(action_turn, up_held, down_held);
         // LEGACY(strafe): B + Left/Right = strafe. Only in Legacy mode.
         if b_held && !aim_commitment {
             if left_held {
@@ -243,14 +298,18 @@ pub fn collect_and_send_intent(
         };
     }
 
-    // -- Weapon switch (Select alone, not with A) --
-    if select_just_pressed && !a_held {
+    // -- Weapon switch --
+    // Legacy keeps Select-press switch. AimCommitment uses Select release so
+    // Select+direction can become snap turn without also switching.
+    if (!aim_commitment && select_just_pressed && !a_held)
+        || matches!(select_action, Some(SelectActionOutcome::WeaponSwitch))
+    {
         actions.set(PlayerActions::WEAPON_SWITCH);
     }
 
     // -- Melee chord (Select+A) --
     let melee = (select_held && a_just_pressed) || (select_just_pressed && a_held);
-    if melee {
+    if !aim_commitment && melee {
         actions.set(PlayerActions::MELEE);
     }
 
@@ -262,7 +321,6 @@ pub fn collect_and_send_intent(
         fire_held,
         actions,
         aim_held,
-        aim_offset,
     };
 
     // -- Send policy --
@@ -321,7 +379,6 @@ pub fn collect_and_send_intent(
                 turn,
                 snap_turn: snap_turn_kind,
                 aim_held,
-                aim_offset,
             },
         ));
     }
@@ -338,5 +395,181 @@ pub fn flush_delayed_intents(
     let dt = time.delta_secs();
     for intent in latency.drain_ready(dt) {
         commands.client_trigger(intent);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aim_pitch_resets_on_reset_aim_pitch_offset() {
+        let mut quick_turn = QuickTurnState::default();
+        quick_turn.aim_pitch_offset = 8.0;
+
+        quick_turn.reset_aim_pitch_offset();
+
+        assert!(
+            (quick_turn.aim_pitch_offset - 0.0).abs() < f32::EPSILON,
+            "aim_pitch_offset should be reset to 0.0, got {}",
+            quick_turn.aim_pitch_offset,
+        );
+    }
+
+    #[test]
+    fn aim_commitment_select_release_switches_weapon() {
+        let mut state = SelectActionTurnState::default();
+        let press = SelectActionTurnInput {
+            select_pressed: true,
+            select_just_pressed: true,
+            now_secs: 0.0,
+            ..Default::default()
+        };
+        assert_eq!(resolve_select_action_turn(&press, &mut state, true), None);
+
+        let release = SelectActionTurnInput {
+            select_just_released: true,
+            now_secs: 0.05,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_select_action_turn(&release, &mut state, true),
+            Some(SelectActionOutcome::WeaponSwitch)
+        );
+    }
+
+    #[test]
+    fn aim_commitment_select_release_while_aiming_does_not_switch_weapon() {
+        let mut state = SelectActionTurnState::default();
+        let press = SelectActionTurnInput {
+            select_pressed: true,
+            select_just_pressed: true,
+            now_secs: 0.0,
+            ..Default::default()
+        };
+        assert_eq!(resolve_select_action_turn(&press, &mut state, false), None);
+
+        let release = SelectActionTurnInput {
+            select_just_released: true,
+            now_secs: 0.05,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_select_action_turn(&release, &mut state, false),
+            None
+        );
+    }
+
+    #[test]
+    fn aim_commitment_select_direction_outside_aim_snaps_and_suppresses_movement() {
+        for (label, down_held, left_held, right_held, kind, action_flag) in [
+            (
+                "down",
+                true,
+                false,
+                false,
+                TurnKind::QuickTurn,
+                PlayerActions::QUICK_TURN,
+            ),
+            (
+                "left",
+                false,
+                true,
+                false,
+                TurnKind::SideTurnLeft,
+                PlayerActions::SNAP_TURN_LEFT,
+            ),
+            (
+                "right",
+                false,
+                false,
+                true,
+                TurnKind::SideTurnRight,
+                PlayerActions::SNAP_TURN_RIGHT,
+            ),
+        ] {
+            let mut state = SelectActionTurnState::default();
+            let press = SelectActionTurnInput {
+                select_pressed: true,
+                select_just_pressed: true,
+                now_secs: 0.0,
+                ..Default::default()
+            };
+            assert_eq!(resolve_select_action_turn(&press, &mut state, true), None);
+
+            let action_turn = resolve_select_action_turn(
+                &SelectActionTurnInput {
+                    select_pressed: true,
+                    down_pressed: down_held,
+                    down_just_pressed: down_held,
+                    left_pressed: left_held,
+                    left_just_pressed: left_held,
+                    right_pressed: right_held,
+                    right_just_pressed: right_held,
+                    now_secs: 0.05,
+                    ..Default::default()
+                },
+                &mut state,
+                true,
+            );
+            assert_eq!(
+                action_turn,
+                Some(SelectActionOutcome::SnapTurn(kind)),
+                "{label} should request {kind:?}"
+            );
+
+            let mut actions = PlayerActions::default();
+            if let Some(SelectActionOutcome::SnapTurn(kind)) = action_turn {
+                set_snap_action(&mut actions, kind);
+            }
+
+            assert!(
+                actions.has(action_flag),
+                "{label} should set action flag {action_flag}"
+            );
+            assert!(
+                !actions.has(PlayerActions::WEAPON_SWITCH),
+                "{label} snap should not also switch weapon"
+            );
+        }
+
+        assert_eq!(
+            non_aim_movement_from_input(Some(TurnKind::QuickTurn), false, true),
+            Vec2::ZERO
+        );
+    }
+
+    #[test]
+    fn aim_commitment_select_direction_while_aiming_does_not_snap_or_switch() {
+        let mut state = SelectActionTurnState::default();
+        let press = SelectActionTurnInput {
+            select_pressed: true,
+            select_just_pressed: true,
+            now_secs: 0.0,
+            ..Default::default()
+        };
+        assert_eq!(resolve_select_action_turn(&press, &mut state, false), None);
+
+        let direction = SelectActionTurnInput {
+            select_pressed: true,
+            down_pressed: true,
+            down_just_pressed: true,
+            now_secs: 0.05,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_select_action_turn(&direction, &mut state, false),
+            None
+        );
+
+        let release = SelectActionTurnInput {
+            select_just_released: true,
+            now_secs: 0.06,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_select_action_turn(&release, &mut state, false),
+            None
+        );
     }
 }

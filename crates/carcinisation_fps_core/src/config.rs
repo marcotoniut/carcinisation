@@ -13,7 +13,9 @@ use std::num::{NonZeroU64, NonZeroUsize};
 /// Combat control mode — determines how aiming and strafing work.
 ///
 /// `Legacy` preserves Wolf3D-style B=strafe, fire-anytime controls.
-/// `AimCommitment` enables RE4-style immobile aim with offset-based fire direction.
+/// `AimCommitment` enables immediate B-held aim: feet locked, body turn allowed,
+/// fire only while aiming. A alone outside aim is reserved/no-op; Select tap/release
+/// switches weapon; Select+Down/Left/Right outside aim triggers quick/snap turn.
 /// Default is `Legacy` until `AimCommitment` is validated through playtesting.
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, bevy::prelude::Reflect,
@@ -22,8 +24,10 @@ pub enum CombatControlMode {
     /// Wolf3D-style: B = strafe, fire anytime, free movement while shooting.
     #[default]
     Legacy,
-    /// RE4-style: B = immobile aim commitment, fire only while aiming,
-    /// aim offset controls shot direction. Body locked during aim.
+    /// RE4-style: hold B to aim, fire only while aiming.
+    /// Feet locked (no translation); body turns freely. Fire direction
+    /// follows current body angle. Up/Down controls visual pitch. Outside
+    /// `AimMode`, Select+Down/Left/Right quick/snap turns.
     AimCommitment,
 }
 
@@ -334,15 +338,21 @@ pub struct FpsCombatConfig {
     #[serde(default)]
     pub occupancy: OccupancyConfig,
     // -- Aim Mode --
-    /// Combat control mode. `Legacy` = Wolf3D strafe, `AimCommitment` = RE4 aim.
+    /// Combat control mode. `Legacy` = `Wolf3D` strafe, `AimCommitment` = RE4 aim.
     #[serde(default)]
     pub combat_control_mode: CombatControlMode,
-    /// Maximum horizontal aim offset in radians (±). Clamp applied every tick.
-    #[serde(default = "FpsCombatConfig::default_max_aim_offset")]
-    pub max_aim_offset: f32,
-    /// Aim reticle sensitivity (radians per second at full input).
-    #[serde(default = "FpsCombatConfig::default_aim_sensitivity")]
-    pub aim_sensitivity: f32,
+    /// Horizontal turn speed in `AimMode` (radians per second at full input).
+    /// Separate from normal `turn_speed` so aiming feels distinct from walking.
+    #[serde(default = "FpsCombatConfig::default_aim_turn_speed")]
+    pub aim_turn_speed: f32,
+    /// Vertical pitch speed in `AimMode` (pixels per second at full input).
+    /// Controls how fast Up/Down shifts world/camera pitch.
+    #[serde(default = "FpsCombatConfig::default_aim_pitch_speed")]
+    pub aim_pitch_speed: f32,
+    /// Vertical pixel offset to lower the weapon when not aiming (`AimCommitment` only).
+    /// Positive = lower. Zero = no change. Ignored in `Legacy` mode.
+    #[serde(default = "FpsCombatConfig::default_weapon_lowered_offset_px")]
+    pub weapon_lowered_offset_px: f32,
 }
 
 /// Soft occupancy separation tuning.
@@ -390,12 +400,16 @@ impl FpsCombatConfig {
         carcinisation_core::ron_config!("assets/config/fp/combat.ron")
     }
 
-    const fn default_max_aim_offset() -> f32 {
-        0.5 // ~±29°
+    const fn default_aim_turn_speed() -> f32 {
+        2.0 // radians per second — matches normal walk turn for steadier aim
     }
 
-    const fn default_aim_sensitivity() -> f32 {
-        2.0 // radians per second at full input
+    const fn default_aim_pitch_speed() -> f32 {
+        96.0 // pixels per second
+    }
+
+    const fn default_weapon_lowered_offset_px() -> f32 {
+        20.0 // pixels downward when weapon is lowered
     }
 
     /// Legacy alias — equivalent to `self.mosquiton_shoot_cooldown`.
@@ -506,8 +520,9 @@ impl Default for FpsCombatConfig {
             ground_fire_max: 32,
             occupancy: OccupancyConfig::default(),
             combat_control_mode: CombatControlMode::default(),
-            max_aim_offset: Self::default_max_aim_offset(),
-            aim_sensitivity: Self::default_aim_sensitivity(),
+            aim_turn_speed: Self::default_aim_turn_speed(),
+            aim_pitch_speed: Self::default_aim_pitch_speed(),
+            weapon_lowered_offset_px: Self::default_weapon_lowered_offset_px(),
         }
     }
 }
@@ -850,6 +865,16 @@ mod tests {
         let _ = PlayerFlamethrowerConfig::load();
         let _ = FpsCombatConfig::load();
         let _ = FpsVisualConfig::load();
+    }
+
+    #[test]
+    fn aim_commitment_default_turn_speed_matches_walk_turn_speed() {
+        assert!((FpsCombatConfig::default().aim_turn_speed - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn aim_commitment_default_pitch_speed_is_snappy() {
+        assert!((FpsCombatConfig::default().aim_pitch_speed - 96.0).abs() < f32::EPSILON);
     }
 
     #[test]

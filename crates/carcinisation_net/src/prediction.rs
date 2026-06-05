@@ -30,10 +30,8 @@ pub struct PredictedInput {
     pub movement: Vec2,
     pub turn: f32,
     pub snap_turn: Option<SnapTurnKind>,
-    /// AimMode active (AimCommitment only). Movement/turn suppressed during prediction.
+    /// `AimMode` active (`AimCommitment` only). Translation suppressed; turn still applies.
     pub aim_held: bool,
-    /// Aim offset in radians. Used for reconciliation, not for movement prediction.
-    pub aim_offset: f32,
 }
 
 /// A single prediction entry: the input applied and the resulting state.
@@ -118,7 +116,6 @@ mod tests {
                 turn: 0.0,
                 snap_turn: None,
                 aim_held: false,
-                aim_offset: 0.0,
             },
             result: PredictionSnapshot {
                 position: Vec2::new(x, y),
@@ -250,7 +247,6 @@ mod tests {
                 turn: 0.0,
                 snap_turn: Some(SnapTurnKind::QuickTurn),
                 aim_held: false,
-                aim_offset: 0.0,
             },
             result: PredictionSnapshot {
                 position: Vec2::ZERO,

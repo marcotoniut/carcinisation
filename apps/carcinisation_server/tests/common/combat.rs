@@ -43,6 +43,8 @@ pub fn capture_flame_active(trigger: On<FlameActive>, mut events: ResMut<Receive
 // Intent queue helpers
 // ---------------------------------------------------------------------------
 
+/// Queue a fire intent. Sets `aim_held: true` so fire works in both Legacy and
+/// `AimCommitment` modes.
 pub fn queue_fire(app: &mut App, seq: u32) {
     app.world_mut()
         .resource_mut::<TestIntentQueue>()
@@ -52,8 +54,7 @@ pub fn queue_fire(app: &mut App, seq: u32) {
             movement: Vec2::ZERO,
             turn: 0.0,
             fire_held: true,
-            aim_held: false,
-            aim_offset: 0.0,
+            aim_held: true,
             actions: PlayerActions::default(),
         });
 }
@@ -75,7 +76,6 @@ pub fn queue_switch(app: &mut App, seq: u32) {
             turn: 0.0,
             fire_held: false,
             aim_held: false,
-            aim_offset: 0.0,
             actions: PlayerActions::from_raw(PlayerActions::WEAPON_SWITCH),
         });
 }
