@@ -18,6 +18,8 @@ use carcinisation_fps_core::mosquiton::{
 };
 use carcinisation_fps_core::spidey::{SpideySim, SpideySimConfig, SpideySimState, tick_spidey_sim};
 
+use carcinisation_fps_core::try_move;
+
 use crate::ServerMap;
 
 use super::NetProjectile;
@@ -139,6 +141,15 @@ struct MeleeHit {
     damage: f32,
 }
 
+/// Deferred lunge displacement to apply after the enemy iteration.
+struct LungeHit {
+    target_player_id: PlayerId,
+    /// Spidey position at the moment of lunge contact (for push direction).
+    source_position: Vec2,
+    /// Entity of the Spidey that lunged (for recoil).
+    source_entity: Entity,
+}
+
 /// Tick Mosquiton enemies using the shared `fps_core` simulation.
 ///
 /// Handles movement, attack cooldowns, and attack decisions in one call
@@ -158,7 +169,7 @@ pub fn tick_enemy_attacks(
         &ServerMosquitonSimConfig,
     )>,
     players: Query<&NetPlayer>,
-    mut player_health: Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
+    mut player_query: Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
     fixed_time: Res<Time<Fixed>>,
     mut next_id: ResMut<NextProjectileId>,
     server_map: Res<ServerMap>,
@@ -282,7 +293,7 @@ pub fn tick_enemy_attacks(
         // the deferred spawn handles it.
     }
 
-    apply_melee_hits(&melee_hits, &mut commands, &mut player_health);
+    apply_melee_hits(&melee_hits, &mut commands, &mut player_query);
 }
 
 /// Spawn deferred projectiles after shoot lead time expires.
@@ -347,10 +358,10 @@ const fn sim_state_to_net(state: &MosquitonSimState) -> NetEnemyState {
 fn apply_melee_hits(
     melee_hits: &[MeleeHit],
     commands: &mut Commands,
-    player_health: &mut Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
+    player_query: &mut Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
 ) {
     for hit in melee_hits {
-        for (player, mut health) in &mut *player_health {
+        for (player, mut health) in &mut *player_query {
             if player.player_id == hit.target_player_id
                 && matches!(player.state, PlayerNetState::Alive)
                 && health.current > 0.0
@@ -431,16 +442,17 @@ pub fn tick_spidey_attacks(
         &mut ServerSpideySim,
         &ServerSpideySimConfig,
     )>,
-    players: Query<&NetPlayer>,
-    mut player_health: Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
+    mut player_query: Query<(Entity, &mut NetPlayer, &mut NetHealth), Without<NetEnemy>>,
     fixed_time: Res<Time<Fixed>>,
     mut next_id: ResMut<NextProjectileId>,
     server_map: Res<ServerMap>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
     let mut melee_hits: Vec<MeleeHit> = Vec::new();
+    let mut lunge_impulse_hits: Vec<LungeHit> = Vec::new();
 
-    for (_enemy_entity, mut enemy, health, mut spidey_sim, sim_config) in &mut enemies {
+    for (enemy_entity, mut enemy, health, mut spidey_sim, sim_config) in &mut enemies {
         if enemy.enemy_type != NetEnemyType::Spidey {
             continue;
         }
@@ -455,8 +467,14 @@ pub fn tick_spidey_attacks(
             continue;
         }
 
-        // Find nearest alive player per-enemy (not shared).
-        let Some(player_pos) = nearest_alive_player_pos(enemy.position, &players) else {
+        // Find nearest alive player per-enemy.
+        let Some(player_pos) = player_query
+            .iter()
+            .filter(|(_, p, _)| matches!(p.state, PlayerNetState::Alive))
+            .map(|(_, p, _)| (p.position, p.position.distance_squared(enemy.position)))
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(pos, _)| pos)
+        else {
             continue;
         };
 
@@ -548,12 +566,26 @@ pub fn tick_spidey_attacks(
         }
 
         // Handle melee damage output (leap arrival).
-        if let Some((damage, _source)) = output.melee_damage
-            && let Some(target_pid) = nearest_alive_player_id(enemy.position, &players)
+        if let Some((damage, source_pos)) = output.melee_damage
+            && let Some(target_pid) = player_query
+                .iter()
+                .filter(|(_, p, _)| matches!(p.state, PlayerNetState::Alive))
+                .map(|(_, p, _)| (p.player_id, p.position.distance(enemy.position)))
+                .min_by(|(pa, a), (pb, b)| {
+                    a.partial_cmp(b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then(pa.0.cmp(&pb.0))
+                })
+                .map(|(pid, _)| pid)
         {
             melee_hits.push(MeleeHit {
                 target_player_id: target_pid,
                 damage: damage as f32,
+            });
+            lunge_impulse_hits.push(LungeHit {
+                target_player_id: target_pid,
+                source_position: source_pos,
+                source_entity: enemy_entity,
             });
             debug!(
                 "Spidey {:?} leap hit player {:?}",
@@ -562,5 +594,136 @@ pub fn tick_spidey_attacks(
         }
     }
 
-    apply_melee_hits(&melee_hits, &mut commands, &mut player_health);
+    apply_melee_hits_spidey(&melee_hits, &mut commands, &mut player_query);
+
+    // Apply lunge push/recoil as one-shot displacement. Immediate application
+    // ensures NetPlayer.position reflects the push before send_input_acks
+    // reads it (same FixedUpdate tick, later in EnemyAttackSet → replicated
+    // via next MovementSet ack). Client prediction replays only movement
+    // inputs, so a multi-tick impulse would be invisible to the client.
+    apply_lunge_displacement(
+        &lunge_impulse_hits,
+        &mut commands,
+        &mut player_query,
+        &mut enemies,
+        &combat_config,
+        &server_map,
+    );
+}
+
+/// Apply deferred melee hits from Spidey lunges.
+fn apply_melee_hits_spidey(
+    melee_hits: &[MeleeHit],
+    commands: &mut Commands,
+    player_query: &mut Query<(Entity, &mut NetPlayer, &mut NetHealth), Without<NetEnemy>>,
+) {
+    for hit in melee_hits {
+        for (_, player, mut health) in &mut *player_query {
+            if player.player_id == hit.target_player_id
+                && matches!(player.state, PlayerNetState::Alive)
+                && health.current > 0.0
+            {
+                health.current = (health.current - hit.damage).max(0.0);
+                commands.server_trigger(ToClients {
+                    mode: SendMode::Broadcast,
+                    message: DamageEffect {
+                        target_id: NetworkObjectId(player.player_id.0),
+                        damage: hit.damage,
+                        remaining_health: health.current,
+                        was_player: true,
+                    },
+                });
+                break;
+            }
+        }
+    }
+}
+
+/// Apply one-shot lunge displacement: push the player away, recoil the Spidey.
+///
+/// Both displacements go through `try_move` for wall collision safety.
+///
+/// # Prediction model
+///
+/// One-shot displacement is **ack-safe, not locally predicted**. The push
+/// modifies `NetPlayer.position` in `EnemyAttackSet` (after `send_input_acks`
+/// has already run in `MovementSet`). The client sees the pushed position in
+/// the *next* `InputAck` because `send_input_acks` detects the mutation via
+/// `position_diverged` — one server tick (~33ms) plus network latency.
+///
+/// This is acceptable for Phase 2 because client prediction replays only
+/// movement inputs, not server-side forces. A multi-tick `ActiveImpulses`
+/// approach would be invisible to the client unless the impulse state were
+/// replicated or predicted. Future multi-tick effects should use a
+/// prediction-event model (replicate impulse parameters so the client can
+/// predict the ongoing displacement) rather than collapsing into one-shot
+/// corrections.
+fn apply_lunge_displacement(
+    hits: &[LungeHit],
+    commands: &mut Commands,
+    player_query: &mut Query<(Entity, &mut NetPlayer, &mut NetHealth), Without<NetEnemy>>,
+    enemies: &mut Query<(
+        Entity,
+        &mut NetEnemy,
+        &NetHealth,
+        &mut ServerSpideySim,
+        &ServerSpideySimConfig,
+    )>,
+    combat_config: &FpsCombatConfig,
+    server_map: &ServerMap,
+) {
+    let spidey_cfg = &combat_config.spidey;
+    for hit in hits {
+        // Compute push direction from the Spidey's contact position to the
+        // player's pre-push position. Both push and recoil use this direction
+        // (opposite signs) so they are geometrically consistent.
+        let Some(player_pos) = player_query
+            .iter()
+            .find(|(_, p, _)| p.player_id == hit.target_player_id)
+            .map(|(_, p, _)| p.position)
+        else {
+            continue;
+        };
+        let push_dir = (player_pos - hit.source_position).normalize_or_zero();
+        let push_dir = if push_dir == Vec2::ZERO {
+            Vec2::X
+        } else {
+            push_dir
+        };
+
+        // --- Player push: multi-tick decaying impulse away from Spidey ---
+        // Strength derived from distance: integral of linear decay over
+        // duration = strength * duration / 2 = distance.
+        let push_duration = spidey_cfg.lunge_push_duration.max(f32::EPSILON);
+        let push_strength = spidey_cfg.lunge_player_push_distance * 2.0 / push_duration;
+        for (entity, player, _) in &mut *player_query {
+            if player.player_id != hit.target_player_id
+                || !matches!(player.state, PlayerNetState::Alive)
+            {
+                continue;
+            }
+            commands
+                .entity(entity)
+                .insert(super::occupancy::ServerPlayerImpulse(
+                    carcinisation_fps_core::occupancy::OccupancyImpulse {
+                        direction: push_dir,
+                        strength: push_strength,
+                        remaining: push_duration,
+                        duration: push_duration,
+                    },
+                ));
+            break;
+        }
+
+        // --- Spidey recoil: opposite of push direction ---
+        if let Ok((_, mut enemy, _, _, _)) = enemies.get_mut(hit.source_entity) {
+            let displacement = -push_dir * spidey_cfg.lunge_spidey_recoil_distance;
+            try_move(
+                &mut enemy.position,
+                displacement,
+                spidey_cfg.collision_radius,
+                &server_map.0,
+            );
+        }
+    }
 }

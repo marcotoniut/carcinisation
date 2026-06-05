@@ -350,17 +350,24 @@ pub fn apply_buffered_movement(
 /// 3. **Snap just completed** — the final angle must reach the client so
 ///    it lands on the exact server angle.
 ///
-/// When none of these hold (idle player, no snap), no ack is sent.
+/// When none of these hold (idle player, no snap, no position change), no
+/// ack is sent.
 #[allow(clippy::implicit_hasher)]
 pub fn send_input_acks(
     mut commands: Commands,
-    players: Query<(&NetPlayer, &ServerQuickTurn)>,
+    players: Query<(
+        &NetPlayer,
+        &ServerQuickTurn,
+        Option<&NetSpeedModifier>,
+        Option<&super::occupancy::ServerPlayerImpulse>,
+    )>,
     tracker: Res<PlayerInputTracker>,
     tick_counter: Res<TickCounter>,
     mut last_acked: Local<HashMap<PlayerId, u32>>,
     mut had_snap: Local<HashMap<PlayerId, bool>>,
+    mut last_acked_pos: Local<HashMap<PlayerId, Vec2>>,
 ) {
-    for (player, snap_turn) in &players {
+    for (player, snap_turn, speed_modifier, player_impulse) in &players {
         let Some(seq) = tracker.last_sequence(&player.player_id) else {
             continue;
         };
@@ -372,15 +379,22 @@ pub fn send_input_acks(
         // Send an ack when:
         // - Input sequence advanced (normal case), OR
         // - A snap turn is active (client needs continuous correction), OR
-        // - A snap turn just completed (client needs the final angle).
+        // - A snap turn just completed (client needs the final angle), OR
+        // - Server-side forces (lunge push, occupancy separation) changed the
+        //   player's position since the last ack. Without this, an idle player
+        //   displaced by a server-only force would never receive a correction.
         let seq_changed = last_acked.get(&player.player_id) != Some(&seq);
         let snap_needs_ack = snap_active || was_snapping;
+        let position_diverged = last_acked_pos
+            .get(&player.player_id)
+            .is_none_or(|&p| p.distance_squared(player.position) > 0.0001);
 
-        if !seq_changed && !snap_needs_ack {
+        if !seq_changed && !snap_needs_ack && !position_diverged {
             continue;
         }
 
         last_acked.insert(player.player_id, seq);
+        last_acked_pos.insert(player.player_id, player.position);
         commands.server_trigger(ToClients {
             mode: SendMode::Broadcast,
             message: InputAck {
@@ -393,6 +407,13 @@ pub fn send_input_acks(
                 snap_total_radians: snap_turn.total_radians,
                 snap_speed: snap_turn.speed,
                 snap_direction: snap_turn.direction,
+                speed_modifier_multiplier: speed_modifier.map_or(1.0, |m| m.multiplier),
+                speed_modifier_remaining: speed_modifier.map_or(0.0, |m| m.remaining),
+                impulse_direction_x: player_impulse.map_or(0.0, |i| i.0.direction.x),
+                impulse_direction_y: player_impulse.map_or(0.0, |i| i.0.direction.y),
+                impulse_strength: player_impulse.map_or(0.0, |i| i.0.strength),
+                impulse_remaining: player_impulse.map_or(0.0, |i| i.0.remaining),
+                impulse_duration: player_impulse.map_or(0.0, |i| i.0.duration),
             },
         });
     }

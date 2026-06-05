@@ -57,7 +57,9 @@ pub enum SpideySimState {
         dealt_damage: bool,
     },
     /// Brief pause after any attack before re-engaging.
-    Recover { timer: f32 },
+    /// `recoil_arc` is the total duration of a post-lunge visual bounce arc
+    /// (non-zero only after a successful lunge hit).
+    Recover { timer: f32, recoil_arc: f32 },
     /// Playing death animation.
     Dying { timer: f32 },
     /// Inert fire-death before despawn.
@@ -206,11 +208,15 @@ pub fn tick_spidey_sim(
     dt: f32,
 ) -> SpideySimOutput {
     if config.lunge_range >= config.web_range {
-        bevy::log::warn!(
-            "spidey: lunge_range ({}) >= web_range ({}) — web attacks will never fire",
-            config.lunge_range,
-            config.web_range,
-        );
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        if !WARNED.swap(true, Ordering::Relaxed) {
+            bevy::log::warn!(
+                "spidey: lunge_range ({}) >= web_range ({}) — web attacks will never fire",
+                config.lunge_range,
+                config.web_range,
+            );
+        }
     }
 
     let mut output = SpideySimOutput::default();
@@ -248,8 +254,17 @@ pub fn tick_spidey_sim(
             }
         }
 
-        SpideySimState::Recover { timer } => {
+        SpideySimState::Recover { timer, recoil_arc } => {
             *timer -= dt;
+            // Post-lunge recoil visual arc: rise/fall parabola that peaks at
+            // the midpoint of the arc duration, giving a natural bounce feel.
+            if *recoil_arc > 0.0 {
+                let arc_elapsed = *recoil_arc - timer.max(0.0).min(*recoil_arc);
+                let t = (arc_elapsed / *recoil_arc).clamp(0.0, 1.0);
+                // Rise/fall parabola: 4t(1-t), peak=1.0 at t=0.5.
+                let raw_height = config.hop_visual_height * 2.0 * 4.0 * t * (1.0 - t);
+                output.visual_height = raw_height.min(MAX_VISUAL_HEIGHT);
+            }
             if *timer <= 0.0 {
                 sim.state = SpideySimState::Idle;
             }
@@ -358,6 +373,7 @@ pub fn tick_spidey_sim(
                 // Transition to recover after web fires (projectile spawns via anim cue).
                 sim.state = SpideySimState::Recover {
                     timer: config.recover_secs,
+                    recoil_arc: 0.0,
                 };
             }
         }
@@ -406,6 +422,7 @@ pub fn tick_spidey_sim(
                     // Blocked by wall — no damage, recover.
                     sim.state = SpideySimState::Recover {
                         timer: config.recover_secs,
+                        recoil_arc: 0.0,
                     };
                     sim.lunge_cooldown = config.lunge_cooldown;
                     return output;
@@ -424,6 +441,12 @@ pub fn tick_spidey_sim(
             if *timer <= 0.0 || dist <= config.collision_radius {
                 sim.state = SpideySimState::Recover {
                     timer: config.recover_secs,
+                    // Visual bounce arc only after a successful hit.
+                    recoil_arc: if *dealt_damage {
+                        config.recover_secs
+                    } else {
+                        0.0
+                    },
                 };
                 sim.lunge_cooldown = config.lunge_cooldown;
             }
@@ -579,7 +602,7 @@ mod tests {
         let config = default_config();
         let player = Vec2::new(2.5, 3.5);
         // Place within lunge_range of player.
-        let mut sim = make_sim(2.5 + config.lunge_range * 0.5, 3.5);
+        let mut sim = make_sim(config.lunge_range.mul_add(0.5, 2.5), 3.5);
         sim.lunge_cooldown = 0.0;
 
         let output = tick_spidey_sim(&mut sim, &config, player, &map, 0.016);
@@ -756,7 +779,7 @@ mod tests {
         let map = test_map();
         let config = default_config();
         let player = Vec2::new(2.0, 3.5);
-        let mut sim = make_sim(2.0 + config.lunge_range * 0.5, 3.5);
+        let mut sim = make_sim(config.lunge_range.mul_add(0.5, 2.0), 3.5);
 
         // First tick starts leap.
         let out1 = tick_spidey_sim(&mut sim, &config, player, &map, 0.016);
@@ -866,7 +889,10 @@ mod tests {
         let map = test_map();
         let config = default_config();
         let mut sim = make_sim(1.5, 1.5);
-        sim.state = SpideySimState::Recover { timer: 0.1 };
+        sim.state = SpideySimState::Recover {
+            timer: 0.1,
+            recoil_arc: 0.0,
+        };
 
         let _ = tick_spidey_sim(&mut sim, &config, Vec2::ZERO, &map, 0.2);
 
@@ -885,5 +911,137 @@ mod tests {
         assert_eq!(c.web_projectile_speed, combat.spidey.web_projectile_speed);
         assert_eq!(c.web_projectile_damage, combat.spidey.web_projectile_damage);
         assert_eq!(c.collision_radius, combat.spidey.collision_radius);
+    }
+
+    // -- Post-lunge recoil arc --
+
+    #[test]
+    fn lunge_hit_produces_recoil_arc() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(3.0, 1.5);
+        // Place player close enough for lunge contact.
+        let player_pos = Vec2::new(3.3, 1.5);
+        sim.state = SpideySimState::LungeAttack {
+            target: player_pos,
+            timer: config.lunge_duration_secs,
+            dealt_damage: false,
+        };
+
+        // Tick until damage is dealt.
+        let mut damaged = false;
+        for _ in 0..30 {
+            let output = tick_spidey_sim(&mut sim, &config, player_pos, &map, 1.0 / 30.0);
+            if output.melee_damage.is_some() {
+                damaged = true;
+                break;
+            }
+        }
+        assert!(damaged, "lunge should deal damage");
+
+        // Tick once more to transition to Recover.
+        let _ = tick_spidey_sim(&mut sim, &config, player_pos, &map, 1.0 / 30.0);
+        assert!(
+            matches!(
+                sim.state,
+                SpideySimState::Recover {
+                    recoil_arc,
+                    ..
+                } if recoil_arc > 0.0
+            ),
+            "recover after lunge hit should have recoil_arc > 0: {:?}",
+            sim.state
+        );
+
+        // Recoil arc should produce visual_height > 0 during early recovery.
+        let early = tick_spidey_sim(&mut sim, &config, player_pos, &map, 1.0 / 30.0);
+        assert!(
+            early.visual_height > 0.0,
+            "recoil arc should produce positive visual_height: {}",
+            early.visual_height
+        );
+    }
+
+    #[test]
+    fn recoil_arc_peaks_at_midpoint_and_decays() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(3.0, 1.5);
+        sim.state = SpideySimState::Recover {
+            timer: config.recover_secs,
+            recoil_arc: config.recover_secs,
+        };
+
+        // Collect heights through recovery.
+        let mut heights = Vec::new();
+        for _ in 0..20 {
+            let output = tick_spidey_sim(&mut sim, &config, Vec2::ZERO, &map, 1.0 / 30.0);
+            heights.push(output.visual_height);
+            if matches!(sim.state, SpideySimState::Idle) {
+                break;
+            }
+        }
+
+        // Rise/fall: first tick should be lower than the peak.
+        let peak = heights
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0);
+        let peak_idx = heights
+            .iter()
+            .position(|&h| (h - peak).abs() < 1e-6)
+            .unwrap_or(0);
+        assert!(
+            peak_idx > 0,
+            "peak should not be on the first tick (rise/fall, not instant-peak): peak_idx={peak_idx}"
+        );
+        assert!(peak > 0.1, "peak should be visually significant: {peak}");
+
+        // Last height should be near zero.
+        let last = *heights.last().unwrap_or(&0.0);
+        assert!(last < 0.01, "should decay to zero: last={last}");
+    }
+
+    #[test]
+    fn recoil_arc_decays_to_zero() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(3.0, 1.5);
+        sim.state = SpideySimState::Recover {
+            timer: config.recover_secs,
+            recoil_arc: config.recover_secs,
+        };
+
+        let mut final_height = f32::MAX;
+        for _ in 0..20 {
+            let output = tick_spidey_sim(&mut sim, &config, Vec2::ZERO, &map, 1.0 / 30.0);
+            final_height = output.visual_height;
+            if matches!(sim.state, SpideySimState::Idle) {
+                break;
+            }
+        }
+        assert!(
+            final_height < 0.01,
+            "visual_height should decay near zero by end of recovery: {final_height}"
+        );
+    }
+
+    #[test]
+    fn non_lunge_recover_has_no_arc() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(3.0, 1.5);
+        sim.state = SpideySimState::Recover {
+            timer: config.recover_secs,
+            recoil_arc: 0.0,
+        };
+
+        let output = tick_spidey_sim(&mut sim, &config, Vec2::ZERO, &map, 1.0 / 30.0);
+        assert!(
+            output.visual_height < f32::EPSILON,
+            "non-lunge recovery should have zero visual_height: {}",
+            output.visual_height
+        );
     }
 }

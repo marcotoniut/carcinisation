@@ -29,7 +29,7 @@ const USER_DATA_BYTES: usize = 256;
 impl ConnectMode {
     /// Encode into the 256-byte `user_data` field for `ClientAuthentication`.
     #[must_use]
-    pub fn to_user_data(self) -> [u8; USER_DATA_BYTES] {
+    pub const fn to_user_data(self) -> [u8; USER_DATA_BYTES] {
         let mut data = [0u8; USER_DATA_BYTES];
         data[0] = match self {
             Self::Player => 0,
@@ -41,7 +41,7 @@ impl ConnectMode {
     /// Decode from the 256-byte `user_data` field. Defaults to `Player` for
     /// unrecognised values (backward compatible with clients that send `None`).
     #[must_use]
-    pub fn from_user_data(data: &[u8; USER_DATA_BYTES]) -> Self {
+    pub const fn from_user_data(data: &[u8; USER_DATA_BYTES]) -> Self {
         match data[0] {
             1 => Self::Monitor,
             _ => Self::Player,
@@ -283,6 +283,13 @@ pub struct MonitorAck;
 /// snap turn after reconciliation prunes the history entry that initiated
 /// it. Without this, the client zeroes snap state on every ack, causing
 /// ~15° angle corrections per tick for the duration of the snap.
+///
+/// Speed modifier state is included so client prediction replay uses the
+/// same movement speed as the server, eliminating drift during web slow.
+///
+/// **Protocol versioning**: This struct is serialised with postcard
+/// (non-self-describing, positional). Adding or removing fields is a
+/// breaking change — client and server must be the same version.
 #[derive(Debug, Clone, Event, Serialize, Deserialize)]
 pub struct InputAck {
     /// Which player this ack is for. Clients filter by their own `PlayerId`.
@@ -303,6 +310,25 @@ pub struct InputAck {
     pub snap_speed: f32,
     /// Server snap turn direction (+1.0 left, -1.0 right).
     pub snap_direction: f32,
+    /// Active speed modifier multiplier (0.1..=1.0), or 1.0 if none active.
+    /// Used by client prediction replay for movement-speed parity.
+    pub speed_modifier_multiplier: f32,
+    /// Active speed modifier remaining drain budget.
+    /// No modifier is active when `remaining <= 0.0` — this is the sentinel.
+    /// A modifier with `multiplier = 1.0` and `remaining > 0.0` is valid but
+    /// has no speed effect (still drains budget).
+    pub speed_modifier_remaining: f32,
+    /// Active push impulse direction (normalised or zero). Zero when no
+    /// impulse is active. Used by client prediction replay for smooth
+    /// multi-tick lunge push.
+    pub impulse_direction_x: f32,
+    pub impulse_direction_y: f32,
+    /// Push impulse strength (map units/s). Zero when no impulse active.
+    pub impulse_strength: f32,
+    /// Push impulse remaining lifetime (seconds). No impulse when <= 0.
+    pub impulse_remaining: f32,
+    /// Push impulse total duration (seconds). Used for decay curve.
+    pub impulse_duration: f32,
 }
 
 /// Net-safe pickup kind enum.
@@ -589,6 +615,13 @@ mod tests {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction_x: 0.0,
+            impulse_direction_y: 0.0,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
         };
         let bytes = postcard::to_allocvec(&ack).unwrap();
         // Try every truncation length — none should panic.
@@ -633,6 +666,13 @@ mod tests {
             snap_total_radians: std::f32::consts::PI,
             snap_speed: 7.85,
             snap_direction: -1.0,
+            speed_modifier_multiplier: 0.7,
+            speed_modifier_remaining: 2.5,
+            impulse_direction_x: -0.8,
+            impulse_direction_y: 0.6,
+            impulse_strength: 4.24,
+            impulse_remaining: 0.15,
+            impulse_duration: 0.25,
         };
         let back = roundtrip(&ack);
         assert_eq!(back.player_id.0, 7);
@@ -644,5 +684,12 @@ mod tests {
         assert!((back.snap_total_radians - std::f32::consts::PI).abs() < 1e-5);
         assert!((back.snap_speed - 7.85).abs() < 1e-5);
         assert!((back.snap_direction - -1.0).abs() < 1e-5);
+        assert!((back.speed_modifier_multiplier - 0.7).abs() < 1e-5);
+        assert!((back.speed_modifier_remaining - 2.5).abs() < 1e-5);
+        assert!((back.impulse_direction_x - -0.8).abs() < 1e-5);
+        assert!((back.impulse_direction_y - 0.6).abs() < 1e-5);
+        assert!((back.impulse_strength - 4.24).abs() < 1e-5);
+        assert!((back.impulse_remaining - 0.15).abs() < 1e-5);
+        assert!((back.impulse_duration - 0.25).abs() < 1e-5);
     }
 }

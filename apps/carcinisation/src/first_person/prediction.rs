@@ -76,7 +76,7 @@
 use bevy::prelude::*;
 use carcinisation_fps::plugin::{MapRes, PlayerDead};
 use carcinisation_fps_core::FpsMovementConfig;
-use carcinisation_fps_core::movement::{apply_movement, snap_turn_params, tick_snap_turn};
+use carcinisation_fps_core::movement::{snap_turn_params, tick_snap_turn};
 use carcinisation_net::prediction::{
     ClientMap, PredictedInput, PredictionEntry, PredictionHistory, PredictionSnapshot,
 };
@@ -162,6 +162,19 @@ pub struct PredictedPlayerState {
     pub snap_total_radians: f32,
     pub snap_speed: f32,
     pub snap_direction: f32,
+    /// Speed modifier multiplier (0.1..=1.0), or 1.0 if no modifier active.
+    /// Carried in `InputAck` for prediction parity with server movement.
+    pub speed_modifier_multiplier: f32,
+    /// Speed modifier remaining drain budget, or 0.0 if none active.
+    pub speed_modifier_remaining: f32,
+    /// Active push impulse direction (normalised or zero).
+    pub impulse_direction: Vec2,
+    /// Push impulse strength (map units/s).
+    pub impulse_strength: f32,
+    /// Push impulse remaining lifetime (seconds). No impulse when <= 0.
+    pub impulse_remaining: f32,
+    /// Push impulse total duration (seconds).
+    pub impulse_duration: f32,
     /// Set to `true` once initialised from the first replicated `NetPlayer`.
     pub initialised: bool,
 }
@@ -175,6 +188,12 @@ impl Default for PredictedPlayerState {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction: Vec2::ZERO,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
             initialised: false,
         }
     }
@@ -350,6 +369,12 @@ pub fn init_predicted_state(
     predicted.snap_total_radians = 0.0;
     predicted.snap_speed = 0.0;
     predicted.snap_direction = 0.0;
+    predicted.speed_modifier_multiplier = 1.0;
+    predicted.speed_modifier_remaining = 0.0;
+    predicted.impulse_direction = Vec2::ZERO;
+    predicted.impulse_strength = 0.0;
+    predicted.impulse_remaining = 0.0;
+    predicted.impulse_duration = 0.0;
     predicted.initialised = true;
     render_state.seed(local_np.position, local_np.angle);
     info!(
@@ -629,15 +654,20 @@ pub fn handle_input_ack(
     // 1. Prune history through acked sequence.
     history.prune_through(ack.last_processed_sequence);
 
-    // 2. Reset to server truth (including snap turn animation state so
-    //    the client can continue an in-progress snap after reconciliation
-    //    prunes the history entry that initiated it).
+    // 2. Reset to server truth (including snap turn and speed modifier state
+    //    so the client can replay with identical movement parameters).
     predicted.position = ack.position;
     predicted.angle = ack.angle;
     predicted.snap_remaining_radians = ack.snap_remaining_radians;
     predicted.snap_total_radians = ack.snap_total_radians;
     predicted.snap_speed = ack.snap_speed;
     predicted.snap_direction = ack.snap_direction;
+    predicted.speed_modifier_multiplier = ack.speed_modifier_multiplier;
+    predicted.speed_modifier_remaining = ack.speed_modifier_remaining;
+    predicted.impulse_direction = Vec2::new(ack.impulse_direction_x, ack.impulse_direction_y);
+    predicted.impulse_strength = ack.impulse_strength;
+    predicted.impulse_remaining = ack.impulse_remaining;
+    predicted.impulse_duration = ack.impulse_duration;
 
     // 3. Replay remaining unacked inputs.
     let Some(client_map) = client_map else { return };
@@ -717,17 +747,65 @@ pub fn apply_prediction_tick(
         state.angle = state.angle.rem_euclid(std::f32::consts::TAU);
     }
 
-    // Movement.
+    // Tick push impulse (lunge knockback). Applied before movement so the
+    // player moves from the post-push position, matching server ordering.
+    if state.impulse_remaining > 0.0 && state.impulse_duration > 0.0 {
+        let mut impulse = carcinisation_fps_core::occupancy::OccupancyImpulse {
+            direction: state.impulse_direction,
+            strength: state.impulse_strength,
+            remaining: state.impulse_remaining,
+            duration: state.impulse_duration,
+        };
+        let displacement = impulse.tick(dt);
+        if displacement != Vec2::ZERO {
+            carcinisation_fps_core::try_move(
+                &mut state.position,
+                displacement,
+                collision_margin,
+                map,
+            );
+        }
+        state.impulse_remaining = impulse.remaining;
+        if impulse.is_expired() {
+            state.impulse_remaining = 0.0;
+            state.impulse_strength = 0.0;
+        }
+    }
+
+    // Movement (with speed modifier parity).
+    let start_position = state.position;
     if input.movement != Vec2::ZERO {
-        apply_movement(
+        let modifier = (state.speed_modifier_remaining > 0.0).then_some(
+            carcinisation_fps_core::movement::SpeedModifier::new(
+                state.speed_modifier_multiplier,
+                state.speed_modifier_remaining,
+            ),
+        );
+        carcinisation_fps_core::movement::apply_movement_with_modifier(
             &mut state.position,
             state.angle,
             input.movement,
             move_speed,
+            modifier.as_ref(),
             dt,
             map,
             collision_margin,
         );
+    }
+
+    // Tick speed modifier drain (mirrors server's post-movement drain).
+    if state.speed_modifier_remaining > 0.0 {
+        let moved = state.position.distance(start_position);
+        let mut modifier = carcinisation_fps_core::movement::SpeedModifier::new(
+            state.speed_modifier_multiplier,
+            state.speed_modifier_remaining,
+        );
+        if modifier.tick(dt, moved) {
+            state.speed_modifier_remaining = modifier.remaining;
+        } else {
+            state.speed_modifier_multiplier = 1.0;
+            state.speed_modifier_remaining = 0.0;
+        }
     }
 
     true
@@ -738,7 +816,7 @@ mod tests {
     #![allow(clippy::doc_markdown)]
     use super::*;
     use carcinisation_fps_core::map::Map;
-    use carcinisation_fps_core::movement::SnapTurnKind;
+    use carcinisation_fps_core::movement::{SnapTurnKind, apply_movement};
 
     /// 5x5 open room with walls on all borders.
     fn open_map() -> Map {
@@ -772,6 +850,12 @@ mod tests {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction: Vec2::ZERO,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
             initialised: true,
         }
     }
@@ -1150,6 +1234,12 @@ mod tests {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction: Vec2::ZERO,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
             initialised: true,
         };
 
@@ -1202,6 +1292,12 @@ mod tests {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction: Vec2::ZERO,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
             initialised: true,
         };
         for input in &inputs[1..] {
@@ -1278,6 +1374,12 @@ mod tests {
             snap_total_radians: server.snap_total_radians,
             snap_speed: server.snap_speed,
             snap_direction: server.snap_direction,
+            speed_modifier_multiplier: server.speed_modifier_multiplier,
+            speed_modifier_remaining: server.speed_modifier_remaining,
+            impulse_direction: server.impulse_direction,
+            impulse_strength: server.impulse_strength,
+            impulse_remaining: server.impulse_remaining,
+            impulse_duration: server.impulse_duration,
             initialised: true,
         };
         let entries: Vec<_> = history.iter_all().cloned().collect();
@@ -1938,7 +2040,7 @@ mod tests {
 
         // Build full sequence: snap at tick 1, idle for 13 more ticks.
         let inputs: Vec<PredictedInput> = std::iter::once(snap_input)
-            .chain(std::iter::repeat_n(idle.clone(), 13))
+            .chain(std::iter::repeat_n(idle, 13))
             .collect();
 
         // Server: apply all 14 ticks.
@@ -2014,6 +2116,12 @@ mod tests {
             snap_total_radians: server.snap_total_radians,
             snap_speed: server.snap_speed,
             snap_direction: server.snap_direction,
+            speed_modifier_multiplier: server.speed_modifier_multiplier,
+            speed_modifier_remaining: server.speed_modifier_remaining,
+            impulse_direction: server.impulse_direction,
+            impulse_strength: server.impulse_strength,
+            impulse_remaining: server.impulse_remaining,
+            impulse_duration: server.impulse_duration,
             initialised: true,
         };
         // No history entries to replay (pruned through seq=2).
@@ -2341,6 +2449,12 @@ mod tests {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction: Vec2::ZERO,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
             initialised: true,
         };
         for entry in history.iter_all() {
@@ -2390,6 +2504,12 @@ mod tests {
             snap_total_radians: 0.0,
             snap_speed: 0.0,
             snap_direction: 0.0,
+            speed_modifier_multiplier: 1.0,
+            speed_modifier_remaining: 0.0,
+            impulse_direction: Vec2::ZERO,
+            impulse_strength: 0.0,
+            impulse_remaining: 0.0,
+            impulse_duration: 0.0,
             initialised: true,
         };
         for entry in history.iter_all() {
@@ -2415,6 +2535,294 @@ mod tests {
         assert!(
             angle_drift2 < 1e-6,
             "re-reconcile angle identical: {angle_drift2:.6}"
+        );
+    }
+
+    // ── Speed modifier parity ────────────────────────────────────────
+
+    /// Prediction with speed modifier matches direct movement with modifier.
+    #[test]
+    fn speed_modifier_slows_predicted_movement() {
+        let map = open_map();
+        let (spd, _tspd, margin, _qtd) = default_config();
+
+        // Without modifier: full speed.
+        let mut full = state_at(2.5, 2.5, 0.0);
+        let input = PredictedInput {
+            movement: Vec2::new(0.0, 1.0),
+            turn: 0.0,
+            snap_turn: None,
+        };
+        apply_prediction_tick(&mut full, &input, &map, spd, 2.0, margin, 0.4, DT);
+
+        // With modifier: 70% speed.
+        let mut slowed = state_at(2.5, 2.5, 0.0);
+        slowed.speed_modifier_multiplier = 0.7;
+        slowed.speed_modifier_remaining = 5.0;
+        apply_prediction_tick(&mut slowed, &input, &map, spd, 2.0, margin, 0.4, DT);
+
+        // Slowed should travel less distance.
+        let full_dist = full.position.distance(Vec2::new(2.5, 2.5));
+        let slow_dist = slowed.position.distance(Vec2::new(2.5, 2.5));
+        assert!(
+            slow_dist < full_dist,
+            "modifier should reduce movement: full={full_dist}, slow={slow_dist}"
+        );
+        assert!(
+            (slow_dist / full_dist - 0.7).abs() < 0.01,
+            "should move at ~70%: ratio={}",
+            slow_dist / full_dist
+        );
+    }
+
+    /// Speed modifier drains during replay and expires correctly.
+    #[test]
+    fn speed_modifier_expires_during_replay() {
+        let map = open_map();
+        let (spd, _tspd, margin, _qtd) = default_config();
+        let input = PredictedInput {
+            movement: Vec2::new(0.0, 1.0),
+            turn: 0.0,
+            snap_turn: None,
+        };
+
+        let mut state = state_at(2.5, 2.5, 0.0);
+        // Very small budget — will expire quickly.
+        state.speed_modifier_multiplier = 0.5;
+        state.speed_modifier_remaining = 0.01;
+
+        // Tick once — modifier should expire.
+        apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, 0.4, DT);
+
+        assert!(
+            state.speed_modifier_remaining <= 0.0
+                || (state.speed_modifier_multiplier - 1.0).abs() < f32::EPSILON,
+            "modifier should have expired: mult={}, remaining={}",
+            state.speed_modifier_multiplier,
+            state.speed_modifier_remaining
+        );
+
+        // Second tick should be at full speed.
+        let pos_after_one = state.position;
+        apply_prediction_tick(&mut state, &input, &map, spd, 2.0, margin, 0.4, DT);
+        let second_tick_dist = state.position.distance(pos_after_one);
+        let expected_full = spd * DT;
+        assert!(
+            (second_tick_dist - expected_full).abs() < 0.01,
+            "after expiry should move at full speed: got={second_tick_dist}, expected={expected_full}"
+        );
+    }
+
+    /// No modifier produces identical movement to the original prediction.
+    #[test]
+    fn no_modifier_prediction_unchanged() {
+        let map = open_map();
+        let (spd, tspd, margin, qtd) = default_config();
+        let input = PredictedInput {
+            movement: Vec2::new(0.0, 1.0),
+            turn: 0.0,
+            snap_turn: None,
+        };
+
+        // Prediction tick.
+        let mut predicted = state_at(2.5, 2.5, 0.0);
+        apply_prediction_tick(&mut predicted, &input, &map, spd, tspd, margin, qtd, DT);
+
+        // Direct movement (what the server does without modifier).
+        let mut server_pos = Vec2::new(2.5, 2.5);
+        apply_movement(
+            &mut server_pos,
+            0.0,
+            Vec2::new(0.0, 1.0),
+            spd,
+            DT,
+            &map,
+            margin,
+        );
+
+        assert!(
+            predicted.position.distance(server_pos) < 1e-6,
+            "no-modifier prediction should match direct movement: pred={:?}, srv={server_pos:?}",
+            predicted.position
+        );
+    }
+
+    /// Server with modifier and client replay with modifier produce same position.
+    #[test]
+    fn modifier_replay_matches_server() {
+        let map = open_map();
+        let (spd, _tspd, margin, _qtd) = default_config();
+        let input = PredictedInput {
+            movement: Vec2::new(0.0, 1.0),
+            turn: 0.0,
+            snap_turn: None,
+        };
+        let modifier_mult = 0.7;
+        let modifier_budget = 5.0;
+
+        // Server: apply_movement_with_modifier + tick modifier.
+        let mut server_pos = Vec2::new(2.5, 2.5);
+        let mut server_mod =
+            carcinisation_fps_core::movement::SpeedModifier::new(modifier_mult, modifier_budget);
+        carcinisation_fps_core::movement::apply_movement_with_modifier(
+            &mut server_pos,
+            0.0,
+            Vec2::new(0.0, 1.0),
+            spd,
+            Some(&server_mod),
+            DT,
+            &map,
+            margin,
+        );
+        let moved = server_pos.distance(Vec2::new(2.5, 2.5));
+        server_mod.tick(DT, moved);
+
+        // Client: apply_prediction_tick with modifier state.
+        let mut client = state_at(2.5, 2.5, 0.0);
+        client.speed_modifier_multiplier = modifier_mult;
+        client.speed_modifier_remaining = modifier_budget;
+        apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, DT);
+
+        assert!(
+            client.position.distance(server_pos) < 1e-6,
+            "client replay should match server: client={:?}, server={server_pos:?}",
+            client.position
+        );
+        assert!(
+            (client.speed_modifier_remaining - server_mod.remaining).abs() < 1e-4,
+            "modifier drain should match: client={}, server={}",
+            client.speed_modifier_remaining,
+            server_mod.remaining
+        );
+    }
+
+    /// Multi-tick server/client parity under active speed modifier.
+    ///
+    /// Simulates 30 ticks (~1s) of forward movement with a web slow modifier.
+    /// Verifies position and modifier remaining stay identical between the
+    /// server path (apply_movement_with_modifier + manual drain) and the
+    /// client path (apply_prediction_tick with modifier state).
+    #[test]
+    fn multi_tick_modifier_parity() {
+        let map = open_map();
+        let (spd, _tspd, margin, _qtd) = default_config();
+        let input = PredictedInput {
+            movement: Vec2::new(0.0, 1.0),
+            turn: 0.0,
+            snap_turn: None,
+        };
+        let modifier_mult = 0.7;
+        let modifier_budget = 5.0;
+
+        // Server state.
+        let mut server_pos = Vec2::new(2.5, 2.5);
+        let mut server_mod =
+            carcinisation_fps_core::movement::SpeedModifier::new(modifier_mult, modifier_budget);
+
+        // Client state.
+        let mut client = state_at(2.5, 2.5, 0.0);
+        client.speed_modifier_multiplier = modifier_mult;
+        client.speed_modifier_remaining = modifier_budget;
+
+        for tick in 0..30 {
+            // Server: apply movement with modifier, then drain.
+            let server_start = server_pos;
+            carcinisation_fps_core::movement::apply_movement_with_modifier(
+                &mut server_pos,
+                0.0,
+                Vec2::new(0.0, 1.0),
+                spd,
+                Some(&server_mod),
+                DT,
+                &map,
+                margin,
+            );
+            let moved = server_pos.distance(server_start);
+            server_mod.tick(DT, moved);
+
+            // Client: apply_prediction_tick (handles modifier internally).
+            apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, DT);
+
+            // Verify parity each tick.
+            let pos_drift = client.position.distance(server_pos);
+            assert!(
+                pos_drift < 1e-5,
+                "tick {tick}: position drift {pos_drift:.8} — client={:?} server={server_pos:?}",
+                client.position
+            );
+
+            let remaining_drift = (client.speed_modifier_remaining - server_mod.remaining).abs();
+            assert!(
+                remaining_drift < 1e-5,
+                "tick {tick}: remaining drift {remaining_drift:.8} — client={} server={}",
+                client.speed_modifier_remaining,
+                server_mod.remaining
+            );
+        }
+    }
+
+    /// Speed modifier expires mid-sequence and movement transitions to full speed.
+    #[test]
+    fn modifier_expires_mid_sequence_parity() {
+        let map = open_map();
+        let (spd, _tspd, margin, _qtd) = default_config();
+        let input = PredictedInput {
+            movement: Vec2::new(0.0, 1.0),
+            turn: 0.0,
+            snap_turn: None,
+        };
+
+        // Small budget that expires within ~3 ticks.
+        let mut server_pos = Vec2::new(2.5, 2.5);
+        let mut server_mod = carcinisation_fps_core::movement::SpeedModifier::new(0.5, 0.1);
+        let mut server_mod_active = true;
+
+        let mut client = state_at(2.5, 2.5, 0.0);
+        client.speed_modifier_multiplier = 0.5;
+        client.speed_modifier_remaining = 0.1;
+
+        let mut expired_tick = None;
+        for tick in 0..15 {
+            // Server path.
+            let server_start = server_pos;
+            let modifier_ref = if server_mod_active {
+                Some(&server_mod)
+            } else {
+                None
+            };
+            carcinisation_fps_core::movement::apply_movement_with_modifier(
+                &mut server_pos,
+                0.0,
+                Vec2::new(0.0, 1.0),
+                spd,
+                modifier_ref,
+                DT,
+                &map,
+                margin,
+            );
+            if server_mod_active {
+                let moved = server_pos.distance(server_start);
+                if !server_mod.tick(DT, moved) {
+                    server_mod_active = false;
+                    if expired_tick.is_none() {
+                        expired_tick = Some(tick);
+                    }
+                }
+            }
+
+            // Client path.
+            apply_prediction_tick(&mut client, &input, &map, spd, 2.0, margin, 0.4, DT);
+
+            let pos_drift = client.position.distance(server_pos);
+            assert!(
+                pos_drift < 1e-5,
+                "tick {tick}: position drift {pos_drift:.8}",
+            );
+        }
+
+        assert!(
+            expired_tick.is_some(),
+            "modifier should have expired during the sequence"
         );
     }
 }

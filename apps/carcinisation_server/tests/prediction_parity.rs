@@ -464,12 +464,9 @@ fn snap_turn_ack_carries_snap_state() {
     assert!(!acks.is_empty(), "should have acks");
 
     // At least one ack should have snap_remaining > 0 (mid-snap).
-    let mid_snap_acks: Vec<_> = acks
-        .iter()
-        .filter(|a| a.snap_remaining_radians > 0.01)
-        .collect();
+    let has_mid_snap = acks.iter().any(|a| a.snap_remaining_radians > 0.01);
     assert!(
-        !mid_snap_acks.is_empty(),
+        has_mid_snap,
         "at least one ack should carry mid-snap state (all snap_remaining: {:?})",
         acks.iter()
             .map(|a| a.snap_remaining_radians)
@@ -620,5 +617,60 @@ fn consecutive_snap_acks_match_tick_snap_turn() {
         parity_checked > 0,
         "should have checked at least one consecutive ack pair ({} acks)",
         acks.len()
+    );
+}
+
+/// External position mutation after `MovementSet` causes the next
+/// `InputAck` to carry the mutated position via `position_diverged`.
+///
+/// Regression test for the lunge/occupancy ack fix: an idle player
+/// whose position is changed by a server-only force (not input-driven)
+/// must still receive a corrective ack.
+#[test]
+fn external_position_mutation_triggers_ack() {
+    let port = reserve_port();
+    let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+    let mut server = build_fixed_tick_server(port);
+    let mut client = build_prediction_client(addr);
+    server.update();
+    assert!(wait_for_player(&mut server, &mut client));
+
+    // Send one input to establish the sequence (ack system needs a seq).
+    queue_intent(&mut client, 1, Vec2::ZERO, 0.0);
+    for _ in 0..50 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+    let baseline_acks = drain_acks(&mut client);
+    assert!(!baseline_acks.is_empty(), "should have baseline ack");
+    let baseline_pos = baseline_acks.last().unwrap().position;
+
+    // Externally mutate the player's position on the server (simulates
+    // lunge push or occupancy separation applied after MovementSet).
+    let push = Vec2::new(0.5, 0.0);
+    {
+        let mut q = server.world_mut().query::<&mut NetPlayer>();
+        for mut player in q.iter_mut(server.world_mut()) {
+            player.position += push;
+        }
+    }
+
+    // Tick enough for the position_diverged check to fire and the ack
+    // to reach the client over UDP.
+    for _ in 0..80 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let correction_acks = drain_acks(&mut client);
+    assert!(
+        !correction_acks.is_empty(),
+        "idle player with externally mutated position should receive a corrective ack"
+    );
+
+    // The corrective ack should carry the pushed position.
+    let corrected_pos = correction_acks.last().unwrap().position;
+    let expected_x = baseline_pos.x + push.x;
+    assert!(
+        (corrected_pos.x - expected_x).abs() < 0.1,
+        "ack should carry pushed position: baseline={baseline_pos}, expected_x={expected_x}, got={corrected_pos}"
     );
 }
