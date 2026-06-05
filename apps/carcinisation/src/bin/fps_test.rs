@@ -122,7 +122,7 @@ fn handle_input(
     };
 
     // Block snap turns while moving forward; side turns also blocked while moving back.
-    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord) {
+    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord, false) {
         let blocked = up_held
             || (matches!(
                 kind,

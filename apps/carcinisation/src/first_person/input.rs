@@ -108,6 +108,7 @@ pub fn collect_and_send_intent(
     mut turn_chord: ResMut<TurnChordState>,
     mut quick_turn: ResMut<QuickTurnState>,
     config: Res<carcinisation_fps::plugin::Config>,
+    combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
     mut pending_input: ResMut<PendingInput>,
     mut latency_opt: Option<ResMut<SimulatedLatency>>,
 ) {
@@ -148,7 +149,13 @@ pub fn collect_and_send_intent(
     let mut actions = PlayerActions::default();
 
     // Resolve chord → snap turn action.
-    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord) {
+    // LEGACY(strafe): aim_commitment=false in Legacy mode. AimCommitment mode
+    // passes true so the chord FSM can transition to AimMode on window expiry.
+    let aim_commitment = matches!(
+        combat_config.combat_control_mode,
+        carcinisation_fps_core::CombatControlMode::AimCommitment
+    );
+    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord, aim_commitment) {
         // Block snap turns while moving forward (matches SP).
         let blocked = up_held
             || (matches!(kind, TurnKind::SideTurnLeft | TurnKind::SideTurnRight) && down_held);
@@ -163,44 +170,78 @@ pub fn collect_and_send_intent(
         }
     }
 
-    // -- Movement --
-    // Backward is always applied (matches SP). B+Down arms a quick turn chord
-    // but does NOT suppress backward movement — the turn fires on release.
-    let mut movement = Vec2::ZERO;
-    if up_held {
-        movement.y += 1.0;
-    }
-    if down_held {
-        movement.y -= 1.0;
-    }
-    // Strafe: B + Left/Right held.
-    if b_held {
+    let in_aim_mode = aim_commitment && turn_chord.is_aim_mode();
+
+    // -- Movement / Turn / Aim --
+    let (movement, turn, aim_held, aim_offset, fire_held);
+
+    if in_aim_mode {
+        // AimCommitment: body locked, Left/Right control aim offset.
+        movement = Vec2::ZERO;
+        turn = 0.0;
+        aim_held = true;
+
+        // Adjust aim offset from Left/Right input.
+        let dt = time.delta_secs();
+        let mut offset = quick_turn.aim_offset;
         if left_held {
-            movement.x -= 1.0;
+            offset -= combat_config.aim_sensitivity * dt;
         }
         if right_held {
-            movement.x += 1.0;
+            offset += combat_config.aim_sensitivity * dt;
         }
-    }
-    if movement.length_squared() > 1.0 {
-        movement = movement.normalize();
-    }
+        offset = offset.clamp(-combat_config.max_aim_offset, combat_config.max_aim_offset);
+        quick_turn.aim_offset = offset;
+        aim_offset = offset;
 
-    // -- Continuous turn (suppressed during snap turn animation) --
-    let mut turn: f32 = 0.0;
-    if !quick_turn.is_active() && !b_held {
-        if left_held {
-            turn += 1.0;
-        }
-        if right_held {
-            turn -= 1.0;
-        }
-    }
+        // Fire only while aiming.
+        fire_held = a_held && !select_held;
+    } else {
+        // LEGACY(strafe) or not-yet-aiming: normal movement/turn.
+        aim_held = false;
+        aim_offset = 0.0;
+        quick_turn.aim_offset = 0.0; // Reset on aim exit.
 
-    // -- Fire --
-    // Network intent reports raw player input. Cooldown/ammo/eligibility
-    // is decided by the simulation (server), not by client presentation state.
-    let fire_held = a_held && !select_held;
+        let mut mv = Vec2::ZERO;
+        if up_held {
+            mv.y += 1.0;
+        }
+        if down_held {
+            mv.y -= 1.0;
+        }
+        // LEGACY(strafe): B + Left/Right = strafe. Only in Legacy mode.
+        if b_held && !aim_commitment {
+            if left_held {
+                mv.x -= 1.0;
+            }
+            if right_held {
+                mv.x += 1.0;
+            }
+        }
+        if mv.length_squared() > 1.0 {
+            mv = mv.normalize();
+        }
+        movement = mv;
+
+        // Continuous turn (suppressed during snap animation and B-strafe).
+        let mut t: f32 = 0.0;
+        if !quick_turn.is_active() && !b_held {
+            if left_held {
+                t += 1.0;
+            }
+            if right_held {
+                t -= 1.0;
+            }
+        }
+        turn = t;
+
+        // AimCommitment: cannot fire without aiming. Legacy: fire anytime.
+        fire_held = if aim_commitment {
+            false
+        } else {
+            a_held && !select_held
+        };
+    }
 
     // -- Weapon switch (Select alone, not with A) --
     if select_just_pressed && !a_held {
@@ -214,16 +255,14 @@ pub fn collect_and_send_intent(
     }
 
     // -- Build intent --
-    // LEGACY(strafe): aim_held/aim_offset are always false/0.0 in Legacy mode.
-    // AimCommitment mode will populate these from the chord FSM AimMode state.
     let intent = ClientIntent {
         sequence: input_sequence.0,
         movement,
         turn,
         fire_held,
         actions,
-        aim_held: false,
-        aim_offset: 0.0,
+        aim_held,
+        aim_offset,
     };
 
     // -- Send policy --
@@ -281,6 +320,8 @@ pub fn collect_and_send_intent(
                 movement,
                 turn,
                 snap_turn: snap_turn_kind,
+                aim_held,
+                aim_offset,
             },
         ));
     }
