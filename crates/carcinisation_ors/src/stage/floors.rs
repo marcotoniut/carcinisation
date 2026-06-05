@@ -627,7 +627,7 @@ mod tests {
 
         let prev_y = resolve_depth_y(Depth::Four, &projection, &step0_layout).unwrap();
         let curr_y = resolve_depth_y(Depth::Four, &projection, &step1_layout).unwrap();
-        let expected_mid = prev_y + (curr_y - prev_y) * 0.5;
+        let expected_mid = (curr_y - prev_y).mul_add(0.5, prev_y);
 
         // Build a stage where step 0 has Projected{-10}, step 1 has Anchored(50).
         // Test resolve_depth_y directly for the cross-mode case.
@@ -675,7 +675,7 @@ mod tests {
         let depth_5_y = floors.solid_y(Depth::Five).expect("should be solid");
         let prev_y = profile_a.floor_y_for_depth(5);
         let curr_y = profile_b.floor_y_for_depth(5);
-        let expected = prev_y + (curr_y - prev_y) * 0.5;
+        let expected = (curr_y - prev_y).mul_add(0.5, prev_y);
         assert!(
             (depth_5_y - expected).abs() < 0.5,
             "floor should track interpolated projection: got {depth_5_y}, expected ~{expected}"

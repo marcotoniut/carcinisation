@@ -29,7 +29,7 @@ fn main() {
 #[derive(Component)]
 struct Animated;
 
-fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
+const fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
     IVec2::new(top_left_offset.x, -(top_left_offset.y + part_height))
 }
 

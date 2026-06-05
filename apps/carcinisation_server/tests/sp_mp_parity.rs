@@ -119,7 +119,7 @@ fn turn_left() -> ClientIntent {
     }
 }
 
-fn action(flag: u8) -> ClientIntent {
+const fn action(flag: u8) -> ClientIntent {
     ClientIntent {
         sequence: InputSequence(0),
         movement: Vec2::ZERO,

@@ -409,19 +409,19 @@ impl QuickTurnState {
 
     /// Total arc of the current (or last) snap turn.
     #[must_use]
-    pub fn total_radians(&self) -> f32 {
+    pub const fn total_radians(&self) -> f32 {
         self.total_radians
     }
 
     /// Remaining arc of the current snap turn.
     #[must_use]
-    pub fn remaining_radians(&self) -> f32 {
+    pub const fn remaining_radians(&self) -> f32 {
         self.remaining_radians
     }
 
     /// Turn direction: +1.0 = left, -1.0 = right.
     #[must_use]
-    pub fn direction(&self) -> f32 {
+    pub const fn direction(&self) -> f32 {
         self.direction
     }
 }

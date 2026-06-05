@@ -92,6 +92,9 @@ macro_rules! ron_config {
 ///
 /// Same strategy as [`load_ron`]: production uses the embedded bytes directly,
 /// dev reads from filesystem first with embedded fallback.
+// Not const when `hot_reload` is enabled (filesystem I/O).
+// Lifetime cannot be elided when `hot_reload` adds a second `&` parameter.
+#[allow(clippy::missing_const_for_fn, clippy::elidable_lifetime_names)]
 #[must_use]
 pub fn load_binary<'a>(
     embedded: &'a [u8],

@@ -72,7 +72,7 @@ fn fire_intent() -> ClientIntent {
     }
 }
 
-fn switch_intent() -> ClientIntent {
+const fn switch_intent() -> ClientIntent {
     ClientIntent {
         sequence: InputSequence(0),
         movement: Vec2::ZERO,
@@ -82,7 +82,7 @@ fn switch_intent() -> ClientIntent {
     }
 }
 
-fn switch_and_fire_intent() -> ClientIntent {
+const fn switch_and_fire_intent() -> ClientIntent {
     ClientIntent {
         sequence: InputSequence(0),
         movement: Vec2::ZERO,

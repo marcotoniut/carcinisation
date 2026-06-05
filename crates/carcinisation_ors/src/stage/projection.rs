@@ -1699,7 +1699,7 @@ mod tests {
         let find_center_exit = |params: GridParams| -> Vec2 {
             let grid = build_perspective_grid(&floors, viewport, vanish_x, &params);
             let vp = Vec2::new(vanish_x, vanish_y);
-            let expected_bottom_x = vanish_x - params.lateral_view_offset * w_bottom;
+            let expected_bottom_x = params.lateral_view_offset.mul_add(-w_bottom, vanish_x);
             let expected = Vec2::new(expected_bottom_x, viewport.min.y);
             grid.guide_ray_segments
                 .iter()
@@ -1801,7 +1801,7 @@ mod tests {
             };
             let grid = build_perspective_grid(&floors, viewport, vanish_x, &params);
 
-            let expected_x = vanish_x - shift * w_bottom;
+            let expected_x = shift.mul_add(-w_bottom, vanish_x);
             let found = grid.guide_ray_segments.iter().any(|s| {
                 (s.end.x - expected_x).abs() < 2.0 && (s.end.y - viewport.min.y).abs() < 2.0
             });
@@ -1871,7 +1871,7 @@ mod tests {
         // with fade off, because each ray emits multiple segments (one per band).
         let params_off = GridParams {
             horizon_fade: false,
-            ..params.clone()
+            ..params
         };
         let grid_off = build_perspective_grid(&floors, viewport, vanish_x, &params_off);
 
@@ -1946,7 +1946,7 @@ mod tests {
         // weight = (50 - 100) / (0 - 100) = 0.5.
         let floor_y = profile.floor_y_for_depth(5);
         let result = compute_visual_x(200.0, floor_y, &profile, &view);
-        let expected = 200.0 - 80.0 * 0.5;
+        let expected = 80.0f32.mul_add(-0.5, 200.0);
         assert!(
             (result - expected).abs() < 1e-3,
             "at mid depth, shift should be half offset, got {result} expected {expected}"

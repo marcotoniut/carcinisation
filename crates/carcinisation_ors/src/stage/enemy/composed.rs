@@ -596,6 +596,7 @@ impl ComposedResolvedParts {
     /// Test-only constructor for building resolved parts with known data.
     #[cfg(test)]
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn with_parts_and_offset(parts: Vec<ResolvedPartState>, visual_offset: Vec2) -> Self {
         Self {
             parts,
@@ -608,6 +609,7 @@ impl ComposedResolvedParts {
     /// Test-only constructor for building resolved parts/fragments with known data.
     #[cfg(test)]
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn with_parts_fragments_and_offset(
         parts: Vec<ResolvedPartState>,
         fragments: Vec<ResolvedPartFragmentState>,
@@ -6172,14 +6174,13 @@ mod tests {
         assert!(!cache.parts_by_id.contains_key("leg_r"));
 
         // One visual entry in draw order.
-        let leg_entries: Vec<_> = cache
+        let leg_entry_count = cache
             .visual_parts_in_draw_order
             .iter()
             .filter(|id| id.as_str() == "legs_visual")
-            .collect();
+            .count();
         assert_eq!(
-            leg_entries.len(),
-            1,
+            leg_entry_count, 1,
             "exactly one visual entry for split part"
         );
 

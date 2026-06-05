@@ -1947,9 +1947,9 @@ mod tests {
         let weapon_tl_x = 80 - weapon_frame.width() as i32 / 2;
         let weapon_tl_y = idle_center_y as i32 - weapon_frame.height() as i32 / 2;
 
-        let flame_tl_x = (80.0 + idle_flame_center.x
-            - idle_frame.width() as f32 * config.idle_flame_scale * 0.5)
-            .round() as i32;
+        let flame_tl_x = ((idle_frame.width() as f32 * config.idle_flame_scale)
+            .mul_add(-0.5, 80.0 + idle_flame_center.x))
+        .round() as i32;
         let flame_tl_y = (idle_center_y + idle_flame_center.y - flame_center_y).round() as i32;
 
         let flame_sample = idle_frame
@@ -2193,7 +2193,7 @@ mod tests {
         let total = PI;
         let mut prev_mag = 0.0_f32;
         for i in 1..=10 {
-            let remaining = total * (1.0 - (i as f32 * 0.05)); // t from 0.05 to 0.50
+            let remaining = total * (i as f32).mul_add(-0.05, 1.0); // t from 0.05 to 0.50
             let offset = snap_turn_visual_offset(remaining, total, 1.0, 5.0, 3.0);
             let mag = offset.length();
             assert!(
@@ -2205,7 +2205,7 @@ mod tests {
         }
         // Second half (t=0.5 to t=1.0): offset should strictly decrease.
         for i in 11..=19 {
-            let remaining = total * (1.0 - (i as f32 * 0.05)); // t from 0.55 to 0.95
+            let remaining = total * (i as f32).mul_add(-0.05, 1.0); // t from 0.55 to 0.95
             let offset = snap_turn_visual_offset(remaining, total, 1.0, 5.0, 3.0);
             let mag = offset.length();
             assert!(

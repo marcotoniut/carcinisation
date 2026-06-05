@@ -27,6 +27,7 @@ mod inner {
     }
 }
 
+#[allow(clippy::missing_const_for_fn)]
 fn main() {
     #[cfg(feature = "gallery")]
     inner::run();

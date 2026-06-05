@@ -4379,7 +4379,7 @@ mod tests {
         // Mirrored right half
         let right_x = cx + u32::from(odd);
         let right_img = if half_usage.flip_x {
-            half_sprite.clone()
+            half_sprite
         } else {
             image::imageops::flip_horizontal(&half_sprite)
         };

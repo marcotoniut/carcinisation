@@ -814,7 +814,7 @@ mod tests {
             Some(attenuation),
         );
 
-        let mut app = priming_runtime_app(config.clone(), projection, view, attenuation);
+        let mut app = priming_runtime_app(config, projection, view, attenuation);
         let entity = app
             .world_mut()
             .spawn((

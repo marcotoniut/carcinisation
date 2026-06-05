@@ -176,9 +176,8 @@ fn admin_socket_unknown_command_rejected() {
     let mut server = build_reset_server(vec![], Some(sock.clone()));
     tick_server_n(&mut server, 30);
 
-    let sock2 = sock.clone();
     let handle = std::thread::spawn(move || {
-        let mut stream = UnixStream::connect(&sock2).expect("connect");
+        let mut stream = UnixStream::connect(&sock).expect("connect");
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();

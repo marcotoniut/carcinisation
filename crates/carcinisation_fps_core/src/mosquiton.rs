@@ -372,7 +372,7 @@ mod tests {
         let map = test_map();
         let config = default_config();
         let player = Vec2::new(1.5, 1.5);
-        let mut sim = make_sim(1.5 + config.melee_range * 0.5, 1.5);
+        let mut sim = make_sim(config.melee_range.mul_add(0.5, 1.5), 1.5);
 
         let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
 
@@ -385,7 +385,7 @@ mod tests {
         let map = test_map();
         let config = default_config();
         let player = Vec2::new(1.5, 1.5);
-        let mut sim = make_sim(1.5 + config.melee_range * 0.3, 1.5);
+        let mut sim = make_sim(config.melee_range.mul_add(0.3, 1.5), 1.5);
         sim.state = MosquitonSimState::MeleeAttack {
             timer: 0.5,
             dealt_damage: false,

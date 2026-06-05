@@ -259,7 +259,7 @@ mod tests {
         // should be well under half the sprite extent.
         let mean_dist: f32 =
             flames.iter().map(|f| f.offset_px.length()).sum::<f32>() / flames.len() as f32;
-        let max_extent = ((w as f32 / 2.0).powi(2) + (h as f32 / 2.0).powi(2)).sqrt();
+        let max_extent = (w as f32 / 2.0).hypot(h as f32 / 2.0);
         assert!(
             mean_dist < max_extent * 0.5,
             "mean distance {mean_dist:.1} should be < half of max extent {max_extent:.1}"

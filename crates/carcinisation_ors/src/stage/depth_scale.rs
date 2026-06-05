@@ -122,6 +122,7 @@ impl DepthScaleConfig {
     ///
     /// Without `hot_reload`, always returns generated defaults (no filesystem
     /// access compiled in).
+    #[must_use]
     pub fn load_or_default() -> Self {
         #[cfg(feature = "hot_reload")]
         {
@@ -596,6 +597,7 @@ mod tests {
     fn none_authored_depths_defaults_to_spawn_depth() {
         let config = default_config();
         let spawn_depth = Depth::Five;
+        #[allow(clippy::option_if_let_else)]
         let authored = match &None::<Vec<Depth>> {
             Some(depths) => AuthoredDepths::new(depths.clone()),
             None => AuthoredDepths::single(spawn_depth),

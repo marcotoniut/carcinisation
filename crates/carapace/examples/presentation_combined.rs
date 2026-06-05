@@ -28,7 +28,7 @@ fn main() {
 #[derive(Component)]
 struct Spinning;
 
-fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
+const fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
     IVec2::new(top_left_offset.x, -(top_left_offset.y + part_height))
 }
 
@@ -99,7 +99,7 @@ fn spin_and_pulse(time: Res<Time>, mut query: Query<&mut CxPresentationTransform
 
     // Scale pulse: 50%..200% over 4 seconds.
     let scale_phase = (t / 4.0) * std::f32::consts::TAU;
-    let s = 1.25 + 0.75 * scale_phase.sin();
+    let s = 0.75f32.mul_add(scale_phase.sin(), 1.25);
 
     for mut pt in &mut query {
         pt.rotation = angle;

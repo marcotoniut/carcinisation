@@ -853,7 +853,7 @@ mod tests {
         let ron_str = to_ron(&compact).unwrap();
         let json_str = serde_json::to_string_pretty(&atlas).unwrap();
 
-        let reduction = 100.0 - (ron_str.len() as f64 / json_str.len() as f64 * 100.0);
+        let reduction = (ron_str.len() as f64 / json_str.len() as f64).mul_add(-100.0, 100.0);
         println!(
             "JSON: {} bytes, RON: {} bytes, reduction: {:.1}%",
             json_str.len(),

@@ -1425,7 +1425,7 @@ mod tests {
         let combat = FpsCombatConfig::default();
         // Uses default melee_range from FpsCombatConfig.
         let mut ms = vec![make_mosquiton(
-            1.5 + combat.mosquiton_melee_range * 0.5,
+            combat.mosquiton_melee_range.mul_add(0.5, 1.5),
             1.5,
         )];
         let player = Vec2::new(1.5, 1.5);

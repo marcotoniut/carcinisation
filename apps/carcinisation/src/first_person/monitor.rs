@@ -469,8 +469,8 @@ fn append_net_markers_inner(
         let flame_samples = flame_chain_sample_count(max_distance);
         for i in 1..=flame_samples {
             let d = (i as f32 * FLAME_SAMPLE_SPACING).min(max_distance);
-            let fx = player.position.x + cos_a * d;
-            let fy = player.position.y + sin_a * d;
+            let fx = cos_a.mul_add(d, player.position.x);
+            let fy = sin_a.mul_add(d, player.position.y);
             overlay.markers.push(MapViewEntityMarker {
                 centre_x: cell_to_pixel(fx, ts),
                 centre_y: flip_y(fy, ts, gh),

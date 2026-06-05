@@ -250,7 +250,7 @@ impl CxScreen {
     }
 
     #[cfg(test)]
-    pub(crate) fn test_resource(computed_size: UVec2) -> Self {
+    pub(crate) const fn test_resource(computed_size: UVec2) -> Self {
         Self {
             size: CxScreenSize::Fixed(computed_size),
             computed_size,

@@ -29,7 +29,7 @@ fn main() {
 struct Oscillating;
 
 /// Convert a top-left image-space offset to bottom-left engine coordinates.
-fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
+const fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
     IVec2::new(top_left_offset.x, -(top_left_offset.y + part_height))
 }
 
@@ -119,7 +119,7 @@ fn oscillate_scale(
     let t = time.elapsed_secs();
     let phase = (t / 4.0) * std::f32::consts::TAU;
     // sin range [-1, 1] mapped to [0.5, 2.0]: midpoint 1.25, amplitude 0.75
-    let s = 1.25 + 0.75 * phase.sin();
+    let s = 0.75f32.mul_add(phase.sin(), 1.25);
 
     for mut transform in &mut query {
         transform.scale = Vec2::splat(s);

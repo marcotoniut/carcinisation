@@ -137,7 +137,7 @@ pub struct SlotGeometry {
 ///
 /// Returns `None` if `slot >= grid.total_slots()`.
 #[must_use]
-pub fn grid_slot_geometry(
+pub const fn grid_slot_geometry(
     slot: u32,
     grid: WindowGrid,
     screen_w: i32,

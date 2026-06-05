@@ -195,6 +195,7 @@ mod tests {
         let mid = interp.interpolated();
         // Expected midpoint: 6.0 + 0.5*(0.2 - 6.0 + TAU) = 6.0 + 0.5*0.483 ~ 6.24
         let expected_delta = (0.2_f32 - 6.0).rem_euclid(TAU);
+        #[allow(clippy::suboptimal_flops)]
         let expected_mid = 6.0
             + 0.5
                 * if expected_delta > std::f32::consts::PI {
