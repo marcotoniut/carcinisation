@@ -210,17 +210,39 @@ pub fn process_combat(
     // Flame state changes to apply after combat (avoids mutable borrow during iteration).
     let mut flame_updates: HashMap<PlayerId, bool> = HashMap::new();
 
+    let aim_mode = matches!(
+        combat_config.combat_control_mode,
+        carcinisation_fps_core::CombatControlMode::AimCommitment
+    );
+
     // Combat processing per player (alive only).
     for player in &players {
         if !matches!(player.state, carcinisation_net::PlayerNetState::Alive) {
             continue;
         }
-        let firing = buffer.peek_fire_held(&player.player_id);
+        let raw_firing = buffer.peek_fire_held(&player.player_id);
+        let aim_held = buffer.peek_aim_held(&player.player_id);
+        // AimCommitment: fire only while aiming. Legacy: fire anytime.
+        let firing = if aim_mode {
+            raw_firing && aim_held
+        } else {
+            raw_firing
+        };
+        // Clamp aim offset server-side every tick.
+        let aim_offset = if aim_mode && aim_held {
+            buffer
+                .peek_aim_offset(&player.player_id)
+                .clamp(-combat_config.max_aim_offset, combat_config.max_aim_offset)
+        } else {
+            0.0
+        };
+        // Fire direction: body angle + aim offset (offset is 0 in Legacy mode).
+        let fire_angle = player.angle + aim_offset;
 
         if firing {
             debug!(
-                "Player {:?} combat: attack={:?} fire_held=true",
-                player.player_id, player.current_attack
+                "Player {:?} combat: attack={:?} fire_held=true aim_offset={:.2}",
+                player.player_id, player.current_attack, aim_offset
             );
         }
 
@@ -244,7 +266,7 @@ pub fn process_combat(
 
                 let camera = Camera {
                     position: player.position,
-                    angle: player.angle,
+                    angle: fire_angle,
                     ..Camera::default()
                 };
 
@@ -253,7 +275,7 @@ pub fn process_combat(
                     message: MuzzleFlash {
                         player_id: player.player_id,
                         position: player.position,
-                        angle: player.angle,
+                        angle: fire_angle,
                     },
                 });
 
@@ -387,7 +409,7 @@ pub fn process_combat(
                     });
                 }
 
-                let dir = Vec2::new(player.angle.cos(), player.angle.sin());
+                let dir = Vec2::new(fire_angle.cos(), fire_angle.sin());
 
                 // Collect hit entities and apply burn exposure (replaces instant damage).
                 for (entity, net_enemy, _, _) in enemies.iter() {

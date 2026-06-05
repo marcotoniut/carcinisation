@@ -40,6 +40,8 @@ struct IntentEntry {
     movement: Vec2,
     turn: f32,
     fire_held: bool,
+    aim_held: bool,
+    aim_offset: f32,
     /// Pending one-shot actions. OR'd from network packets, consumed once per tick.
     pending_actions: PlayerActions,
     /// Ticks since last network update. Reset to 0 on each `set()`.
@@ -66,12 +68,16 @@ impl PlayerIntentBuffer {
                 movement: Vec2::ZERO,
                 turn: 0.0,
                 fire_held: false,
+                aim_held: false,
+                aim_offset: 0.0,
                 pending_actions: PlayerActions::default(),
                 age_ticks: 0,
             });
         entry.movement = intent.movement;
         entry.turn = intent.turn;
         entry.fire_held = intent.fire_held;
+        entry.aim_held = intent.aim_held;
+        entry.aim_offset = intent.aim_offset;
         entry.pending_actions.merge(intent.actions);
         entry.age_ticks = 0;
     }
@@ -86,6 +92,8 @@ impl PlayerIntentBuffer {
             entry.movement = Vec2::ZERO;
             entry.turn = 0.0;
             entry.fire_held = false;
+            entry.aim_held = false;
+            entry.aim_offset = 0.0;
             return (Vec2::ZERO, 0.0, false);
         }
         entry.age_ticks += 1;
@@ -109,6 +117,24 @@ impl PlayerIntentBuffer {
             .get(pid)
             .filter(|e| e.age_ticks < STALE_INPUT_TICKS)
             .is_some_and(|e| e.fire_held)
+    }
+
+    /// Peek `aim_held` without aging.
+    #[must_use]
+    pub fn peek_aim_held(&self, pid: &PlayerId) -> bool {
+        self.entries
+            .get(pid)
+            .filter(|e| e.age_ticks < STALE_INPUT_TICKS)
+            .is_some_and(|e| e.aim_held)
+    }
+
+    /// Peek `aim_offset` without aging. Returns 0.0 if stale or missing.
+    #[must_use]
+    pub fn peek_aim_offset(&self, pid: &PlayerId) -> f32 {
+        self.entries
+            .get(pid)
+            .filter(|e| e.age_ticks < STALE_INPUT_TICKS)
+            .map_or(0.0, |e| e.aim_offset)
     }
 
     pub fn remove_player(&mut self, pid: &PlayerId) {
@@ -243,8 +269,13 @@ pub fn apply_buffered_movement(
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,
     movement_config: Res<FpsMovementConfig>,
+    combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
+    let aim_mode = matches!(
+        combat_config.combat_control_mode,
+        carcinisation_fps_core::CombatControlMode::AimCommitment
+    );
 
     for (entity, mut player, mut snap_turn, speed_modifier) in &mut players {
         if !matches!(player.state, carcinisation_net::PlayerNetState::Alive) {
@@ -256,8 +287,16 @@ pub fn apply_buffered_movement(
             continue;
         }
 
-        let (movement_intent, turn_dir, _fire) = buffer.get_continuous_and_age(&player.player_id);
+        let (mut movement_intent, mut turn_dir, _fire) =
+            buffer.get_continuous_and_age(&player.player_id);
+        let aim_held = buffer.peek_aim_held(&player.player_id);
         let actions = buffer.take_actions(&player.player_id);
+
+        // AimCommitment: body is locked while aiming — suppress movement and turn.
+        if aim_mode && aim_held {
+            movement_intent = Vec2::ZERO;
+            turn_dir = 0.0;
+        }
 
         // Process one-shot actions (edge-triggered).
         if actions.has(PlayerActions::WEAPON_SWITCH) {
@@ -352,7 +391,7 @@ pub fn apply_buffered_movement(
 ///
 /// When none of these hold (idle player, no snap, no position change), no
 /// ack is sent.
-#[allow(clippy::implicit_hasher)]
+#[allow(clippy::implicit_hasher, clippy::too_many_arguments)]
 pub fn send_input_acks(
     mut commands: Commands,
     players: Query<(
@@ -361,7 +400,9 @@ pub fn send_input_acks(
         Option<&NetSpeedModifier>,
         Option<&super::occupancy::ServerPlayerImpulse>,
     )>,
+    buffer: Res<PlayerIntentBuffer>,
     tracker: Res<PlayerInputTracker>,
+    combat_config: Res<carcinisation_fps_core::FpsCombatConfig>,
     tick_counter: Res<TickCounter>,
     mut last_acked: Local<HashMap<PlayerId, u32>>,
     mut had_snap: Local<HashMap<PlayerId, bool>>,
@@ -414,7 +455,19 @@ pub fn send_input_acks(
                 impulse_strength: player_impulse.map_or(0.0, |i| i.0.strength),
                 impulse_remaining: player_impulse.map_or(0.0, |i| i.0.remaining),
                 impulse_duration: player_impulse.map_or(0.0, |i| i.0.duration),
-                aim_offset: 0.0, // TODO(aim-mode): populate from server aim state
+                aim_offset: {
+                    let aim_mode = matches!(
+                        combat_config.combat_control_mode,
+                        carcinisation_fps_core::CombatControlMode::AimCommitment
+                    );
+                    if aim_mode && buffer.peek_aim_held(&player.player_id) {
+                        buffer
+                            .peek_aim_offset(&player.player_id)
+                            .clamp(-combat_config.max_aim_offset, combat_config.max_aim_offset)
+                    } else {
+                        0.0
+                    }
+                },
             },
         });
     }
