@@ -95,6 +95,28 @@ pub fn nearest_segment_hit(
     best
 }
 
+/// Find the nearest segment hit with caller-supplied identifiers.
+///
+/// Equal-distance ties are broken by `Id` ordering (smaller wins).
+#[must_use]
+pub fn nearest_segment_hit_tagged<Id: Copy + Ord>(
+    start: Vec2,
+    end: Vec2,
+    targets: &[(Collider, Id)],
+) -> Option<HitResult<Id>> {
+    let mut best: Option<HitResult<Id>> = None;
+
+    for (collider, id) in targets {
+        if let Some(h) = super::segment_vs_collider(start, end, collider)
+            && is_closer_tagged(h.distance, *id, &best)
+        {
+            best = Some(h.with_id(*id));
+        }
+    }
+
+    best
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch helpers
 // ---------------------------------------------------------------------------

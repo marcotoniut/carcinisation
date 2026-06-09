@@ -577,6 +577,8 @@ pub fn make_player_billboard_atlas() -> Result<DirectionalBillboardAtlas, String
 mod tests {
     use std::f32::consts::PI;
 
+    use carcinisation_fps_core::collision::BillboardFacing8;
+
     use super::*;
 
     #[test]
@@ -604,15 +606,15 @@ mod tests {
     }
 
     #[test]
-    fn quantize_8_directions_slight_left() {
-        // Angle just past 22.5° should still be frontleft (direction 1).
+    fn quantize_8_directions_slight_right() {
+        // Angle just past 22.5° maps to frontright (direction 1).
         let angle = PI / 4.0 + 0.01;
         assert_eq!(quantize_direction(angle, 8), 1);
     }
 
     #[test]
     fn quantize_8_directions_boundary() {
-        // Angle exactly at boundary between front and frontleft (22.5°) rounds to frontleft.
+        // Angle exactly at boundary between front and frontright (22.5°) rounds to frontright.
         let boundary = PI / 8.0;
         assert_eq!(quantize_direction(boundary, 8), 1);
     }
@@ -691,6 +693,72 @@ mod tests {
             !(0.01..=TAU - 0.01).contains(&angle),
             "expected ~0, got {angle}"
         );
+    }
+
+    #[test]
+    fn collision_facing_matches_renderer_direction_indices() {
+        let dirs = standard_8_directions();
+        let cases = [
+            (0.0, SpriteDirection::Front, BillboardFacing8::Front),
+            (
+                PI / 4.0,
+                SpriteDirection::FrontRight,
+                BillboardFacing8::FrontRight,
+            ),
+            (PI / 2.0, SpriteDirection::Right, BillboardFacing8::Right),
+            (
+                3.0 * PI / 4.0,
+                SpriteDirection::BackLeft,
+                BillboardFacing8::BackLeft,
+            ),
+            (PI, SpriteDirection::Back, BillboardFacing8::Back),
+            (
+                5.0 * PI / 4.0,
+                SpriteDirection::BackRight,
+                BillboardFacing8::BackRight,
+            ),
+            (
+                3.0 * PI / 2.0,
+                SpriteDirection::Left,
+                BillboardFacing8::Left,
+            ),
+            (
+                7.0 * PI / 4.0,
+                SpriteDirection::FrontLeft,
+                BillboardFacing8::FrontLeft,
+            ),
+        ];
+
+        for (angle, sprite_direction, collision_facing) in cases {
+            let renderer_index = quantize_direction(angle, dirs.len());
+            assert_eq!(dirs[renderer_index].direction, sprite_direction);
+
+            let facing = BillboardFacing8::from_relative_angle(angle);
+            assert_eq!(facing, collision_facing);
+            assert_eq!(facing.index(), renderer_index);
+        }
+    }
+
+    #[test]
+    fn collision_from_positions_matches_renderer_relative_angle() {
+        let dirs = standard_8_directions();
+        let target = bevy_math::Vec2::ZERO;
+        let cases = [
+            (0.0, bevy_math::Vec2::new(5.0, 0.0)),
+            (0.0, bevy_math::Vec2::new(0.0, 5.0)),
+            (0.0, bevy_math::Vec2::new(0.0, -5.0)),
+            (PI / 2.0, bevy_math::Vec2::new(0.0, 5.0)),
+            (PI / 2.0, bevy_math::Vec2::new(-5.0, 0.0)),
+            (PI / 2.0, bevy_math::Vec2::new(5.0, 0.0)),
+        ];
+
+        for (target_angle, observer) in cases {
+            let renderer_angle = relative_viewing_angle(observer, target, target_angle);
+            let renderer_index = quantize_direction(renderer_angle, dirs.len());
+            let collision_facing = BillboardFacing8::from_positions(target, target_angle, observer);
+
+            assert_eq!(collision_facing.index(), renderer_index);
+        }
     }
 
     #[test]
@@ -976,13 +1044,13 @@ mod tests {
 
         let test_positions = [
             (bevy_math::Vec2::new(5.0, 0.0), "front"),
-            (bevy_math::Vec2::new(3.5, 3.5), "frontleft"),
-            (bevy_math::Vec2::new(0.0, 5.0), "left"),
+            (bevy_math::Vec2::new(3.5, 3.5), "frontright"),
+            (bevy_math::Vec2::new(0.0, 5.0), "right"),
             (bevy_math::Vec2::new(-3.5, 3.5), "backleft"),
             (bevy_math::Vec2::new(-5.0, 0.0), "back"),
             (bevy_math::Vec2::new(-3.5, -3.5), "backright"),
-            (bevy_math::Vec2::new(0.0, -5.0), "right"),
-            (bevy_math::Vec2::new(3.5, -3.5), "frontright"),
+            (bevy_math::Vec2::new(0.0, -5.0), "left"),
+            (bevy_math::Vec2::new(3.5, -3.5), "frontleft"),
         ];
 
         for (observer_pos, dir_name) in &test_positions {

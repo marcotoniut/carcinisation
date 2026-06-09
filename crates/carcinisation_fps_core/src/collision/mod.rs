@@ -11,6 +11,7 @@
 //! - [`segment`] — finite segment vs single primitive
 //! - [`swept`] — swept circle (moving disk) vs static primitive
 //! - [`nearest`] — nearest hit across a collection of colliders
+//! - [`target`] — per-part, per-facing collision metadata
 //! - [`wall`] — grid-based wall sliding (existing movement collision)
 
 pub mod nearest;
@@ -18,6 +19,7 @@ pub mod primitives;
 pub mod ray;
 pub mod segment;
 pub mod swept;
+pub mod target;
 mod wall;
 
 // --- Wall collision (backwards-compatible re-export) ---
@@ -36,7 +38,15 @@ pub use segment::{segment_vs_capsule, segment_vs_circle, segment_vs_obb};
 pub use swept::{swept_circle_vs_capsule, swept_circle_vs_circle, swept_circle_vs_obb};
 
 // --- Nearest-hit queries ---
-pub use nearest::{nearest_ray_hit, nearest_ray_hit_tagged, nearest_segment_hit};
+pub use nearest::{
+    nearest_ray_hit, nearest_ray_hit_tagged, nearest_segment_hit, nearest_segment_hit_tagged,
+};
+
+// --- Target collision metadata ---
+pub use target::{
+    AnimationKey, BillboardFacing8, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
+    PartMetadata, TargetCollisionFrame, TargetCollisionSet, TargetQueryPose2d,
+};
 
 // --- Convenience dispatch ---
 

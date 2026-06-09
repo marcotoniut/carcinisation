@@ -34,11 +34,13 @@ pub use burning::{
 };
 pub use camera::Camera;
 pub use collision::{
-    Capsule, Circle, Collider, HitDetail, HitResult, Obb, nearest_ray_hit, nearest_ray_hit_tagged,
-    nearest_segment_hit, ray_vs_capsule, ray_vs_circle, ray_vs_collider, ray_vs_obb,
-    segment_vs_capsule, segment_vs_circle, segment_vs_collider, segment_vs_obb,
-    swept_circle_vs_capsule, swept_circle_vs_circle, swept_circle_vs_collider, swept_circle_vs_obb,
-    try_move,
+    AnimationKey, BillboardFacing8, Capsule, Circle, Collider, CollisionFrameKey, HitDetail,
+    HitResult, MaterialId, Obb, PartCollider2d, PartId, PartMetadata, TargetCollisionFrame,
+    TargetCollisionSet, TargetQueryPose2d, nearest_ray_hit, nearest_ray_hit_tagged,
+    nearest_segment_hit, nearest_segment_hit_tagged, ray_vs_capsule, ray_vs_circle,
+    ray_vs_collider, ray_vs_obb, segment_vs_capsule, segment_vs_circle, segment_vs_collider,
+    segment_vs_obb, swept_circle_vs_capsule, swept_circle_vs_circle, swept_circle_vs_collider,
+    swept_circle_vs_obb, try_move,
 };
 pub use combat::{
     FirePose2d, flame_hits_position, flame_hits_position_configured,
