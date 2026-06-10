@@ -18,7 +18,7 @@ use carcinisation_fps_core::enemy_collision::{
 };
 use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::hitscan::{
-    PartHitscanTarget, flame_hits_target_parts_configured, hitscan_parts_from_pose,
+    PartHitscanTarget, flame_hits_target_parts_configured, hitscan_parts_from_pose, scaled_damage,
 };
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
@@ -357,12 +357,12 @@ pub fn process_combat(
                 }
 
                 // Determine what was hit first: enemy or projectile.
-                let enemy_hit = part_hit.map(|r| (r.target_idx, r.distance));
+                let enemy_hit = part_hit.map(|r| (r.target_idx, r.distance, r.damage_scale));
                 let proj_hit = closest_proj;
 
                 // Projectile closer than enemy?
                 if let Some((proj_e, proj_id, proj_pos, proj_d, proj_type)) = proj_hit
-                    && enemy_hit.is_none_or(|(_, ed)| proj_d < ed)
+                    && enemy_hit.is_none_or(|(_, ed, _)| proj_d < ed)
                 {
                     // Destroy the projectile.
                     commands.entity(proj_e).despawn();
@@ -379,16 +379,21 @@ pub fn process_combat(
                     continue;
                 }
 
-                let Some((hit_idx, _)) = enemy_hit else {
+                let Some((hit_idx, _, damage_scale)) = enemy_hit else {
                     continue;
                 };
+
+                // Server-authoritative part damage routing: base hitscan damage
+                // scaled by the hit part's multiplier (e.g. 2× headshot). The
+                // client never scales — it only renders this `HitConfirm`.
+                let dealt = scaled_damage(combat_config.hitscan_damage, damage_scale);
 
                 let hit_entity = enemy_entities[hit_idx];
                 apply_damage(
                     &mut commands,
                     &mut enemies,
                     hit_entity,
-                    combat_config.hitscan_damage,
+                    dealt,
                     false,
                     &combat_config,
                 );
@@ -402,7 +407,7 @@ pub fn process_combat(
                         mode: SendMode::Broadcast,
                         message: HitConfirm {
                             target_id: hit_enemy.object_id,
-                            damage: combat_config.hitscan_damage,
+                            damage: dealt,
                             position: impact_pos,
                             kind: carcinisation_net::HitImpactKind::Hit,
                             projectile_type: None,

@@ -728,3 +728,136 @@ fn flame_off_axis_part_behind_wall_corner_is_blocked() {
         .expect("clear LOS to the offset part should hit");
     assert_eq!(hit.part_id, LEG);
 }
+
+// ---------------------------------------------------------------------------
+// Part damage routing (Phase 5)
+// ---------------------------------------------------------------------------
+
+const WEAK: PartId = PartId(4);
+
+#[test]
+fn scaled_damage_rule() {
+    assert!(
+        (scaled_damage(37.0, 2.0) - 74.0).abs() < 1e-4,
+        "headshot 2x"
+    );
+    assert!((scaled_damage(37.0, 1.0) - 37.0).abs() < 1e-4, "neutral");
+    assert!(
+        (scaled_damage(37.0, 0.75) - 27.75).abs() < 1e-4,
+        "limb 0.75"
+    );
+    assert!(
+        (scaled_damage(37.0, f32::NAN) - 37.0).abs() < 1e-4,
+        "non-finite → base"
+    );
+    assert!(
+        scaled_damage(37.0, -1.0).abs() < 1e-4,
+        "negative clamped to 0"
+    );
+}
+
+/// Body at centre + a weak point offset forward (local +X), with metadata:
+/// body 1.0, weak point 3.0.
+fn routing_set() -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([
+                PartCollider2d {
+                    part_id: BODY,
+                    collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.25)),
+                },
+                PartCollider2d {
+                    part_id: WEAK,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.3, 0.0), 0.15)),
+                },
+            ]),
+        );
+    }
+    set.insert_part_metadata(
+        BODY,
+        PartMetadata {
+            material: MaterialId(1),
+            damage_scale: 1.0,
+        },
+    );
+    set.insert_part_metadata(
+        WEAK,
+        PartMetadata {
+            material: MaterialId(9),
+            damage_scale: 3.0,
+        },
+    );
+    set
+}
+
+#[test]
+fn hitscan_returns_part_damage_scale() {
+    let map = test_map();
+    let set = routing_set();
+    let enemy = Vec2::new(3.5, 1.5);
+
+    // Enemy faces +X (toward the east shooter): weak point is forward → hit.
+    let weak = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(weak.part_id, WEAK);
+    assert!(
+        (weak.damage_scale - 3.0).abs() < 1e-4,
+        "weak point scale 3.0"
+    );
+    assert_eq!(weak.material, Some(MaterialId(9)));
+
+    // From the west, the body occludes the (eastward) weak point → body hit.
+    let body = hitscan_parts_from_pose(
+        pose_east(Vec2::new(1.5, 1.5)),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(body.part_id, BODY);
+    assert!((body.damage_scale - 1.0).abs() < 1e-4, "body neutral scale");
+}
+
+#[test]
+fn hitscan_fallback_uses_neutral_scale() {
+    let map = test_map();
+    let set = routing_set();
+    let mut t = target(&set, Vec2::new(2.5, 1.5), 0.3);
+    t.animation = AnimationKey(99); // unregistered → fallback circle
+    let hit =
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).unwrap();
+    assert_eq!(hit.part_id, PartId::FALLBACK);
+    assert!(
+        (hit.damage_scale - 1.0).abs() < 1e-4,
+        "fallback is neutral 1.0"
+    );
+    assert_eq!(hit.material, None);
+}
+
+#[test]
+fn part_with_no_metadata_is_neutral_scale() {
+    // multi_facing_set registers parts but NO metadata → neutral 1.0.
+    let map = test_map();
+    let set = multi_facing_set();
+    let hit = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(hit.part_id, HEAD);
+    assert!(
+        (hit.damage_scale - 1.0).abs() < 1e-4,
+        "no metadata → neutral"
+    );
+    assert_eq!(hit.material, None);
+}

@@ -6,6 +6,7 @@ use carcinisation_fps_core::{
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
     facing_yaw_toward, flame_hits_position_configured_from_pose,
     flame_hits_target_parts_configured, flame_visual_max_distance, hitscan_parts_from_pose,
+    scaled_damage,
 };
 
 /// Snap turn state snapshot passed into the presentation layer.
@@ -872,6 +873,13 @@ pub fn process_player_attacks(
             elapsed: 0.0,
             position: MELEE_EFFECT_POS,
         });
+        // NOTE: this ×3 melee multiplier is applied to the BASE damage, then
+        // `apply_hitscan_damage` additionally applies the hit part's
+        // `damage_scale` (Phase 5). So a melee headshot stacks both:
+        //   melee headshot = 3 (melee) × 2.0 (head) = 6× base.
+        // TODO(balance): this melee × part-scale interaction has not been
+        // balance-reviewed. Pre-existing multiplier; left as-is here (no config
+        // field exists yet). Revisit when melee or part scaling is tuned.
         apply_hitscan_damage(
             fire_pose,
             map,
@@ -1652,34 +1660,49 @@ fn apply_hitscan_damage(
     let projectile_hit =
         carcinisation_fps_core::hitscan_projectiles_from_pose(fire_pose, projectiles, map);
 
-    let mut hit = enemy_hit.map(|r| (FpShotHit::Enemy(r.target_idx), r.distance));
+    // Track the hit kind, distance, and the hit part's damage scale so the
+    // nearest target's per-part multiplier is applied. SP is its own authority
+    // (no server), so it scales locally; this matches the server's routing via
+    // the shared `scaled_damage`. Projectiles are not enemy parts → neutral 1.0.
+    let mut hit = enemy_hit.map(|r| (FpShotHit::Enemy(r.target_idx), r.distance, r.damage_scale));
     if let Some(r) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _)| r.distance < current_distance)
     {
-        hit = Some((FpShotHit::Mosquiton(r.target_idx), r.distance));
+        hit = Some((
+            FpShotHit::Mosquiton(r.target_idx),
+            r.distance,
+            r.damage_scale,
+        ));
     }
     if let Some(r) = spidey_hit
-        && hit.is_none_or(|(_, current_distance)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _)| r.distance < current_distance)
     {
-        hit = Some((FpShotHit::Spidey(r.target_idx), r.distance));
+        hit = Some((FpShotHit::Spidey(r.target_idx), r.distance, r.damage_scale));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
-        && hit.is_none_or(|(_, current_distance)| distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _)| distance < current_distance)
     {
-        hit = Some((FpShotHit::Projectile(projectile_idx), distance));
+        hit = Some((FpShotHit::Projectile(projectile_idx), distance, 1.0));
     }
 
-    let Some((hit, distance)) = hit else {
+    let Some((hit, distance, damage_scale)) = hit else {
         return;
     };
     if max_range.is_some_and(|range| distance > range) {
         return;
     }
 
+    // SP health is integer; round the f32 routing result at this boundary.
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation
+    )]
+    let dealt = scaled_damage(damage as f32, damage_scale).round() as u32;
     match hit {
-        FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(damage),
-        FpShotHit::Mosquiton(mosquiton_idx) => mosquitons[mosquiton_idx].take_damage(damage),
-        FpShotHit::Spidey(spidey_idx) => spideys[spidey_idx].take_damage(damage),
+        FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(dealt),
+        FpShotHit::Mosquiton(mosquiton_idx) => mosquitons[mosquiton_idx].take_damage(dealt),
+        FpShotHit::Spidey(spidey_idx) => spideys[spidey_idx].take_damage(dealt),
         FpShotHit::Projectile(projectile_idx) => {
             if let Some(projectile) = projectiles.get_mut(projectile_idx) {
                 projectile.alive = false;
@@ -3385,6 +3408,38 @@ mod tests {
     }
 
     #[test]
+    fn pistol_headshot_scales_spidey_damage() {
+        // Spidey faces the shooter (yaw derived toward the local player), so a
+        // front shot reaches the head (scale 2.0): base 37 → 74. The body
+        // multiplier is 1.0, so a Basic enemy under the same shot takes 37.
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let mut spideys = vec![crate::spidey::Spidey::new(
+            Vec2::new(3.5, 1.5),
+            crate::spidey::SpideyConfig::default(),
+        )];
+        let hp_before = spideys[0].health;
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut [],
+            &mut [],
+            &mut spideys,
+            &mut Vec::new(),
+            &mut Vec::new(),
+            37,
+            None,
+        );
+
+        assert_eq!(
+            hp_before - spideys[0].health,
+            74,
+            "front headshot applies the 2.0 head multiplier"
+        );
+    }
+
+    #[test]
     fn flamethrower_does_not_apply_exposure_through_wall() {
         let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
         let map = corridor_map(Some(3));
@@ -3430,6 +3485,43 @@ mod tests {
         );
 
         assert!(enemies[0].burn_state.intensity > 0.0);
+    }
+
+    #[test]
+    fn flamethrower_exposure_ignores_part_damage_scale() {
+        // Policy A: the flamethrower is an area/exposure weapon and does NOT
+        // apply per-part damage_scale. A Spidey (head scale 2.0) and a Basic
+        // enemy (1.0) caught in the same flame for the same dt accumulate
+        // identical burn exposure.
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let burn_config = carcinisation_fps_core::BurnConfig::default();
+        let flame_config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        let mut enemies = vec![Enemy::new(Vec2::new(3.5, 1.5), 100, 0.0)];
+        let mut spideys = vec![crate::spidey::Spidey::new(
+            Vec2::new(3.5, 1.5),
+            crate::spidey::SpideyConfig::default(),
+        )];
+
+        apply_flamethrower_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut spideys,
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &burn_config,
+            &flame_config,
+            1.0 / 30.0,
+        );
+
+        assert!(enemies[0].burn_state.intensity > 0.0, "basic burns");
+        assert!(spideys[0].burn_state.intensity > 0.0, "spidey burns");
+        assert!(
+            (enemies[0].burn_state.intensity - spideys[0].burn_state.intensity).abs() < 1e-6,
+            "flame exposure is uniform regardless of hit part"
+        );
     }
 
     #[test]

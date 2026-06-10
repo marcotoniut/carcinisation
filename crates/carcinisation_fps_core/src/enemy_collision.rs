@@ -153,7 +153,9 @@ fn spidey_set() -> TargetCollisionSet {
         PART_HEAD,
         PartMetadata {
             material: MATERIAL_HEAD,
-            damage_scale: 1.0,
+            // Headshot multiplier: a forward shot that reaches the head deals
+            // double damage. 2.0 is the classic headshot value; tune here.
+            damage_scale: 2.0,
         },
     );
     set

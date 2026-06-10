@@ -63,10 +63,48 @@ pub struct PartHitscanResult {
     pub part_id: PartId,
     /// Material of the hit part, if registered. `None` for fallback hits.
     pub material: Option<MaterialId>,
+    /// Damage multiplier of the hit part (`PartMetadata::damage_scale`).
+    /// [`NEUTRAL_DAMAGE_SCALE`] for the fallback circle and for parts with no
+    /// registered metadata. Apply via [`scaled_damage`] at the
+    /// (server-authoritative) damage site.
+    pub damage_scale: f32,
     /// Distance from ray origin to the hit surface.
     pub distance: f32,
     /// World-space hit point on the part surface.
     pub point: Vec2,
+}
+
+/// Damage multiplier meaning "no authored damage modifier" — the identity
+/// scale used for fallback hits, parts without metadata, and any neutral
+/// routing path.
+///
+/// This is an **engine invariant, not gameplay tuning**: it must stay `1.0`
+/// (multiplying by it is a no-op) and must not be made configurable. Authored
+/// per-part multipliers live in [`PartMetadata::damage_scale`].
+pub const NEUTRAL_DAMAGE_SCALE: f32 = 1.0;
+
+/// Part damage routing rule: `base × scale`, clamped non-negative.
+///
+/// The single source of truth for per-part damage scaling, so single-player
+/// and server route identically. A non-finite scale falls back to `base`
+/// (neutral); a negative scale is clamped to 0. Damage stays `f32` here (the
+/// server's representation); the integer-health single-player path rounds at
+/// its own boundary.
+#[must_use]
+pub fn scaled_damage(base: f32, scale: f32) -> f32 {
+    if !scale.is_finite() {
+        return base;
+    }
+    base * scale.max(0.0)
+}
+
+/// Material + damage scale for a part, with neutral defaults when no metadata
+/// is registered (`None` material, [`NEUTRAL_DAMAGE_SCALE`]).
+fn part_routing(set: &TargetCollisionSet, id: PartId) -> (Option<MaterialId>, f32) {
+    set.part_metadata(id)
+        .map_or((None, NEUTRAL_DAMAGE_SCALE), |m| {
+            (Some(m.material), m.damage_scale)
+        })
 }
 
 /// Resolve the nearest per-part hit for a fire pose against a set of targets.
@@ -96,17 +134,20 @@ pub fn hitscan_parts_from_pose<'a>(
         let resolved = match target.set.lookup(target.animation, target.frame, facing) {
             Some(frame) if !frame.is_empty() => frame
                 .nearest_world_ray_hit(target_pose, origin, dir)
-                .map(|hit| (hit, target.set.part_metadata(hit.id).map(|m| m.material))),
+                .map(|hit| {
+                    let (material, scale) = part_routing(target.set, hit.id);
+                    (hit, material, scale)
+                }),
             // Missing OR empty frame falls back to the whole-body circle. An
             // empty frame (zero parts) is treated as unauthored, not as "no
             // hittable surface": bad/sparse generated metadata must not be able
             // to make a target invulnerable. A non-empty frame whose parts the
             // ray simply misses is a genuine miss (no fallback).
             _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius)
-                .map(|hit| (hit, None)),
+                .map(|hit| (hit, None, NEUTRAL_DAMAGE_SCALE)),
         };
 
-        let Some((hit, material)) = resolved else {
+        let Some((hit, material, damage_scale)) = resolved else {
             continue;
         };
 
@@ -118,6 +159,7 @@ pub fn hitscan_parts_from_pose<'a>(
             target_idx: idx,
             part_id: hit.id,
             material,
+            damage_scale,
             distance: hit.distance,
             point: hit.point,
         };
