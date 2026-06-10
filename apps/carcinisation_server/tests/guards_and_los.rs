@@ -9,9 +9,10 @@ use bevy::prelude::*;
 use carcinisation_fps_core::map::Map;
 use carcinisation_net::{NetAttackId, NetEnemyState, PlayerNetState};
 use common::{
-    build_deterministic_server_with_enemies, build_deterministic_server_with_enemy,
-    force_enemy_state, force_player_attack, get_enemy_health, get_player_health, inject_intent,
-    spawn_alive_player, spawn_player_with_state,
+    build_deterministic_server_with_basic_enemy, build_deterministic_server_with_enemies,
+    build_deterministic_server_with_enemy, force_enemy_state, force_player_attack,
+    get_enemy_health, get_player_health, inject_fire, inject_intent, spawn_alive_player,
+    spawn_player_with_state,
 };
 
 // ---------------------------------------------------------------------------
@@ -246,5 +247,33 @@ fn enemy_faces_engaged_player_after_tick() {
     assert!(
         diff < 0.2,
         "enemy should face engaged player: angle={angle:.3}, expected={expected:.3}"
+    );
+}
+
+#[test]
+fn pistol_damages_basic_enemy_via_kind_path() {
+    // A stationary Basic enemy directly east of the player. An unobstructed
+    // centre shot must damage it, proving the authoritative
+    // `NetEnemy.enemy_type` → `collision_set(Basic)` path resolves to a
+    // hittable fixture inside the real server combat system (not just the
+    // unit-level `fps_kind_from_net` mapping).
+    let mut server = build_deterministic_server_with_basic_enemy(4.5, 1.5);
+    server.update();
+
+    // Player at (1.5, 1.5) faces east (angle 0) → enemy on the +X fire axis.
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
+    let hp_before = get_enemy_health(&mut server).unwrap();
+
+    // `inject_fire` sets aim_held=true so the shot fires in both Legacy and
+    // AimCommitment combat modes.
+    inject_fire(&mut server, 1);
+    for _ in 0..3 {
+        server.update();
+    }
+
+    let hp_after = get_enemy_health(&mut server).unwrap();
+    assert!(
+        hp_after < hp_before,
+        "basic enemy should take pistol damage via per-kind path: {hp_before} -> {hp_after}"
     );
 }

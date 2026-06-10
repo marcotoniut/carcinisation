@@ -336,6 +336,33 @@ pub fn build_deterministic_server_with_enemies(
     app
 }
 
+/// Deterministic server with a single stationary **Basic** enemy
+/// (`EntitySpawnKind::Enemy` → `NetEnemyType::Basic`). Basic enemies have no
+/// AI sim, so they do not move — useful for exercising the authoritative
+/// `enemy_type → collision_set(Basic)` hitscan path without movement jitter.
+pub fn build_deterministic_server_with_basic_enemy(enemy_x: f32, enemy_y: f32) -> App {
+    let entities = vec![EntitySpawnData {
+        kind: EntitySpawnKind::Enemy {
+            color: 0,
+            health: 100,
+            speed: 0.0,
+        },
+        x: enemy_x,
+        y: enemy_y,
+    }];
+    let mut app = build_server_app(ServerPlugin {
+        port: 0,
+        map: test_map(),
+        entities,
+        player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
+    });
+    app.insert_resource(TimeUpdateStrategy::FixedTimesteps(1));
+    app
+}
+
 /// Wait up to `max_ticks` (deterministic) for a condition to become true.
 /// Each tick is exactly one `FixedUpdate` cycle — no sleep, no jitter.
 pub fn wait_for_deterministic(

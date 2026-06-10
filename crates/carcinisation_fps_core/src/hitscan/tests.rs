@@ -350,3 +350,78 @@ fn dead_target_is_skipped() {
         hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).is_none()
     );
 }
+
+// --- empty frame handling ---
+
+/// Set whose frame exists for every facing but contains zero parts.
+fn empty_frame_set() -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::default(),
+        );
+    }
+    set
+}
+
+#[test]
+fn empty_frame_falls_back_to_circle() {
+    // A registered-but-empty frame must not make the target invulnerable: it
+    // is treated as unauthored and falls back to the whole-body circle.
+    let map = test_map();
+    let set = empty_frame_set();
+    let hit = hitscan_parts_from_pose(
+        pose_east(Vec2::new(1.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(2.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(
+        hit.part_id,
+        PartId::FALLBACK,
+        "empty frame → fallback circle"
+    );
+    assert!(
+        approx(hit.distance, 0.7),
+        "circle surface at x=2.2 from x=1.5"
+    );
+}
+
+#[test]
+fn non_empty_frame_miss_is_genuine_not_fallback() {
+    // A non-empty frame whose parts the ray misses is a real miss — the large
+    // fallback radius must NOT rescue it (only missing/empty frames fall back).
+    let map = test_map();
+    let set = single_body_set(0.1); // tiny body circle
+    let mut t = target(&set, Vec2::new(2.5, 1.9), 5.0); // big fallback radius
+    t.yaw = 0.0;
+    // Fire along y=1.5; perpendicular offset to the body centre (y=1.9) is 0.4,
+    // well outside the 0.1 body but inside the 5.0 fallback.
+    let hit = hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter());
+    assert!(
+        hit.is_none(),
+        "present non-empty frame that misses must not fall back"
+    );
+}
+
+// --- deterministic tie-break across targets ---
+
+#[test]
+fn equal_distance_targets_break_by_lower_index() {
+    // Two identical targets at the same position → identical distance. The
+    // lower target index wins deterministically (first-seen, strict-less).
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let targets = [
+        target(&set, Vec2::new(2.5, 1.5), 0.3),
+        target(&set, Vec2::new(2.5, 1.5), 0.3),
+    ];
+    let hit =
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, targets.into_iter()).unwrap();
+    assert_eq!(hit.target_idx, 0, "equal distance → lower index wins");
+}

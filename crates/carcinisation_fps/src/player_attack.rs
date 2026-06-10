@@ -1564,6 +1564,12 @@ fn apply_hitscan_damage(
     // `NetEnemy.angle` (also facing toward the engaged player) for SP/server
     // parity. Frame is DEFAULT_FRAME=0 (no discrete enemy frame yet).
     // `visual_pitch_px` is ignored throughout.
+    //
+    // TEMPORARY: the SP Mosquiton/Spidey wrappers do not store an authoritative
+    // yaw the way the server's `NetEnemy.angle` does, so we re-derive facing
+    // at shot time from the shooter position. This coincides with the server
+    // basis only because SP is single-player. When SP stores the sim yaw,
+    // read it here instead of recomputing from `fire_pose.origin_xy`.
     let player_pos = fire_pose.origin_xy;
     let basic_set = collision_set(FpsEnemyKind::Basic);
     let mosquiton_set = collision_set(FpsEnemyKind::Mosquiton);

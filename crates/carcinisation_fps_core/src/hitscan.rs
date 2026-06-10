@@ -16,13 +16,15 @@
 //!
 //! # Fallback policy
 //!
-//! If a target has no collision frame for the requested animation/frame/facing,
-//! the query falls back to a single whole-body circle of `fallback_radius`
-//! centred on the target, tagged [`PartId::FALLBACK`]. This is a deliberate
-//! *fail-open* choice: missing authoring data must not make a target
-//! invulnerable. The circle baseline is the contract the legacy hitscan already
-//! guaranteed, so falling back to it preserves gameplay rather than silently
-//! dropping hits.
+//! If a target has no collision frame for the requested animation/frame/facing
+//! — or the frame exists but is **empty** (zero parts) — the query falls back
+//! to a single whole-body circle of `fallback_radius` centred on the target,
+//! tagged [`PartId::FALLBACK`]. This is a deliberate *fail-open* choice:
+//! missing or empty authoring data must not make a target invulnerable. The
+//! circle baseline is the contract the legacy hitscan already guaranteed, so
+//! falling back to it preserves gameplay rather than silently dropping hits. A
+//! non-empty frame whose parts the ray misses is a genuine miss, not a
+//! fallback.
 
 use bevy_math::Vec2;
 
@@ -91,10 +93,15 @@ pub fn hitscan_parts_from_pose<'a>(
         let facing = target_pose.facing_for_attacker(origin);
 
         let resolved = match target.set.lookup(target.animation, target.frame, facing) {
-            Some(frame) => frame
+            Some(frame) if !frame.is_empty() => frame
                 .nearest_world_ray_hit(target_pose, origin, dir)
                 .map(|hit| (hit, target.set.part_metadata(hit.id).map(|m| m.material))),
-            None => fallback_circle_hit(origin, dir, target.position, target.fallback_radius)
+            // Missing OR empty frame falls back to the whole-body circle. An
+            // empty frame (zero parts) is treated as unauthored, not as "no
+            // hittable surface": bad/sparse generated metadata must not be able
+            // to make a target invulnerable. A non-empty frame whose parts the
+            // ray simply misses is a genuine miss (no fallback).
+            _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius)
                 .map(|hit| (hit, None)),
         };
 

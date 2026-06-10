@@ -391,14 +391,17 @@ pub fn process_combat(
                     &combat_config,
                 );
 
-                // Send hit confirmation for blood splat visual.
+                // Send hit confirmation for blood splat visual. Use the part
+                // surface hit point so the effect aligns with where the shot
+                // landed rather than the enemy centre.
                 if let Ok((_, hit_enemy, _, _)) = enemies.get(hit_entity) {
+                    let impact_pos = part_hit.map_or(hit_enemy.position, |r| r.point);
                     commands.server_trigger(ToClients {
                         mode: SendMode::Broadcast,
                         message: HitConfirm {
                             target_id: hit_enemy.object_id,
                             damage: combat_config.hitscan_damage,
-                            position: hit_enemy.position,
+                            position: impact_pos,
                             kind: carcinisation_net::HitImpactKind::Hit,
                             projectile_type: None,
                         },

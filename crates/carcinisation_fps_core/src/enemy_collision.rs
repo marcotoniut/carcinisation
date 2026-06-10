@@ -6,13 +6,18 @@
 //!
 //! # Facing
 //!
-//! Enemy facing is not yet authoritative simulation state, so every fixture
-//! registers the **same frame for all 8 [`BillboardFacing8`] directions**
-//! (facing-independent). The per-facing lookup machinery is fully wired and
-//! unit-tested in [`crate::hitscan`], but runtime targets pass `yaw = 0.0` and
-//! get an identical silhouette from every angle. When enemy facing becomes
-//! authoritative, distinct per-facing frames can be authored here without any
-//! call-site change.
+//! Enemy yaw **is** authoritative as of Phase 3.5: the server writes
+//! `NetEnemy.angle` (oriented toward the engaged player) and single-player
+//! derives the same basis via [`crate::facing_yaw_toward`], so hit-test code
+//! receives a real per-target yaw — not `0.0`. That yaw rotates the local part
+//! layout (e.g. the Spidey head orients toward the engaged player) and selects
+//! the [`BillboardFacing8`] bucket.
+//!
+//! What is **not** yet authored is per-facing *geometry*: every fixture still
+//! registers the **same frame for all 8 facings**, so the selected bucket maps
+//! to one silhouette regardless of angle. Distinct per-facing frames can be
+//! authored here without any call-site change — but only once enemy sprites
+//! render directionally, so collision silhouettes match what the player sees.
 //!
 //! # Coordinate convention
 //!
