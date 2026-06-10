@@ -99,6 +99,8 @@ fn basic_set() -> TargetCollisionSet {
         PartMetadata {
             material: MATERIAL_FLESH,
             damage_scale: 1.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set
@@ -119,6 +121,8 @@ fn mosquiton_set() -> TargetCollisionSet {
         PartMetadata {
             material: MATERIAL_FLESH,
             damage_scale: 1.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set
@@ -147,6 +151,8 @@ fn spidey_set() -> TargetCollisionSet {
         PartMetadata {
             material: MATERIAL_FLESH,
             damage_scale: 1.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set.insert_part_metadata(
@@ -156,6 +162,8 @@ fn spidey_set() -> TargetCollisionSet {
             // Headshot multiplier: a forward shot that reaches the head deals
             // double damage. 2.0 is the classic headshot value; tune here.
             damage_scale: 2.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set

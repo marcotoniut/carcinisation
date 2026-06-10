@@ -5,7 +5,7 @@ use carcinisation_fps_core::{
     FirePose2d, FlameStrip, FpsEnemyKind, PartHitscanTarget, collision_set,
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
     facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
-    hitscan_parts_from_pose, scaled_damage,
+    hitscan_parts_from_pose, routed_damage,
 };
 
 /// Snap turn state snapshot passed into the presentation layer.
@@ -1662,32 +1662,46 @@ fn apply_hitscan_damage(
     let projectile_hit =
         carcinisation_fps_core::hitscan_projectiles_from_pose(fire_pose, projectiles, map);
 
-    // Track the hit kind, distance, and the hit part's damage scale so the
-    // nearest target's per-part multiplier is applied. SP is its own authority
-    // (no server), so it scales locally; this matches the server's routing via
-    // the shared `scaled_damage`. Projectiles are not enemy parts → neutral 1.0.
-    let mut hit = enemy_hit.map(|r| (FpShotHit::Enemy(r.target_idx), r.distance, r.damage_scale));
+    // Track the hit kind, distance, and the hit part's routing (damage scale +
+    // flat armour) so the nearest target's per-part modifiers are applied. SP
+    // is its own authority (no server), so it routes locally via the shared
+    // `routed_damage`, matching the server. Projectiles are not enemy parts →
+    // neutral scale 1.0, no armour.
+    let mut hit = enemy_hit.map(|r| {
+        (
+            FpShotHit::Enemy(r.target_idx),
+            r.distance,
+            r.damage_scale,
+            r.armour,
+        )
+    });
     if let Some(r) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Mosquiton(r.target_idx),
             r.distance,
             r.damage_scale,
+            r.armour,
         ));
     }
     if let Some(r) = spidey_hit
-        && hit.is_none_or(|(_, current_distance, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _)| r.distance < current_distance)
     {
-        hit = Some((FpShotHit::Spidey(r.target_idx), r.distance, r.damage_scale));
+        hit = Some((
+            FpShotHit::Spidey(r.target_idx),
+            r.distance,
+            r.damage_scale,
+            r.armour,
+        ));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
-        && hit.is_none_or(|(_, current_distance, _)| distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _)| distance < current_distance)
     {
-        hit = Some((FpShotHit::Projectile(projectile_idx), distance, 1.0));
+        hit = Some((FpShotHit::Projectile(projectile_idx), distance, 1.0, 0.0));
     }
 
-    let Some((hit, distance, damage_scale)) = hit else {
+    let Some((hit, distance, damage_scale, armour)) = hit else {
         return;
     };
     if max_range.is_some_and(|range| distance > range) {
@@ -1700,7 +1714,7 @@ fn apply_hitscan_damage(
         clippy::cast_sign_loss,
         clippy::cast_possible_truncation
     )]
-    let dealt = scaled_damage(damage as f32, damage_scale).round() as u32;
+    let dealt = routed_damage(damage as f32, damage_scale, armour).round() as u32;
     match hit {
         FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(dealt),
         FpShotHit::Mosquiton(mosquiton_idx) => mosquitons[mosquiton_idx].take_damage(dealt),

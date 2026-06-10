@@ -65,13 +65,24 @@ pub struct PartHitscanResult {
     pub material: Option<MaterialId>,
     /// Damage multiplier of the hit part (`PartMetadata::damage_scale`).
     /// [`NEUTRAL_DAMAGE_SCALE`] for the fallback circle and for parts with no
-    /// registered metadata. Apply via [`scaled_damage`] at the
-    /// (server-authoritative) damage site.
+    /// registered metadata.
     pub damage_scale: f32,
+    /// Flat armour of the hit part (`PartMetadata::armour`), subtracted after
+    /// scaling. `0.0` for the fallback circle and parts with no metadata.
+    pub armour: f32,
     /// Distance from ray origin to the hit surface.
     pub distance: f32,
     /// World-space hit point on the part surface.
     pub point: Vec2,
+}
+
+impl PartHitscanResult {
+    /// Final damage for this hit: `(base × damage_scale) − armour`, clamped.
+    /// Convenience over [`routed_damage`] using this result's routing fields.
+    #[must_use]
+    pub fn routed_damage(&self, base: f32) -> f32 {
+        routed_damage(base, self.damage_scale, self.armour)
+    }
 }
 
 /// Damage multiplier meaning "no authored damage modifier" — the identity
@@ -98,20 +109,18 @@ pub const NEUTRAL_DAMAGE_SCALE: f32 = 1.0;
 ///
 /// 1. **base** weapon damage (config, e.g. `hitscan_damage`)
 /// 2. **× weapon/context multiplier** (e.g. the single-player melee ×3)
-/// 3. **× part `damage_scale`** — this function
-/// 4. **− armour flat subtraction** (future, ORS semantics; not implemented —
-///    no armour stage exists yet anywhere)
+/// 3. **× part `damage_scale`** — [`scaled_damage`]
+/// 4. **− armour flat subtraction** (ORS semantics) — [`routed_damage`]
 /// 5. **clamp to ≥ 0**, then round at the integer-health boundary
 ///    (single-player) or keep `f32` (server)
 ///
 /// Stages 2 and 3 are multiplicative and commute, so today's call sites
-/// (which apply the weapon multiplier before calling [`scaled_damage`])
-/// already conform. Stage 4 does **not** commute with the multipliers — that
-/// is why armour is defined to apply *after* all multipliers: flat armour is
-/// then worth the same absolute amount against scaled and unscaled hits, and
-/// a weak-point hit cannot be armour-immune while the body is not. When
-/// armour lands, it must be implemented in this module (one routing function
-/// for server and single-player), not at call sites.
+/// (which apply the weapon multiplier before scaling) already conform. Stage 4
+/// does **not** commute with the multipliers — that is why armour applies
+/// *after* all multipliers: flat armour is then worth the same absolute amount
+/// against scaled and unscaled hits, and a weak-point hit cannot be
+/// armour-immune while the body is not. Stage 4 lives in [`routed_damage`], the
+/// single routing function shared by server and single-player.
 #[must_use]
 pub fn scaled_damage(base: f32, scale: f32) -> f32 {
     if !scale.is_finite() {
@@ -120,12 +129,33 @@ pub fn scaled_damage(base: f32, scale: f32) -> f32 {
     base * scale.max(0.0)
 }
 
-/// Material + damage scale for a part, with neutral defaults when no metadata
-/// is registered (`None` material, [`NEUTRAL_DAMAGE_SCALE`]).
-fn part_routing(set: &TargetCollisionSet, id: PartId) -> (Option<MaterialId>, f32) {
+/// Full per-part damage routing (stages 3–5): `(base × scale) − armour`,
+/// clamped to `≥ 0`.
+///
+/// The single source of truth so single-player and server route identically.
+/// `armour = 0.0` reproduces [`scaled_damage`] exactly (current behaviour for
+/// all shipped parts). Fail-safe on bad inputs: a non-finite `scale` falls back
+/// to `base` (via [`scaled_damage`]); a non-finite or negative `armour` is
+/// treated as no armour. Damage stays `f32` (the server's representation); the
+/// integer-health single-player path rounds at its own boundary.
+#[must_use]
+pub fn routed_damage(base: f32, scale: f32, armour: f32) -> f32 {
+    let scaled = scaled_damage(base, scale);
+    let armour = if armour.is_finite() {
+        armour.max(0.0)
+    } else {
+        0.0
+    };
+    (scaled - armour).max(0.0)
+}
+
+/// Material + damage scale + armour for a part, with neutral defaults when no
+/// metadata is registered (`None` material, [`NEUTRAL_DAMAGE_SCALE`], `0.0`
+/// armour).
+fn part_routing(set: &TargetCollisionSet, id: PartId) -> (Option<MaterialId>, f32, f32) {
     set.part_metadata(id)
-        .map_or((None, NEUTRAL_DAMAGE_SCALE), |m| {
-            (Some(m.material), m.damage_scale)
+        .map_or((None, NEUTRAL_DAMAGE_SCALE, 0.0), |m| {
+            (Some(m.material), m.damage_scale, m.armour)
         })
 }
 
@@ -155,10 +185,16 @@ pub fn hitscan_parts_from_pose<'a>(
 
         let resolved = match target.set.lookup(target.animation, target.frame, facing) {
             Some(frame) if !frame.is_empty() => frame
-                .nearest_world_ray_hit(target_pose, origin, dir)
+                // Damage routes only to targetable parts; a non-targetable part
+                // is transparent here (the ray continues to the nearest
+                // targetable part behind it). An all-non-targetable frame yields
+                // no hit (and no fallback — the frame is authored, just inert).
+                .nearest_world_ray_hit_filtered(target_pose, origin, dir, |id| {
+                    target.set.is_targetable(id)
+                })
                 .map(|hit| {
-                    let (material, scale) = part_routing(target.set, hit.id);
-                    (hit, material, scale)
+                    let (material, scale, armour) = part_routing(target.set, hit.id);
+                    (hit, material, scale, armour)
                 }),
             // Missing OR empty frame falls back to the whole-body circle. An
             // empty frame (zero parts) is treated as unauthored, not as "no
@@ -166,10 +202,10 @@ pub fn hitscan_parts_from_pose<'a>(
             // to make a target invulnerable. A non-empty frame whose parts the
             // ray simply misses is a genuine miss (no fallback).
             _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius)
-                .map(|hit| (hit, None, NEUTRAL_DAMAGE_SCALE)),
+                .map(|hit| (hit, None, NEUTRAL_DAMAGE_SCALE, 0.0)),
         };
 
-        let Some((hit, material, damage_scale)) = resolved else {
+        let Some((hit, material, damage_scale, armour)) = resolved else {
             continue;
         };
 
@@ -182,6 +218,7 @@ pub fn hitscan_parts_from_pose<'a>(
             part_id: hit.id,
             material,
             damage_scale,
+            armour,
             distance: hit.distance,
             point: hit.point,
         };
@@ -317,7 +354,15 @@ impl FlameStrip {
 
         let resolved = match target.set.lookup(target.animation, target.frame, facing) {
             Some(frame) if !frame.is_empty() => frame
-                .nearest_world_swept_hit(target_pose, origin, self.end, self.half_width)
+                // Exposure routes only to targetable parts (non-targetable parts
+                // are transparent to the strip).
+                .nearest_world_swept_hit_filtered(
+                    target_pose,
+                    origin,
+                    self.end,
+                    self.half_width,
+                    |id| target.set.is_targetable(id),
+                )
                 .map(|hit| (hit, target.set.part_metadata(hit.id).map(|m| m.material))),
             // Missing/empty frame → fail-open whole-body swept circle (same
             // policy as the ray fallback).

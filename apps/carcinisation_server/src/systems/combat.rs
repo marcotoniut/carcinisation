@@ -18,7 +18,7 @@ use carcinisation_fps_core::enemy_collision::{
 };
 use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::hitscan::{
-    FlameStrip, PartHitscanTarget, hitscan_parts_from_pose, scaled_damage,
+    FlameStrip, PartHitscanTarget, hitscan_parts_from_pose, routed_damage,
 };
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
@@ -357,12 +357,13 @@ pub fn process_combat(
                 }
 
                 // Determine what was hit first: enemy or projectile.
-                let enemy_hit = part_hit.map(|r| (r.target_idx, r.distance, r.damage_scale));
+                let enemy_hit =
+                    part_hit.map(|r| (r.target_idx, r.distance, r.damage_scale, r.armour));
                 let proj_hit = closest_proj;
 
                 // Projectile closer than enemy?
                 if let Some((proj_e, proj_id, proj_pos, proj_d, proj_type)) = proj_hit
-                    && enemy_hit.is_none_or(|(_, ed, _)| proj_d < ed)
+                    && enemy_hit.is_none_or(|(_, ed, _, _)| proj_d < ed)
                 {
                     // Destroy the projectile.
                     commands.entity(proj_e).despawn();
@@ -379,14 +380,15 @@ pub fn process_combat(
                     continue;
                 }
 
-                let Some((hit_idx, _, damage_scale)) = enemy_hit else {
+                let Some((hit_idx, _, damage_scale, armour)) = enemy_hit else {
                     continue;
                 };
 
                 // Server-authoritative part damage routing: base hitscan damage
-                // scaled by the hit part's multiplier (e.g. 2× headshot). The
-                // client never scales — it only renders this `HitConfirm`.
-                let dealt = scaled_damage(combat_config.hitscan_damage, damage_scale);
+                // scaled by the hit part's multiplier (e.g. 2× headshot), then
+                // the part's flat armour subtracted. The client never routes —
+                // it only renders this `HitConfirm`.
+                let dealt = routed_damage(combat_config.hitscan_damage, damage_scale, armour);
 
                 let hit_entity = enemy_entities[hit_idx];
                 apply_damage(

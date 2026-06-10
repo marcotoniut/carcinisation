@@ -250,6 +250,33 @@ pub struct PartMetadata {
     pub material: MaterialId,
     /// Per-part damage multiplier applied via `scaled_damage`.
     pub damage_scale: f32,
+    /// Whether the part can receive damage. ORS-style gate: a non-targetable
+    /// part is **transparent to damage selection** — its collider stays in the
+    /// frame (for obstruction/reactions) but damage queries skip it, so the
+    /// ray/flame continues to the nearest *targetable* part behind it. Defaults
+    /// to `true`; parts with no metadata are targetable (see
+    /// [`TargetCollisionSet::is_targetable`]).
+    pub targetable: bool,
+    /// Flat armour: a non-negative amount subtracted from the *scaled* damage
+    /// (ORS semantics — flat saturating subtraction, applied after all
+    /// multipliers). `0.0` means no armour (current behaviour for every shipped
+    /// part). Stored as `f32` to live in the f32 routing space shared by server
+    /// and single-player; authored/ORS values are non-negative integers that
+    /// represent exactly. Applied via `routed_damage`.
+    pub armour: f32,
+}
+
+impl PartMetadata {
+    /// Targetable part with the given material and damage scale, no armour.
+    #[must_use]
+    pub const fn targetable(material: MaterialId, damage_scale: f32) -> Self {
+        Self {
+            material,
+            damage_scale,
+            targetable: true,
+            armour: 0.0,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -377,6 +404,21 @@ impl TargetCollisionFrame {
         world_origin: Vec2,
         world_dir: Vec2,
     ) -> Option<HitResult<PartId>> {
+        self.nearest_world_ray_hit_filtered(target, world_origin, world_dir, |_| true)
+    }
+
+    /// [`Self::nearest_world_ray_hit`] restricted to parts whose id satisfies
+    /// `accept`. Rejected parts are skipped (the ray passes through them), so
+    /// the nearest *accepted* part wins — used to route damage only to
+    /// targetable parts.
+    #[must_use]
+    pub fn nearest_world_ray_hit_filtered(
+        &self,
+        target: TargetQueryPose2d,
+        world_origin: Vec2,
+        world_dir: Vec2,
+        accept: impl Fn(PartId) -> bool,
+    ) -> Option<HitResult<PartId>> {
         let (sin, cos) = target.yaw.sin_cos();
         // Rotate a world vector into local space by -yaw.
         let rot_in = |v: Vec2| Vec2::new(v.x * cos + v.y * sin, v.y * cos - v.x * sin);
@@ -386,7 +428,8 @@ impl TargetCollisionFrame {
         let local_origin = rot_in(world_origin - target.position);
         let local_dir = rot_in(world_dir);
 
-        let hit = self.nearest_ray_hit(local_origin, local_dir)?;
+        let hit =
+            nearest::nearest_ray_hit_tagged_filter(local_origin, local_dir, &self.tagged, accept)?;
         Some(HitResult {
             point: target.position + rot_out(hit.point),
             normal: rot_out(hit.normal),
@@ -411,6 +454,22 @@ impl TargetCollisionFrame {
         world_end: Vec2,
         sweep_radius: f32,
     ) -> Option<HitResult<PartId>> {
+        self.nearest_world_swept_hit_filtered(target, world_start, world_end, sweep_radius, |_| {
+            true
+        })
+    }
+
+    /// [`Self::nearest_world_swept_hit`] restricted to parts whose id satisfies
+    /// `accept`. Used to route flame exposure only to targetable parts.
+    #[must_use]
+    pub fn nearest_world_swept_hit_filtered(
+        &self,
+        target: TargetQueryPose2d,
+        world_start: Vec2,
+        world_end: Vec2,
+        sweep_radius: f32,
+        accept: impl Fn(PartId) -> bool,
+    ) -> Option<HitResult<PartId>> {
         let (sin, cos) = target.yaw.sin_cos();
         let rot_in = |v: Vec2| Vec2::new(v.x * cos + v.y * sin, v.y * cos - v.x * sin);
         let rot_out = |v: Vec2| Vec2::new(v.x * cos - v.y * sin, v.x * sin + v.y * cos);
@@ -418,11 +477,12 @@ impl TargetCollisionFrame {
         let local_start = rot_in(world_start - target.position);
         let local_end = rot_in(world_end - target.position);
 
-        let hit = nearest::nearest_swept_circle_hit_tagged(
+        let hit = nearest::nearest_swept_circle_hit_tagged_filter(
             local_start,
             local_end,
             sweep_radius,
             &self.tagged,
+            accept,
         )?;
         Some(HitResult {
             point: target.position + rot_out(hit.point),
@@ -501,6 +561,17 @@ impl TargetCollisionSet {
     #[must_use]
     pub fn part_metadata(&self, part_id: PartId) -> Option<&PartMetadata> {
         self.part_metadata.get(&part_id)
+    }
+
+    /// Whether a part may receive damage. Parts with no registered metadata —
+    /// including the fallback sentinel [`PartId::FALLBACK`] — are **targetable
+    /// by default**, so the gate only excludes parts explicitly authored
+    /// `targetable: false`.
+    #[must_use]
+    pub fn is_targetable(&self, part_id: PartId) -> bool {
+        self.part_metadata
+            .get(&part_id)
+            .is_none_or(|m| m.targetable)
     }
 
     /// Number of registered frames.
@@ -857,6 +928,8 @@ mod tests {
             PartMetadata {
                 material: MaterialId(10),
                 damage_scale: 2.0,
+                targetable: true,
+                armour: 0.0,
             },
         );
         set
@@ -1104,6 +1177,28 @@ mod phase7_tests {
         let reg = PartIdRegistry::from_table(&[]).unwrap();
         assert!(reg.is_empty());
         assert_eq!(reg.id_of("anything"), None);
+    }
+
+    #[test]
+    fn is_targetable_defaults_true_and_respects_metadata() {
+        let mut set = TargetCollisionSet::new();
+        set.insert_part_metadata(PartId(1), PartMetadata::targetable(MaterialId(0), 1.0));
+        set.insert_part_metadata(
+            PartId(2),
+            PartMetadata {
+                material: MaterialId(0),
+                damage_scale: 1.0,
+                targetable: false,
+                armour: 0.0,
+            },
+        );
+        assert!(set.is_targetable(PartId(1)), "explicit targetable");
+        assert!(!set.is_targetable(PartId(2)), "explicit non-targetable");
+        assert!(set.is_targetable(PartId(99)), "no metadata → targetable");
+        assert!(
+            set.is_targetable(PartId::FALLBACK),
+            "fallback sentinel stays targetable"
+        );
     }
 
     #[test]

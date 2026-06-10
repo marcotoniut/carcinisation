@@ -42,6 +42,8 @@ fn single_body_set(radius: f32) -> TargetCollisionSet {
         PartMetadata {
             material: MaterialId(7),
             damage_scale: 1.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set
@@ -784,6 +786,8 @@ fn routing_set() -> TargetCollisionSet {
         PartMetadata {
             material: MaterialId(1),
             damage_scale: 1.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set.insert_part_metadata(
@@ -791,6 +795,8 @@ fn routing_set() -> TargetCollisionSet {
         PartMetadata {
             material: MaterialId(9),
             damage_scale: 3.0,
+            targetable: true,
+            armour: 0.0,
         },
     );
     set
@@ -860,4 +866,306 @@ fn part_with_no_metadata_is_neutral_scale() {
         "no metadata → neutral"
     );
     assert_eq!(hit.material, None);
+}
+
+// ---------------------------------------------------------------------------
+// targetable gating (Phase 8)
+// ---------------------------------------------------------------------------
+
+const SHIELD: PartId = PartId(5);
+
+/// Body (targetable) at centre + a non-targetable "shield" in front (+X).
+fn gated_set() -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([
+                PartCollider2d {
+                    part_id: BODY,
+                    collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.25)),
+                },
+                PartCollider2d {
+                    part_id: SHIELD,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.4, 0.0), 0.2)),
+                },
+            ]),
+        );
+    }
+    set.insert_part_metadata(BODY, PartMetadata::targetable(MaterialId(1), 1.0));
+    set.insert_part_metadata(
+        SHIELD,
+        PartMetadata {
+            material: MaterialId(5),
+            damage_scale: 5.0, // would be huge if it ever applied — proves it doesn't
+            targetable: false,
+            armour: 0.0,
+        },
+    );
+    set
+}
+
+#[test]
+fn non_targetable_front_passes_to_targetable_body() {
+    // Enemy faces the east shooter; the shield (local +X) is nearest but
+    // non-targetable, so the shot passes through it to the body behind.
+    let map = test_map();
+    let set = gated_set();
+    let hit = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(hit.part_id, BODY, "shield is skipped; body is hit");
+    assert!(
+        (hit.damage_scale - 1.0).abs() < 1e-4,
+        "body scale, not shield's 5.0"
+    );
+}
+
+#[test]
+fn only_non_targetable_part_takes_no_damage() {
+    // A frame whose sole part is non-targetable yields no hit (and no fallback —
+    // the frame is authored, just inert for damage).
+    let map = test_map();
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([PartCollider2d {
+                part_id: SHIELD,
+                collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.3)),
+            }]),
+        );
+    }
+    set.insert_part_metadata(
+        SHIELD,
+        PartMetadata {
+            material: MaterialId(5),
+            damage_scale: 1.0,
+            targetable: false,
+            armour: 0.0,
+        },
+    );
+    assert!(
+        hitscan_parts_from_pose(
+            pose_east(Vec2::new(1.5, 1.5)),
+            &map,
+            [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+        )
+        .is_none(),
+        "all-non-targetable frame deals no damage"
+    );
+}
+
+#[test]
+fn part_with_no_metadata_is_targetable_and_damages() {
+    // multi_facing_set registers HEAD with no metadata → targetable by default.
+    let map = test_map();
+    let set = multi_facing_set();
+    let hit = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(hit.part_id, HEAD, "no-metadata part is still hit");
+}
+
+#[test]
+fn flame_skips_non_targetable_parts() {
+    // Flame from the east: shield (non-targetable, in front) is transparent;
+    // the targetable body burns.
+    let map = test_map();
+    let set = gated_set();
+    let strip = FlameStrip::from_pose(pose_west(Vec2::new(5.5, 1.5)), 8.0, 0.1, &map).unwrap();
+    let hit = strip
+        .hits_target(&map, target(&set, Vec2::new(3.5, 1.5), 0.3))
+        .unwrap();
+    assert_eq!(hit.part_id, BODY, "flame skips the shield, burns the body");
+}
+
+#[test]
+fn flame_only_non_targetable_does_not_burn() {
+    let map = test_map();
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([PartCollider2d {
+                part_id: SHIELD,
+                collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.3)),
+            }]),
+        );
+    }
+    set.insert_part_metadata(
+        SHIELD,
+        PartMetadata {
+            material: MaterialId(5),
+            damage_scale: 1.0,
+            targetable: false,
+            armour: 0.0,
+        },
+    );
+    let strip = FlameStrip::from_pose(pose_east(Vec2::new(1.5, 1.5)), 8.0, 0.3, &map).unwrap();
+    assert!(
+        strip
+            .hits_target(&map, target(&set, Vec2::new(3.5, 1.5), 0.3))
+            .is_none(),
+        "non-targetable part produces no flame exposure"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// flat armour routing (Phase 9)
+// ---------------------------------------------------------------------------
+
+const ARMOUR_PART: PartId = PartId(6);
+
+#[test]
+fn routed_damage_rule() {
+    // armour 0 reproduces scaled_damage exactly (current behaviour).
+    assert!(
+        approx(routed_damage(37.0, 2.0, 0.0), 74.0),
+        "headshot, no armour"
+    );
+    assert!(
+        approx(routed_damage(37.0, 1.0, 0.0), 37.0),
+        "neutral, no armour"
+    );
+    assert!(approx(
+        routed_damage(37.0, 2.0, 0.0),
+        scaled_damage(37.0, 2.0)
+    ));
+    // armour subtracts AFTER the scale.
+    assert!(
+        approx(routed_damage(37.0, 1.0, 10.0), 27.0),
+        "body − armour"
+    );
+    assert!(
+        approx(routed_damage(37.0, 2.0, 10.0), 64.0),
+        "(base×2) − armour"
+    );
+    // armour cannot drive damage negative.
+    assert!(approx(routed_damage(10.0, 1.0, 50.0), 0.0), "clamped at 0");
+    // fail-safe: non-finite/negative armour is treated as no armour.
+    assert!(
+        approx(routed_damage(37.0, 1.0, f32::NAN), 37.0),
+        "NaN armour → none"
+    );
+    assert!(
+        approx(routed_damage(37.0, 1.0, -5.0), 37.0),
+        "negative armour → none"
+    );
+    // non-finite scale falls back to base, then armour applies.
+    assert!(
+        approx(routed_damage(37.0, f32::NAN, 7.0), 30.0),
+        "base − armour"
+    );
+}
+
+/// Single targetable body with flat armour 10.
+fn armoured_set() -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([PartCollider2d {
+                part_id: ARMOUR_PART,
+                collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.3)),
+            }]),
+        );
+    }
+    set.insert_part_metadata(
+        ARMOUR_PART,
+        PartMetadata {
+            material: MaterialId(3),
+            damage_scale: 1.0,
+            targetable: true,
+            armour: 10.0,
+        },
+    );
+    set
+}
+
+#[test]
+fn hitscan_returns_part_armour_and_routes() {
+    let map = test_map();
+    let set = armoured_set();
+    let hit = hitscan_parts_from_pose(
+        pose_east(Vec2::new(1.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(hit.part_id, ARMOUR_PART);
+    assert!(approx(hit.armour, 10.0), "armour surfaced on the result");
+    // base 37 × scale 1.0 − armour 10 = 27.
+    assert!(approx(hit.routed_damage(37.0), 27.0), "end-to-end routing");
+}
+
+#[test]
+fn fallback_and_no_metadata_have_zero_armour() {
+    let map = test_map();
+    // Fallback (missing animation) → armour 0.
+    let set = armoured_set();
+    let mut t = target(&set, Vec2::new(2.5, 1.5), 0.3);
+    t.animation = AnimationKey(99);
+    let fb =
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).unwrap();
+    assert_eq!(fb.part_id, PartId::FALLBACK);
+    assert!(approx(fb.armour, 0.0), "fallback has no armour");
+
+    // No-metadata part (multi_facing HEAD) → armour 0.
+    let mf = multi_facing_set();
+    let hit = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&mf, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(hit.part_id, HEAD);
+    assert!(approx(hit.armour, 0.0), "no-metadata part has no armour");
+}
+
+#[test]
+fn sp_and_server_route_identically() {
+    // Both authorities call the same `routed_damage`; identical inputs →
+    // identical output (SP then rounds at its u32 boundary).
+    let base = 37.0;
+    let (scale, armour) = (2.0, 10.0);
+    let sp = routed_damage(base, scale, armour);
+    let server = routed_damage(base, scale, armour);
+    assert!(approx(sp, server));
+    assert!(approx(sp, 64.0));
+}
+
+#[test]
+fn flame_ignores_part_armour() {
+    // Flamethrower (Option A) never routes part metadata — an armoured part
+    // still burns; `FlamePartHit` carries no armour and applies no subtraction.
+    let map = test_map();
+    let set = armoured_set();
+    let strip = FlameStrip::from_pose(pose_east(Vec2::new(1.5, 1.5)), 8.0, 0.3, &map).unwrap();
+    let hit = strip
+        .hits_target(&map, target(&set, Vec2::new(3.5, 1.5), 0.3))
+        .unwrap();
+    assert_eq!(hit.part_id, ARMOUR_PART, "armoured part still burns");
 }

@@ -50,6 +50,23 @@ pub fn nearest_ray_hit_tagged<Id: Copy + Ord>(
     direction: Vec2,
     targets: &[(Collider, Id)],
 ) -> Option<HitResult<Id>> {
+    nearest_ray_hit_tagged_filter(origin, direction, targets, |_| true)
+}
+
+/// [`nearest_ray_hit_tagged`] restricted to targets whose id satisfies
+/// `accept`. Rejected ids are skipped entirely (never tested, never blocking),
+/// so the nearest *accepted* hit wins — the ray passes through filtered-out
+/// parts. Used to route damage only to targetable parts.
+pub fn nearest_ray_hit_tagged_filter<Id, F>(
+    origin: Vec2,
+    direction: Vec2,
+    targets: &[(Collider, Id)],
+    accept: F,
+) -> Option<HitResult<Id>>
+where
+    Id: Copy + Ord,
+    F: Fn(Id) -> bool,
+{
     let direction_n = direction.normalize_or_zero();
     if direction_n == Vec2::ZERO {
         return None;
@@ -58,7 +75,8 @@ pub fn nearest_ray_hit_tagged<Id: Copy + Ord>(
     let mut best: Option<HitResult<Id>> = None;
 
     for (collider, id) in targets {
-        if let Some(h) = ray_dispatch(origin, direction_n, collider)
+        if accept(*id)
+            && let Some(h) = ray_dispatch(origin, direction_n, collider)
             && is_closer_tagged(h.distance, *id, &best)
         {
             best = Some(h.with_id(*id));
@@ -133,10 +151,28 @@ pub fn nearest_swept_circle_hit_tagged<Id: Copy + Ord>(
     sweep_radius: f32,
     targets: &[(Collider, Id)],
 ) -> Option<HitResult<Id>> {
+    nearest_swept_circle_hit_tagged_filter(start, end, sweep_radius, targets, |_| true)
+}
+
+/// [`nearest_swept_circle_hit_tagged`] restricted to targets whose id satisfies
+/// `accept`. Rejected ids are skipped entirely, so the strip passes through
+/// filtered-out parts. Used to route flame exposure only to targetable parts.
+pub fn nearest_swept_circle_hit_tagged_filter<Id, F>(
+    start: Vec2,
+    end: Vec2,
+    sweep_radius: f32,
+    targets: &[(Collider, Id)],
+    accept: F,
+) -> Option<HitResult<Id>>
+where
+    Id: Copy + Ord,
+    F: Fn(Id) -> bool,
+{
     let mut best: Option<HitResult<Id>> = None;
 
     for (collider, id) in targets {
-        if let Some(h) = super::swept_circle_vs_collider(start, end, sweep_radius, collider)
+        if accept(*id)
+            && let Some(h) = super::swept_circle_vs_collider(start, end, sweep_radius, collider)
             && is_closer_tagged(h.distance, *id, &best)
         {
             best = Some(h.with_id(*id));
