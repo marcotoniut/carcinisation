@@ -10,14 +10,14 @@ use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::burning::{self, BurnConfig, BurnState};
 use carcinisation_fps_core::collision_set;
-use carcinisation_fps_core::combat::{
-    FirePose2d, flame_hits_position_configured_from_pose, wall_obstruction_distance_for_pose,
-};
+use carcinisation_fps_core::combat::{FirePose2d, wall_obstruction_distance_for_pose};
 use carcinisation_fps_core::config::FpsCombatConfig;
 use carcinisation_fps_core::enemy::{Enemy, FpsEnemyKind};
 use carcinisation_fps_core::enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME};
 use carcinisation_fps_core::fire_death::corpse_seed;
-use carcinisation_fps_core::hitscan::{PartHitscanTarget, hitscan_parts_from_pose};
+use carcinisation_fps_core::hitscan::{
+    PartHitscanTarget, flame_hits_target_parts_configured, hitscan_parts_from_pose,
+};
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
     DamageEffect, DeathEffect, FlameActive, FlameCharMark, HitConfirm, MuzzleFlash, NetAttackId,
@@ -29,6 +29,11 @@ use std::collections::HashMap;
 use crate::systems::NetEnemy;
 use crate::systems::NetHealth;
 use crate::systems::{NetEnemyState, NetEnemyType};
+
+/// Whole-body fallback radius used when a target has no collision frame.
+/// Matches the legacy `Enemy::new` hitscan radius so behaviour is unchanged
+/// when fixtures are absent.
+const ENEMY_FALLBACK_RADIUS: f32 = 0.3;
 
 /// Map the replicated enemy type to the shared collision fixture kind.
 const fn fps_kind_from_net(enemy_type: NetEnemyType) -> FpsEnemyKind {
@@ -438,7 +443,9 @@ pub fn process_combat(
 
                 let dir = fire_pose.direction();
 
-                // Collect hit entities and apply burn exposure (replaces instant damage).
+                // Collect hit entities and apply burn exposure (replaces instant
+                // damage). Per-part flame overlap using authoritative kind/yaw,
+                // matching the hitscan target setup. Frame is DEFAULT_FRAME=0.
                 for (entity, net_enemy, _, _) in enemies.iter() {
                     if matches!(
                         net_enemy.state,
@@ -446,12 +453,23 @@ pub fn process_combat(
                     ) {
                         continue;
                     }
-                    if flame_hits_position_configured_from_pose(
+                    let target = PartHitscanTarget {
+                        position: net_enemy.position,
+                        yaw: net_enemy.angle,
+                        alive: true,
+                        set: collision_set(fps_kind_from_net(net_enemy.enemy_type)),
+                        animation: DEFAULT_ANIMATION,
+                        frame: DEFAULT_FRAME,
+                        fallback_radius: ENEMY_FALLBACK_RADIUS,
+                    };
+                    if flame_hits_target_parts_configured(
                         fire_pose,
-                        net_enemy.position,
                         &server_map.0,
                         &flame_cfg,
-                    ) {
+                        target,
+                    )
+                    .is_some()
+                    {
                         flame_exposed_entities.push(entity);
                     }
                 }

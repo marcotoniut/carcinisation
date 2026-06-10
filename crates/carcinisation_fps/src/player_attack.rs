@@ -4,8 +4,8 @@ use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carcinisation_fps_core::{
     FirePose2d, FpsEnemyKind, PartHitscanTarget, collision_set,
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
-    facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
-    hitscan_parts_from_pose,
+    facing_yaw_toward, flame_hits_position_configured_from_pose,
+    flame_hits_target_parts_configured, flame_visual_max_distance, hitscan_parts_from_pose,
 };
 
 /// Snap turn state snapshot passed into the presentation layer.
@@ -1456,11 +1456,28 @@ fn apply_flamethrower_damage(
     flame_cfg: &carcinisation_fps_core::PlayerFlamethrowerConfig,
     dt: f32,
 ) {
+    // Per-part flame overlap, sharing the hitscan target setup (kind + facing).
+    // Each enemy faces the local player; in SP the shooter is that player. Frame
+    // is DEFAULT_FRAME=0. `visual_pitch_px` is ignored.
+    let player_pos = fire_pose.origin_xy;
+    let basic_set = collision_set(FpsEnemyKind::Basic);
+    let mosquiton_set = collision_set(FpsEnemyKind::Mosquiton);
+    let spidey_set = collision_set(FpsEnemyKind::Spidey);
+
     for enemy in enemies.iter_mut() {
         if !enemy.is_alive() {
             continue;
         }
-        if flame_hits_position_configured_from_pose(fire_pose, enemy.position, map, flame_cfg) {
+        let target = PartHitscanTarget {
+            position: enemy.position,
+            yaw: facing_yaw_toward(enemy.position, player_pos).unwrap_or(0.0),
+            alive: true,
+            set: basic_set,
+            animation: DEFAULT_ANIMATION,
+            frame: DEFAULT_FRAME,
+            fallback_radius: enemy.radius,
+        };
+        if flame_hits_target_parts_configured(fire_pose, map, flame_cfg, target).is_some() {
             carcinisation_fps_core::apply_exposure(
                 &mut enemy.burn_state,
                 burn_config,
@@ -1474,7 +1491,16 @@ fn apply_flamethrower_damage(
         if !mosquiton.is_alive() {
             continue;
         }
-        if flame_hits_position_configured_from_pose(fire_pose, mosquiton.position, map, flame_cfg) {
+        let target = PartHitscanTarget {
+            position: mosquiton.position,
+            yaw: facing_yaw_toward(mosquiton.position, player_pos).unwrap_or(0.0),
+            alive: true,
+            set: mosquiton_set,
+            animation: DEFAULT_ANIMATION,
+            frame: DEFAULT_FRAME,
+            fallback_radius: mosquiton.config.collision_radius,
+        };
+        if flame_hits_target_parts_configured(fire_pose, map, flame_cfg, target).is_some() {
             carcinisation_fps_core::apply_exposure(
                 &mut mosquiton.burn_state,
                 burn_config,
@@ -1488,7 +1514,16 @@ fn apply_flamethrower_damage(
         if !spidey.is_alive() {
             continue;
         }
-        if flame_hits_position_configured_from_pose(fire_pose, spidey.position, map, flame_cfg) {
+        let target = PartHitscanTarget {
+            position: spidey.position,
+            yaw: facing_yaw_toward(spidey.position, player_pos).unwrap_or(0.0),
+            alive: true,
+            set: spidey_set,
+            animation: DEFAULT_ANIMATION,
+            frame: DEFAULT_FRAME,
+            fallback_radius: spidey.config.sim.collision_radius,
+        };
+        if flame_hits_target_parts_configured(fire_pose, map, flame_cfg, target).is_some() {
             carcinisation_fps_core::apply_exposure(
                 &mut spidey.burn_state,
                 burn_config,

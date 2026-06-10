@@ -30,8 +30,9 @@ use bevy_math::Vec2;
 
 use crate::collision::primitives::HitResult;
 use crate::collision::target::{AnimationKey, MaterialId, PartId};
-use crate::collision::{Circle, TargetCollisionSet, TargetQueryPose2d};
-use crate::combat::{FirePose2d, wall_obstruction_distance_for_pose};
+use crate::collision::{Circle, TargetCollisionSet, TargetQueryPose2d, swept_circle_vs_circle};
+use crate::combat::{FirePose2d, wall_obstruction_distance, wall_obstruction_distance_for_pose};
+use crate::config::PlayerFlamethrowerConfig;
 use crate::map::Map;
 
 /// A single hitscan candidate target.
@@ -141,6 +142,131 @@ fn fallback_circle_hit(
     }
     let circle = Circle::new(center, radius);
     crate::collision::ray_vs_circle(origin, dir, &circle).map(|hit| HitResult {
+        point: hit.point,
+        normal: hit.normal,
+        distance: hit.distance,
+        id: PartId::FALLBACK,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Flamethrower (swept-strip per-part overlap)
+// ---------------------------------------------------------------------------
+
+/// Result of a per-part flamethrower overlap query.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FlamePartHit {
+    /// Nearest overlapping part. [`PartId::FALLBACK`] for the whole-body circle.
+    pub part_id: PartId,
+    /// Material of the hit part, if registered. `None` for fallback hits.
+    pub material: Option<MaterialId>,
+    /// Distance along the flame axis to the contact.
+    pub distance: f32,
+    /// World-space contact point on the part surface.
+    pub point: Vec2,
+}
+
+/// Test whether a flamethrower strip overlaps any of a target's part colliders.
+///
+/// The flame is modelled as a circle of radius `half_width` swept along the
+/// fire axis from the origin out to the wall-capped range — i.e. a capsule of
+/// half-width `half_width`. This shares its stop distance with the flame
+/// visuals (both use [`wall_obstruction_distance_for_pose`]), so damage and
+/// visuals end at the same geometry and neither passes through walls.
+///
+/// Returns the nearest overlapping part (for `PartId` tracking), or `None` if
+/// the strip misses, is fully wall-blocked, or a wall lies between the origin
+/// and the contact point. Damage amount/material are not applied here.
+///
+/// Uses the same [`PartHitscanTarget`] setup and fallback policy as
+/// [`hitscan_parts_from_pose`] — no separate target-selection path.
+#[must_use]
+pub fn flame_hits_target_parts(
+    pose: FirePose2d,
+    range: f32,
+    half_width: f32,
+    map: &Map,
+    target: PartHitscanTarget,
+) -> Option<FlamePartHit> {
+    if !target.alive || range <= 0.0 || half_width < 0.0 {
+        return None;
+    }
+    let origin = pose.origin_xy;
+    let dir = pose.direction();
+    if dir == Vec2::ZERO {
+        return None;
+    }
+
+    // Shared stop distance with the flame visuals: the strip stops at the first
+    // wall (or `range`, whichever is nearer). Zero when the origin is in a wall.
+    let len = wall_obstruction_distance_for_pose(map, pose, range);
+    if len <= 0.0 {
+        return None;
+    }
+    let end = origin + dir * len;
+
+    let target_pose = TargetQueryPose2d::new(target.position, target.yaw);
+    let facing = target_pose.facing_for_attacker(origin);
+
+    let resolved = match target.set.lookup(target.animation, target.frame, facing) {
+        Some(frame) if !frame.is_empty() => frame
+            .nearest_world_swept_hit(target_pose, origin, end, half_width)
+            .map(|hit| (hit, target.set.part_metadata(hit.id).map(|m| m.material))),
+        // Missing/empty frame → fail-open whole-body swept circle (same policy
+        // as the ray fallback).
+        _ => fallback_swept_circle(
+            origin,
+            end,
+            half_width,
+            target.position,
+            target.fallback_radius,
+        )
+        .map(|hit| (hit, None)),
+    };
+    let (hit, material) = resolved?;
+
+    // Per-contact line-of-sight: a wall between the origin and the contact
+    // point blocks the flame. Preserves the legacy `flame_hits_position` LOS
+    // and stops damage leaking past a wall corner beside the flame axis.
+    let to_point = hit.point - origin;
+    let dist = to_point.length();
+    if dist > 0.01 && wall_obstruction_distance(map, origin, to_point / dist, dist) < dist {
+        return None;
+    }
+
+    Some(FlamePartHit {
+        part_id: hit.id,
+        material,
+        distance: hit.distance,
+        point: hit.point,
+    })
+}
+
+/// [`flame_hits_target_parts`] using range/half-width from a
+/// [`PlayerFlamethrowerConfig`].
+#[must_use]
+pub fn flame_hits_target_parts_configured(
+    pose: FirePose2d,
+    map: &Map,
+    cfg: &PlayerFlamethrowerConfig,
+    target: PartHitscanTarget,
+) -> Option<FlamePartHit> {
+    flame_hits_target_parts(pose, cfg.range, cfg.hit_half_width, map, target)
+}
+
+/// Whole-body swept-circle fallback, tagged [`PartId::FALLBACK`].
+fn fallback_swept_circle(
+    start: Vec2,
+    end: Vec2,
+    sweep_radius: f32,
+    center: Vec2,
+    radius: f32,
+) -> Option<HitResult<PartId>> {
+    if radius <= 0.0 {
+        return None;
+    }
+    let circle = Circle::new(center, radius);
+    swept_circle_vs_circle(start, end, sweep_radius, &circle).map(|hit| HitResult {
         point: hit.point,
         normal: hit.normal,
         distance: hit.distance,

@@ -425,3 +425,227 @@ fn equal_distance_targets_break_by_lower_index() {
         hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, targets.into_iter()).unwrap();
     assert_eq!(hit.target_idx, 0, "equal distance → lower index wins");
 }
+
+// ---------------------------------------------------------------------------
+// Flamethrower per-part overlap
+// ---------------------------------------------------------------------------
+
+/// Body at centre + a "wing" part offset laterally (local +Y). Lets a narrow
+/// flame strip intersect the wing while the body centre is outside the strip.
+fn flame_lateral_set() -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([
+                PartCollider2d {
+                    part_id: BODY,
+                    collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.2)),
+                },
+                PartCollider2d {
+                    part_id: LEG,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.0, 0.6), 0.2)),
+                },
+            ]),
+        );
+    }
+    set
+}
+
+#[test]
+fn flame_damages_part_not_centre_only() {
+    // Enemy body centre is 0.5 off the flame axis (outside strip+body reach),
+    // but the laterally-offset wing sits on the axis and is hit.
+    let map = test_map();
+    let set = flame_lateral_set();
+    let target = PartHitscanTarget {
+        position: Vec2::new(3.0, 1.0), // body centre at y=1.0; wing at y=1.6
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    // Flame axis y=1.5: body centre (y=1.0) is 0.5 away (> 0.2+0.15); wing
+    // (y=1.6) is 0.1 away (< 0.35).
+    let hit = flame_hits_target_parts(
+        FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0),
+        5.0,
+        0.15,
+        &map,
+        target,
+    )
+    .expect("wing should be hit even though the centre is outside the strip");
+    assert_eq!(
+        hit.part_id, LEG,
+        "flame hits the offset part, not the centre"
+    );
+}
+
+#[test]
+fn flame_centre_inside_but_wall_before_part_blocks() {
+    // Enemy centre on the flame axis (inside the strip) but behind wall (3,2).
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let target = PartHitscanTarget {
+        position: Vec2::new(5.5, 2.5),
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let hit = flame_hits_target_parts(
+        FirePose2d::new(Vec2::new(1.5, 2.5), 0.0, 0.0),
+        8.0,
+        0.3,
+        &map,
+        target,
+    );
+    assert!(hit.is_none(), "wall before the part blocks flame damage");
+}
+
+#[test]
+fn flame_wall_stops_damage_like_visuals() {
+    // Before the wall → hit; behind the wall → no hit. Damage stop distance
+    // equals the visual stop distance (both use wall obstruction).
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let pose = FirePose2d::new(Vec2::new(1.5, 2.5), 0.0, 0.0);
+
+    let before = PartHitscanTarget {
+        position: Vec2::new(2.5, 2.5),
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let behind = PartHitscanTarget {
+        position: Vec2::new(5.5, 2.5),
+        ..before
+    };
+
+    assert!(
+        flame_hits_target_parts(pose, 8.0, 0.3, &map, before).is_some(),
+        "enemy before wall is burned"
+    );
+    assert!(
+        flame_hits_target_parts(pose, 8.0, 0.3, &map, behind).is_none(),
+        "enemy behind wall is not burned"
+    );
+    // Visual stop distance is the same wall obstruction the damage uses.
+    let visual = crate::combat::flame_visual_max_distance(&map, Vec2::new(1.5, 2.5), Vec2::X, 8.0);
+    assert!(
+        approx(visual, 1.5),
+        "visuals stop at the wall (x=3.0): {visual}"
+    );
+}
+
+#[test]
+fn flame_visual_pitch_ignored() {
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let mk = || PartHitscanTarget {
+        position: Vec2::new(3.0, 1.5),
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let flat = flame_hits_target_parts(
+        FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0),
+        5.0,
+        0.3,
+        &map,
+        mk(),
+    );
+    let pitched = flame_hits_target_parts(
+        FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 9999.0),
+        5.0,
+        0.3,
+        &map,
+        mk(),
+    );
+    assert_eq!(
+        flat, pitched,
+        "visual_pitch_px must not change flame damage"
+    );
+}
+
+#[test]
+fn flame_yaw_changes_selected_part() {
+    // Flame fired from the east at a multi-facing enemy. Facing toward the
+    // attacker exposes the head; facing away leaves only the body.
+    let map = test_map();
+    let set = multi_facing_set();
+    let enemy = Vec2::new(3.0, 1.5);
+    let pose = pose_west(Vec2::new(5.5, 1.5)); // fire -X from the east
+
+    let facing_attacker = PartHitscanTarget {
+        position: enemy,
+        yaw: 0.0, // faces +X (east) = toward the attacker
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let facing_away = PartHitscanTarget {
+        yaw: std::f32::consts::PI, // faces -X (west) = away
+        ..facing_attacker
+    };
+
+    let front = flame_hits_target_parts(pose, 8.0, 0.2, &map, facing_attacker).unwrap();
+    let back = flame_hits_target_parts(pose, 8.0, 0.2, &map, facing_away).unwrap();
+    assert_eq!(front.part_id, HEAD, "facing attacker → head");
+    assert_eq!(back.part_id, BODY, "facing away → body only");
+}
+
+#[test]
+fn flame_fallback_circle_when_frame_missing() {
+    // No frame for the queried animation → whole-body swept-circle fallback.
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let mut t = PartHitscanTarget {
+        position: Vec2::new(3.0, 1.5),
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: AnimationKey(99), // unregistered
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let hit = flame_hits_target_parts(
+        FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0),
+        5.0,
+        0.2,
+        &map,
+        t,
+    )
+    .expect("fallback circle should be hit");
+    assert_eq!(hit.part_id, PartId::FALLBACK);
+
+    // A target well off-axis with zero fallback radius is not hit.
+    t.fallback_radius = 0.0;
+    assert!(
+        flame_hits_target_parts(
+            FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0),
+            5.0,
+            0.2,
+            &map,
+            t
+        )
+        .is_none(),
+        "zero fallback radius → no hit"
+    );
+}

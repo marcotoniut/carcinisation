@@ -264,6 +264,43 @@ impl TargetCollisionFrame {
             id: hit.id,
         })
     }
+
+    /// Nearest swept-circle hit for a target placed at `target` in world space.
+    ///
+    /// A circle of `sweep_radius` is swept along the world segment
+    /// `world_start`–`world_end` (e.g. a flamethrower strip of half-width
+    /// `sweep_radius`). The segment is transformed into the target-local frame,
+    /// queried against the part colliders, and the resulting hit point/normal
+    /// transformed back to world space. Distance is along the swept centre path
+    /// and is comparable across targets.
+    #[must_use]
+    pub fn nearest_world_swept_hit(
+        &self,
+        target: TargetQueryPose2d,
+        world_start: Vec2,
+        world_end: Vec2,
+        sweep_radius: f32,
+    ) -> Option<HitResult<PartId>> {
+        let (sin, cos) = target.yaw.sin_cos();
+        let rot_in = |v: Vec2| Vec2::new(v.x * cos + v.y * sin, v.y * cos - v.x * sin);
+        let rot_out = |v: Vec2| Vec2::new(v.x * cos - v.y * sin, v.x * sin + v.y * cos);
+
+        let local_start = rot_in(world_start - target.position);
+        let local_end = rot_in(world_end - target.position);
+
+        let hit = nearest::nearest_swept_circle_hit_tagged(
+            local_start,
+            local_end,
+            sweep_radius,
+            &self.tagged,
+        )?;
+        Some(HitResult {
+            point: target.position + rot_out(hit.point),
+            normal: rot_out(hit.normal),
+            distance: hit.distance,
+            id: hit.id,
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------

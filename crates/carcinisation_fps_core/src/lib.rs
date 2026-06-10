@@ -70,7 +70,10 @@ pub use ground_fire::{
     GroundFire, GroundFireConfig, GroundFireContactResult, GroundFireContactState,
     ground_fire_contact_damage, ground_fire_flame_layout, tick_ground_fires, try_spawn_ground_fire,
 };
-pub use hitscan::{PartHitscanResult, PartHitscanTarget, hitscan_parts_from_pose};
+pub use hitscan::{
+    FlamePartHit, PartHitscanResult, PartHitscanTarget, flame_hits_target_parts,
+    flame_hits_target_parts_configured, hitscan_parts_from_pose,
+};
 pub use map::{
     EntitySpawnData, EntitySpawnKind, Map, MapError, MapLoadData, PlayerStartData, test_map,
 };

@@ -118,6 +118,35 @@ pub fn nearest_segment_hit_tagged<Id: Copy + Ord>(
 }
 
 // ---------------------------------------------------------------------------
+// Swept circle
+// ---------------------------------------------------------------------------
+
+/// Find the nearest swept-circle hit with caller-supplied identifiers.
+///
+/// A circle of `sweep_radius` is swept from `start` to `end`; the nearest
+/// contact across `targets` is returned. Equal-distance ties break by smaller
+/// `Id`.
+#[must_use]
+pub fn nearest_swept_circle_hit_tagged<Id: Copy + Ord>(
+    start: Vec2,
+    end: Vec2,
+    sweep_radius: f32,
+    targets: &[(Collider, Id)],
+) -> Option<HitResult<Id>> {
+    let mut best: Option<HitResult<Id>> = None;
+
+    for (collider, id) in targets {
+        if let Some(h) = super::swept_circle_vs_collider(start, end, sweep_radius, collider)
+            && is_closer_tagged(h.distance, *id, &best)
+        {
+            best = Some(h.with_id(*id));
+        }
+    }
+
+    best
+}
+
+// ---------------------------------------------------------------------------
 // Dispatch helpers
 // ---------------------------------------------------------------------------
 

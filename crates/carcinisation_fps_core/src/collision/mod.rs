@@ -40,6 +40,7 @@ pub use swept::{swept_circle_vs_capsule, swept_circle_vs_circle, swept_circle_vs
 // --- Nearest-hit queries ---
 pub use nearest::{
     nearest_ray_hit, nearest_ray_hit_tagged, nearest_segment_hit, nearest_segment_hit_tagged,
+    nearest_swept_circle_hit_tagged,
 };
 
 // --- Target collision metadata ---
