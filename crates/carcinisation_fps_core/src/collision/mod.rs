@@ -46,7 +46,8 @@ pub use nearest::{
 // --- Target collision metadata ---
 pub use target::{
     AnimationKey, BillboardFacing8, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
-    PartMetadata, TargetCollisionFrame, TargetCollisionSet, TargetQueryPose2d,
+    PartIdRegistry, PartIdRegistryError, PartMetadata, PartRuntimeState, TargetCollisionFrame,
+    TargetCollisionSet, TargetQueryPose2d,
 };
 
 // --- Convenience dispatch ---

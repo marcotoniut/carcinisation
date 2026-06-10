@@ -23,16 +23,31 @@ use super::primitives::{Collider, HitResult};
 /// Opaque part identifier assigned by the authoring pipeline.
 ///
 /// Numerically ordered for deterministic tie-breaking in nearest-hit queries.
+///
+/// This compact `u16` is the **hot-path and wire-safe** identity used by every
+/// collision/damage query. Source assets (e.g. ORS compositions) identify parts
+/// by `String` name; those names are mapped to `PartId` once, up front, via an
+/// authored [`PartIdRegistry`] — never compared on the hot path or sent over the
+/// network. See [`PartIdRegistry`] for the stability contract.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PartId(pub u16);
 
 impl PartId {
     /// Sentinel part id used when a target has no authored collision frame and
-    /// the query falls back to a single whole-body circle.
+    /// the query falls back to a single whole-body circle. Reserved: a
+    /// [`PartIdRegistry`] rejects any attempt to map a name to this value.
     pub const FALLBACK: Self = Self(u16::MAX);
 }
 
-/// Opaque material identifier for future damage routing.
+/// Opaque material identifier.
+///
+/// **Reserved / frozen (Phase 6 conclusion).** `MaterialId` is an FPS-local
+/// concept with **no ORS source** — ORS has no material/reaction system (it
+/// routes via part `tags` + `health_pool`). It is carried through
+/// `PartMetadata`/`PartHitscanResult`/`FlamePartHit` as a placeholder but has
+/// **no consumer yet**: do not expand it (no material tables, no reactions)
+/// until an FPS-local material/reaction system actually reads it. It is
+/// intentionally not produced by any future ORS importer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MaterialId(pub u16);
 
@@ -48,35 +63,63 @@ pub struct AnimationKey(pub u16);
 // 8-direction facing
 // ---------------------------------------------------------------------------
 
-/// 8-direction billboard facing for collision selection.
+/// Geometric 8-direction facing octant of an attacker relative to a target,
+/// used to select per-facing collision frames.
 ///
-/// Uses the same relative-angle bucket order as the directional billboard
-/// renderer. `Front` means the observer is in the direction the target faces
-/// (i.e. the observer sees the target's front).
+/// # Semantics: geometric, not renderer asset keys
+///
+/// Each variant names the side of the target the attacker is on (and
+/// therefore sees): `Front` means the attacker is in the direction the target
+/// faces. In this engine's map space, "right" is **clockwise** from forward
+/// (`Camera::plane`: facing east, right is south), so a **positive** relative
+/// angle (counter-clockwise; `+Y` for a `+X`-facing target) is the target's
+/// **left** side:
+///
+/// | relative angle | facing       |
+/// |---------------:|--------------|
+/// |   0°           | `Front`      |
+/// |  +45°          | `FrontLeft`  |
+/// |  +90°          | `Left`       |
+/// | +135°          | `BackLeft`   |
+/// |  180°          | `Back`       |
+/// | +225°          | `BackRight`  |
+/// | +270°          | `Right`      |
+/// | +315°          | `FrontRight` |
+///
+/// Bucket boundaries and indices match the directional billboard renderer's
+/// quantization exactly (same sector math, same index per angle). Only the
+/// **names** differ for mirrored buckets: the renderer labels buckets by
+/// *sprite-asset key*, where left/right side assets are derived via `flip_x`
+/// (e.g. the renderer's +45° bucket is keyed `FrontRight`, this enum's
+/// geometric `FrontLeft`). Never match the two by name — convert by bucket
+/// index via `sprite_direction_for_facing` in `carcinisation_fps`, or reflect
+/// with [`Self::mirrored`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum BillboardFacing8 {
     Front = 0,
-    FrontRight = 1,
-    Right = 2,
+    FrontLeft = 1,
+    Left = 2,
     BackLeft = 3,
     Back = 4,
     BackRight = 5,
-    Left = 6,
-    FrontLeft = 7,
+    Right = 6,
+    FrontRight = 7,
 }
 
 impl BillboardFacing8 {
-    /// All eight facings in renderer quantization order starting from `Front`.
+    /// All eight facings in quantization-bucket order starting from `Front`
+    /// (relative angle increasing counter-clockwise, i.e. toward the target's
+    /// left).
     pub const ALL: [Self; 8] = [
         Self::Front,
-        Self::FrontRight,
-        Self::Right,
+        Self::FrontLeft,
+        Self::Left,
         Self::BackLeft,
         Self::Back,
         Self::BackRight,
-        Self::Left,
-        Self::FrontLeft,
+        Self::Right,
+        Self::FrontRight,
     ];
 
     /// Number of facing directions.
@@ -87,9 +130,10 @@ impl BillboardFacing8 {
 
     /// Quantize a relative viewing angle into one of 8 facing buckets.
     ///
-    /// `angle` is in radians from the target's forward direction, using the
-    /// same convention as the directional billboard renderer: positive angles
-    /// select right-side rendered facings. Values outside `[0, τ)` are wrapped.
+    /// `angle` is in radians counter-clockwise from the target's forward
+    /// direction; positive angles are toward the target's **left** (see the
+    /// type-level table). Bucket boundaries match the directional billboard
+    /// renderer's `quantize_direction`. Values outside `[0, τ)` are wrapped.
     #[must_use]
     pub fn from_relative_angle(angle: f32) -> Self {
         let half = Self::SECTOR * 0.5;
@@ -120,6 +164,26 @@ impl BillboardFacing8 {
     #[must_use]
     pub const fn index(self) -> usize {
         self as usize
+    }
+
+    /// The left/right mirrored facing — reflection across the target's
+    /// forward axis: `FrontLeft` ↔ `FrontRight`, `Left` ↔ `Right`,
+    /// `BackLeft` ↔ `BackRight`; `Front` and `Back` map to themselves.
+    ///
+    /// Useful when collision geometry for one side is derived from the other
+    /// (the collision analogue of the renderer's `flip_x` sprite mirroring).
+    #[must_use]
+    pub const fn mirrored(self) -> Self {
+        match self {
+            Self::Front => Self::Front,
+            Self::FrontLeft => Self::FrontRight,
+            Self::Left => Self::Right,
+            Self::BackLeft => Self::BackRight,
+            Self::Back => Self::Back,
+            Self::BackRight => Self::BackLeft,
+            Self::Right => Self::Left,
+            Self::FrontRight => Self::FrontLeft,
+        }
     }
 }
 
@@ -165,14 +229,80 @@ pub struct PartCollider2d {
 // Part metadata (gameplay, separate from geometry)
 // ---------------------------------------------------------------------------
 
-/// Gameplay metadata for a collision part.
+/// Static authored gameplay metadata for a collision part.
 ///
 /// Kept separate from [`PartCollider2d`] so the collision kernel does not
 /// depend on damage routing rules.
+///
+/// # Static only — no runtime state here
+///
+/// This is **immutable authored data**, stored once in a shared
+/// [`TargetCollisionSet`] (typically `&'static`). Per-instance, mutable runtime
+/// state — current durability, broken/disabled flags, exposed weak points —
+/// must **not** live here; it belongs in [`PartRuntimeState`], keyed per
+/// `(entity, PartId)` and owned server-authoritatively (mirroring the ORS split
+/// of `CachedPartGameplay` vs `PartGameplayState`). When ORS-authored fields
+/// (`targetable`, `armour`, `durability_max`, `breakable`, `health_pool`) are
+/// adopted, the *static* ones extend this struct; the *mutable* ones do not.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PartMetadata {
+    /// Reserved FPS-local material id — see [`MaterialId`] (no ORS source yet).
     pub material: MaterialId,
+    /// Per-part damage multiplier applied via `scaled_damage`.
     pub damage_scale: f32,
+}
+
+// ---------------------------------------------------------------------------
+// Runtime per-part state (placeholder — NOT wired into gameplay)
+// ---------------------------------------------------------------------------
+
+/// Mutable per-part runtime state for a live target instance.
+///
+/// **Placeholder for the static/runtime boundary (Phase 7); not wired into any
+/// gameplay system yet.** It documents where future per-part mutable state will
+/// live so it never leaks into the static [`PartMetadata`] / [`TargetCollisionSet`].
+///
+/// # Ownership contract (when adopted)
+///
+/// - **Server-authoritative.** The server owns the truth; clients never mutate it.
+/// - **Keyed per `(entity, PartId)`** — e.g. a Bevy component holding a
+///   `HashMap<PartId, PartRuntimeState>` per enemy entity (the ORS analogue is
+///   `ComposedPartStates`).
+/// - **Replicate only what visuals need** (e.g. a coarse `broken` flag), never
+///   the full durability bookkeeping.
+/// - Single-player owns its own copy locally (it is its own authority).
+///
+/// Defaults are safe and inert: full durability unknown (`None`), not broken,
+/// collision enabled — i.e. behaves exactly like today's stateless parts.
+/// `Default` is hand-written (not derived) because the derived `bool` default
+/// would leave `collision_enabled = false`, which would disable the part.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PartRuntimeState {
+    /// Remaining durability, or `None` when the part has no durability pool.
+    pub current_durability: Option<u32>,
+    /// Whether the part has broken off (becomes non-targetable when adopted).
+    pub broken: bool,
+    /// Whether this part currently participates in collision queries.
+    pub collision_enabled: bool,
+}
+
+impl PartRuntimeState {
+    /// Inert default: no durability tracking, not broken, collision enabled —
+    /// equivalent to the current stateless behaviour.
+    #[must_use]
+    pub const fn fresh() -> Self {
+        Self {
+            current_durability: None,
+            broken: false,
+            collision_enabled: true,
+        }
+    }
+}
+
+impl Default for PartRuntimeState {
+    fn default() -> Self {
+        Self::fresh()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -319,6 +449,11 @@ pub struct CollisionFrameKey {
 ///
 /// Indexed by ([`AnimationKey`], frame index, [`BillboardFacing8`]).
 /// Part metadata is stored separately and looked up by [`PartId`].
+///
+/// **Static authored data only.** This set is built once and shared (typically
+/// `&'static`); it holds geometry + [`PartMetadata`]. Mutable per-instance
+/// runtime state lives in [`PartRuntimeState`] keyed per `(entity, PartId)`,
+/// never here.
 #[derive(Clone, Debug, Default)]
 pub struct TargetCollisionSet {
     frames: HashMap<CollisionFrameKey, TargetCollisionFrame>,
@@ -376,6 +511,116 @@ impl TargetCollisionSet {
 }
 
 // ---------------------------------------------------------------------------
+// Part id registry (source name <-> compact PartId)
+// ---------------------------------------------------------------------------
+
+/// Error returned when building a [`PartIdRegistry`] from an invalid table.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum PartIdRegistryError {
+    /// Two entries share the same source name.
+    #[error("duplicate part name in registry table: {0:?}")]
+    DuplicateName(String),
+    /// Two entries share the same [`PartId`].
+    #[error("duplicate part id in registry table: {0:?}")]
+    DuplicateId(PartId),
+    /// A table entry uses the reserved [`PartId::FALLBACK`] sentinel.
+    #[error("registry table uses the reserved PartId::FALLBACK sentinel")]
+    ReservedId,
+}
+
+/// Bidirectional map between source part names (e.g. ORS `String` ids) and the
+/// compact [`PartId`] used on hot paths.
+///
+/// Names are stored **owned**, so the registry accepts runtime/asset-loaded
+/// strings (an ORS importer hands over `String` part ids directly) as well as
+/// compile-time tables. Both lookup directions are off the hot path — gameplay
+/// carries `PartId` only.
+///
+/// # Contract
+///
+/// - Built from an **explicit authored table** of `(name, PartId)` pairs — not
+///   from hashing and not from insertion order — so ids stay **stable across
+///   builds, renames, and reorders**. This is the wire/save-safe identity.
+/// - The mapping is 1:1: duplicate names or ids are rejected at build time, as
+///   is the reserved [`PartId::FALLBACK`] sentinel.
+/// - Name → id is the import-time direction; the reverse (`name_of`) is for
+///   debugging/logging only. Neither is required on the hot path — gameplay
+///   uses `PartId` directly.
+#[derive(Clone, Debug, Default)]
+pub struct PartIdRegistry {
+    by_name: HashMap<String, PartId>,
+    by_id: HashMap<PartId, String>,
+}
+
+impl PartIdRegistry {
+    /// Build a registry from `(name, id)` entries with any string-like name
+    /// (`&str`, `String`, …) — the form an asset-loaded ORS import produces.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PartIdRegistryError`] if any name or id repeats, or if any
+    /// entry uses the reserved [`PartId::FALLBACK`].
+    pub fn from_entries<I, S>(entries: I) -> Result<Self, PartIdRegistryError>
+    where
+        I: IntoIterator<Item = (S, PartId)>,
+        S: Into<String>,
+    {
+        let mut by_name: HashMap<String, PartId> = HashMap::new();
+        let mut by_id: HashMap<PartId, String> = HashMap::new();
+        for (name, id) in entries {
+            let name = name.into();
+            if id == PartId::FALLBACK {
+                return Err(PartIdRegistryError::ReservedId);
+            }
+            if by_name.contains_key(&name) {
+                return Err(PartIdRegistryError::DuplicateName(name));
+            }
+            if by_id.contains_key(&id) {
+                return Err(PartIdRegistryError::DuplicateId(id));
+            }
+            by_id.insert(id, name.clone());
+            by_name.insert(name, id);
+        }
+        Ok(Self { by_name, by_id })
+    }
+
+    /// Build a registry from an authored static `(name, id)` table.
+    /// Convenience wrapper over [`Self::from_entries`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PartIdRegistryError`] if any name or id repeats, or if any
+    /// entry uses the reserved [`PartId::FALLBACK`].
+    pub fn from_table(entries: &[(&str, PartId)]) -> Result<Self, PartIdRegistryError> {
+        Self::from_entries(entries.iter().map(|&(name, id)| (name, id)))
+    }
+
+    /// Map a source part name to its [`PartId`], or `None` if unregistered.
+    #[must_use]
+    pub fn id_of(&self, name: &str) -> Option<PartId> {
+        self.by_name.get(name).copied()
+    }
+
+    /// Reverse lookup: the source name for a [`PartId`] (debug/logging only).
+    #[must_use]
+    pub fn name_of(&self, id: PartId) -> Option<&str> {
+        self.by_id.get(&id).map(String::as_str)
+    }
+
+    /// Number of registered parts.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.by_name.len()
+    }
+
+    /// Whether the registry has no entries.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.by_name.is_empty()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -396,17 +641,18 @@ mod tests {
 
     #[test]
     fn facing_sector_centres_are_deterministic() {
-        // Matches directional_billboard::standard_8_directions:
-        // 0=front, +45=frontright, +90=right, ..., +315=frontleft.
+        // Geometric octants: positive relative angle (CCW) is the target's
+        // LEFT side. Bucket indices (not names) match the renderer's
+        // quantize_direction — see the parity test in directional_billboard.
         let expected = [
             (0.0, BillboardFacing8::Front),
-            (FRAC_PI_4, BillboardFacing8::FrontRight),
-            (FRAC_PI_2, BillboardFacing8::Right),
+            (FRAC_PI_4, BillboardFacing8::FrontLeft),
+            (FRAC_PI_2, BillboardFacing8::Left),
             (FRAC_PI_2 + FRAC_PI_4, BillboardFacing8::BackLeft),
             (PI, BillboardFacing8::Back),
             (PI + FRAC_PI_4, BillboardFacing8::BackRight),
-            (PI + FRAC_PI_2, BillboardFacing8::Left),
-            (PI + FRAC_PI_2 + FRAC_PI_4, BillboardFacing8::FrontLeft),
+            (PI + FRAC_PI_2, BillboardFacing8::Right),
+            (PI + FRAC_PI_2 + FRAC_PI_4, BillboardFacing8::FrontRight),
         ];
         for (angle, want) in &expected {
             let got = BillboardFacing8::from_relative_angle(*angle);
@@ -426,8 +672,8 @@ mod tests {
         );
         assert_eq!(
             BillboardFacing8::from_relative_angle(PI / 8.0),
-            BillboardFacing8::FrontRight,
-            "exact +22.5 degree boundary rounds to FrontRight"
+            BillboardFacing8::FrontLeft,
+            "exact +22.5 degree boundary rounds to FrontLeft (CCW = target's left)"
         );
         assert_eq!(
             BillboardFacing8::from_relative_angle(-PI / 8.0),
@@ -436,8 +682,8 @@ mod tests {
         );
         assert_eq!(
             BillboardFacing8::from_relative_angle(-PI / 8.0 - 0.001),
-            BillboardFacing8::FrontLeft,
-            "just past -22.5 degrees rounds to FrontLeft"
+            BillboardFacing8::FrontRight,
+            "just past -22.5 degrees rounds to FrontRight (CW = target's right)"
         );
     }
 
@@ -445,11 +691,11 @@ mod tests {
     fn facing_wraps_negative_angles() {
         assert_eq!(
             BillboardFacing8::from_relative_angle(-FRAC_PI_4),
-            BillboardFacing8::FrontLeft
+            BillboardFacing8::FrontRight
         );
         assert_eq!(
             BillboardFacing8::from_relative_angle(-FRAC_PI_2),
-            BillboardFacing8::Left
+            BillboardFacing8::Right
         );
     }
 
@@ -457,8 +703,52 @@ mod tests {
     fn facing_wraps_large_angles() {
         assert_eq!(
             BillboardFacing8::from_relative_angle(TAU + FRAC_PI_4),
-            BillboardFacing8::FrontRight
+            BillboardFacing8::FrontLeft
         );
+    }
+
+    #[test]
+    fn back_diagonals_are_geometric_not_mirrored_asset_keys() {
+        // The renderer's asset list also names its +135°/+225° buckets
+        // BackLeft/BackRight, so these two are easy to silently mirror when
+        // cross-referencing — pin the geometry explicitly.
+        //
+        // +135°: attacker is behind and to the target's LEFT (CCW = left).
+        assert_eq!(
+            BillboardFacing8::from_relative_angle(3.0 * FRAC_PI_4),
+            BillboardFacing8::BackLeft,
+            "+135 degrees is the back-left octant"
+        );
+        // +225°: attacker is behind and to the target's RIGHT.
+        assert_eq!(
+            BillboardFacing8::from_relative_angle(5.0 * FRAC_PI_4),
+            BillboardFacing8::BackRight,
+            "+225 degrees is the back-right octant"
+        );
+
+        // Positional double-check: target at origin facing east (+X). Its
+        // left is north (+Y), its right is south (-Y).
+        let nw = BillboardFacing8::from_positions(Vec2::ZERO, 0.0, Vec2::new(-5.0, 5.0));
+        assert_eq!(nw, BillboardFacing8::BackLeft, "attacker NW of east-facer");
+        let sw = BillboardFacing8::from_positions(Vec2::ZERO, 0.0, Vec2::new(-5.0, -5.0));
+        assert_eq!(sw, BillboardFacing8::BackRight, "attacker SW of east-facer");
+    }
+
+    #[test]
+    fn mirrored_reflects_across_forward_axis() {
+        use BillboardFacing8 as F;
+        let pairs = [
+            (F::Front, F::Front),
+            (F::FrontLeft, F::FrontRight),
+            (F::Left, F::Right),
+            (F::BackLeft, F::BackRight),
+            (F::Back, F::Back),
+        ];
+        for (a, b) in pairs {
+            assert_eq!(a.mirrored(), b);
+            assert_eq!(b.mirrored(), a);
+            assert_eq!(a.mirrored().mirrored(), a, "mirror is an involution");
+        }
     }
 
     #[test]
@@ -476,17 +766,18 @@ mod tests {
     }
 
     #[test]
-    fn facing_from_positions_right_matches_renderer() {
-        // Renderer convention: target faces east, attacker north → Right.
+    fn facing_from_positions_north_is_targets_left() {
+        // Target faces east (+X); its left is north (+Y) — map convention:
+        // right is clockwise from forward (facing east, right is south).
         let facing = BillboardFacing8::from_positions(Vec2::ZERO, 0.0, Vec2::new(0.0, 5.0));
-        assert_eq!(facing, BillboardFacing8::Right);
+        assert_eq!(facing, BillboardFacing8::Left);
     }
 
     #[test]
-    fn facing_from_positions_left_matches_renderer() {
-        // Renderer convention: target faces east, attacker south → Left.
+    fn facing_from_positions_south_is_targets_right() {
+        // Target faces east (+X); its right is south (-Y).
         let facing = BillboardFacing8::from_positions(Vec2::ZERO, 0.0, Vec2::new(0.0, -5.0));
-        assert_eq!(facing, BillboardFacing8::Left);
+        assert_eq!(facing, BillboardFacing8::Right);
     }
 
     #[test]
@@ -495,31 +786,31 @@ mod tests {
         let facing = BillboardFacing8::from_positions(Vec2::ZERO, FRAC_PI_2, Vec2::new(0.0, 5.0));
         assert_eq!(facing, BillboardFacing8::Front);
 
-        // Same target yaw, attacker west is the rendered right-side facing.
+        // Same target yaw: west is 90° CCW of north → the target's left.
         let facing = BillboardFacing8::from_positions(Vec2::ZERO, FRAC_PI_2, Vec2::new(-5.0, 0.0));
-        assert_eq!(facing, BillboardFacing8::Right);
-
-        // Same target yaw, attacker east is the rendered left-side facing.
-        let facing = BillboardFacing8::from_positions(Vec2::ZERO, FRAC_PI_2, Vec2::new(5.0, 0.0));
         assert_eq!(facing, BillboardFacing8::Left);
+
+        // Same target yaw: east is 90° CW of north → the target's right.
+        let facing = BillboardFacing8::from_positions(Vec2::ZERO, FRAC_PI_2, Vec2::new(5.0, 0.0));
+        assert_eq!(facing, BillboardFacing8::Right);
     }
 
     #[test]
     fn same_enemy_different_facings_for_two_attackers() {
         let pose = TargetQueryPose2d::new(Vec2::new(5.0, 5.0), 0.0);
         let attacker_a = Vec2::new(8.0, 5.0); // east → Front
-        let attacker_b = Vec2::new(5.0, 8.0); // north → Right
+        let attacker_b = Vec2::new(5.0, 8.0); // north → target's left
 
         let facing_a = pose.facing_for_attacker(attacker_a);
         let facing_b = pose.facing_for_attacker(attacker_b);
 
         assert_eq!(facing_a, BillboardFacing8::Front);
-        assert_eq!(facing_b, BillboardFacing8::Right);
+        assert_eq!(facing_b, BillboardFacing8::Left);
         assert_ne!(facing_a, facing_b);
     }
 
     #[test]
-    fn query_pose_uses_target_yaw_for_renderer_facing() {
+    fn query_pose_uses_target_yaw_for_facing() {
         let pose = TargetQueryPose2d::new(Vec2::ZERO, FRAC_PI_2);
         assert_eq!(
             pose.facing_for_attacker(Vec2::new(0.0, 5.0)),
@@ -527,7 +818,7 @@ mod tests {
         );
         assert_eq!(
             pose.facing_for_attacker(Vec2::new(-5.0, 0.0)),
-            BillboardFacing8::Right
+            BillboardFacing8::Left
         );
     }
 
@@ -730,5 +1021,100 @@ mod tests {
         let _ = pose.position;
         let _ = pose.yaw;
         // No pitch field exists — compile-time guarantee.
+    }
+}
+
+#[cfg(test)]
+mod phase7_tests {
+    use super::*;
+
+    const HEAD: PartId = PartId(2);
+    const BODY: PartId = PartId(1);
+
+    fn table() -> [(&'static str, PartId); 2] {
+        [("body", BODY), ("head", HEAD)]
+    }
+
+    #[test]
+    fn registry_maps_known_names_deterministically() {
+        let reg = PartIdRegistry::from_table(&table()).unwrap();
+        assert_eq!(reg.id_of("body"), Some(BODY));
+        assert_eq!(reg.id_of("head"), Some(HEAD));
+        assert_eq!(reg.len(), 2);
+        // Order of the authored table must not change the mapping.
+        let reg2 = PartIdRegistry::from_table(&[("head", HEAD), ("body", BODY)]).unwrap();
+        assert_eq!(reg2.id_of("head"), reg.id_of("head"));
+        assert_eq!(reg2.id_of("body"), reg.id_of("body"));
+    }
+
+    #[test]
+    fn registry_unknown_name_is_none() {
+        let reg = PartIdRegistry::from_table(&table()).unwrap();
+        assert_eq!(reg.id_of("tail"), None);
+    }
+
+    #[test]
+    fn registry_reverse_name_lookup() {
+        let reg = PartIdRegistry::from_table(&table()).unwrap();
+        assert_eq!(reg.name_of(HEAD), Some("head"));
+        assert_eq!(reg.name_of(BODY), Some("body"));
+        assert_eq!(reg.name_of(PartId(99)), None);
+    }
+
+    #[test]
+    fn registry_rejects_duplicate_name() {
+        let err = PartIdRegistry::from_table(&[("body", BODY), ("body", PartId(3))]).unwrap_err();
+        assert_eq!(err, PartIdRegistryError::DuplicateName("body".to_owned()));
+    }
+
+    #[test]
+    fn registry_accepts_runtime_owned_names() {
+        // The shape an asset-loaded ORS import produces: owned Strings built
+        // at runtime, not 'static literals.
+        let entries: Vec<(String, PartId)> =
+            (1..=3).map(|i| (format!("part_{i}"), PartId(i))).collect();
+        let reg = PartIdRegistry::from_entries(entries).unwrap();
+        assert_eq!(reg.id_of("part_2"), Some(PartId(2)));
+        assert_eq!(reg.name_of(PartId(3)), Some("part_3"));
+        assert_eq!(reg.len(), 3);
+    }
+
+    #[test]
+    fn registry_duplicate_runtime_name_is_rejected() {
+        let dup = String::from("he") + "ad";
+        let err = PartIdRegistry::from_entries([("head".to_owned(), HEAD), (dup, PartId(9))])
+            .unwrap_err();
+        assert_eq!(err, PartIdRegistryError::DuplicateName("head".to_owned()));
+    }
+
+    #[test]
+    fn registry_rejects_duplicate_id() {
+        let err = PartIdRegistry::from_table(&[("body", BODY), ("torso", BODY)]).unwrap_err();
+        assert_eq!(err, PartIdRegistryError::DuplicateId(BODY));
+    }
+
+    #[test]
+    fn registry_rejects_reserved_fallback_id() {
+        let err = PartIdRegistry::from_table(&[("whole", PartId::FALLBACK)]).unwrap_err();
+        assert_eq!(err, PartIdRegistryError::ReservedId);
+    }
+
+    #[test]
+    fn empty_registry_is_empty() {
+        let reg = PartIdRegistry::from_table(&[]).unwrap();
+        assert!(reg.is_empty());
+        assert_eq!(reg.id_of("anything"), None);
+    }
+
+    #[test]
+    fn part_runtime_state_default_is_safe_and_inert() {
+        let s = PartRuntimeState::default();
+        assert_eq!(s, PartRuntimeState::fresh());
+        assert_eq!(s.current_durability, None);
+        assert!(!s.broken);
+        assert!(
+            s.collision_enabled,
+            "default must keep collision enabled (not the derived bool false)"
+        );
     }
 }

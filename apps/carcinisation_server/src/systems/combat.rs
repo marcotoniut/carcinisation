@@ -18,7 +18,7 @@ use carcinisation_fps_core::enemy_collision::{
 };
 use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::hitscan::{
-    PartHitscanTarget, flame_hits_target_parts_configured, hitscan_parts_from_pose, scaled_damage,
+    FlameStrip, PartHitscanTarget, hitscan_parts_from_pose, scaled_damage,
 };
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
@@ -448,32 +448,28 @@ pub fn process_combat(
                 // Collect hit entities and apply burn exposure (replaces instant
                 // damage). Per-part flame overlap using authoritative kind/yaw,
                 // matching the hitscan target setup. Frame is DEFAULT_FRAME=0.
-                for (entity, net_enemy, _, _) in enemies.iter() {
-                    if matches!(
-                        net_enemy.state,
-                        NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
-                    ) {
-                        continue;
-                    }
-                    let kind = fps_kind_from_net(net_enemy.enemy_type);
-                    let target = PartHitscanTarget {
-                        position: net_enemy.position,
-                        yaw: net_enemy.angle,
-                        alive: true,
-                        set: collision_set(kind),
-                        animation: DEFAULT_ANIMATION,
-                        frame: DEFAULT_FRAME,
-                        fallback_radius: enemy_fallback_radius(kind, &combat_config),
-                    };
-                    if flame_hits_target_parts_configured(
-                        fire_pose,
-                        &server_map.0,
-                        &flame_cfg,
-                        target,
-                    )
-                    .is_some()
-                    {
-                        flame_exposed_entities.push(entity);
+                // The wall-capped strip is computed once and reused per target.
+                if let Some(strip) = FlameStrip::from_config(fire_pose, &server_map.0, &flame_cfg) {
+                    for (entity, net_enemy, _, _) in enemies.iter() {
+                        if matches!(
+                            net_enemy.state,
+                            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+                        ) {
+                            continue;
+                        }
+                        let kind = fps_kind_from_net(net_enemy.enemy_type);
+                        let target = PartHitscanTarget {
+                            position: net_enemy.position,
+                            yaw: net_enemy.angle,
+                            alive: true,
+                            set: collision_set(kind),
+                            animation: DEFAULT_ANIMATION,
+                            frame: DEFAULT_FRAME,
+                            fallback_radius: enemy_fallback_radius(kind, &combat_config),
+                        };
+                        if strip.hits_target(&server_map.0, target).is_some() {
+                            flame_exposed_entities.push(entity);
+                        }
                     }
                 }
 

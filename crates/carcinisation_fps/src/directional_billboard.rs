@@ -245,6 +245,25 @@ const fn apply_frame_order(idx: usize, frame_count: usize, order: FrameOrder) ->
     }
 }
 
+/// Sprite-asset key per quantization bucket (bucket index = relative viewing
+/// angle quantized into 45° CCW sectors from front).
+///
+/// These are **asset keys**, not geometric octants: several buckets display a
+/// horizontally mirrored (`flip_x`) asset whose name is the opposite side.
+/// The collision system's `BillboardFacing8` names the *geometric* octant for
+/// the same bucket index — convert between the two with
+/// [`sprite_direction_for_facing`], never by matching variant names.
+const QUANTIZED_SPRITE_DIRECTIONS: [SpriteDirection; 8] = [
+    SpriteDirection::Front,
+    SpriteDirection::FrontRight,
+    SpriteDirection::Right,
+    SpriteDirection::BackLeft,
+    SpriteDirection::Back,
+    SpriteDirection::BackRight,
+    SpriteDirection::Left,
+    SpriteDirection::FrontLeft,
+];
+
 /// Standard 8-direction layout in angle order (0° front → 315° frontleft).
 ///
 /// 5 physical directions backed by atlas sprites, 3 virtual directions
@@ -252,25 +271,33 @@ const fn apply_frame_order(idx: usize, frame_count: usize, order: FrameOrder) ->
 /// [`quantize_direction`] into 45° sectors.
 #[must_use]
 pub fn standard_8_directions() -> Vec<BillboardDirection> {
-    // Order matches uniform angle quantization: 0=front, 1=frontright, ...
-    // Relative viewing angle increases CCW: 0=front, PI/2=right, PI=back.
-    [
-        SpriteDirection::Front,
-        SpriteDirection::FrontRight,
-        SpriteDirection::Right,
-        SpriteDirection::BackLeft,
-        SpriteDirection::Back,
-        SpriteDirection::BackRight,
-        SpriteDirection::Left,
-        SpriteDirection::FrontLeft,
-    ]
-    .into_iter()
-    .map(|dir| BillboardDirection {
-        direction: dir,
-        source_direction_idx: dir.physical_index(),
-        flip_x: dir.requires_flip(),
-    })
-    .collect()
+    QUANTIZED_SPRITE_DIRECTIONS
+        .into_iter()
+        .map(|dir| BillboardDirection {
+            direction: dir,
+            source_direction_idx: dir.physical_index(),
+            flip_x: dir.requires_flip(),
+        })
+        .collect()
+}
+
+/// The renderer sprite-asset key displayed for a (geometric) collision facing.
+///
+/// [`BillboardFacing8`] and the renderer quantize the same relative viewing
+/// angle with identical sector boundaries, so the conversion is by bucket
+/// index. The **names do not line up** for mirrored buckets: e.g. geometric
+/// [`BillboardFacing8::FrontLeft`] (+45°, attacker on the target's left)
+/// displays the asset key [`SpriteDirection::FrontRight`]. This function is
+/// the single sanctioned bridge between the two namespaces — never match the
+/// enums by variant name.
+///
+/// [`BillboardFacing8`]: carcinisation_fps_core::collision::BillboardFacing8
+/// [`BillboardFacing8::FrontLeft`]: carcinisation_fps_core::collision::BillboardFacing8::FrontLeft
+#[must_use]
+pub fn sprite_direction_for_facing(
+    facing: carcinisation_fps_core::collision::BillboardFacing8,
+) -> SpriteDirection {
+    QUANTIZED_SPRITE_DIRECTIONS[facing.index()]
 }
 
 type ActionDirectionFrames = HashMap<String, Vec<(usize, Vec<Arc<CxImage>>)>>;
@@ -697,15 +724,24 @@ mod tests {
 
     #[test]
     fn collision_facing_matches_renderer_direction_indices() {
+        // Per-angle parity: collision facings are GEOMETRIC octants, the
+        // renderer's directions are sprite-ASSET keys. They share bucket
+        // boundaries/indices, but the names disagree on mirrored buckets —
+        // `sprite_direction_for_facing` is the explicit bridge. The +135°
+        // and +225° cases are the easiest to silently mirror: both
+        // namespaces use the names BackLeft/BackRight there, and they DO
+        // coincide (the back diagonals are not name-mirrored).
         let dirs = standard_8_directions();
         let cases = [
             (0.0, SpriteDirection::Front, BillboardFacing8::Front),
             (
                 PI / 4.0,
+                // Geometric front-LEFT octant displays the mirrored
+                // front-RIGHT asset key.
                 SpriteDirection::FrontRight,
-                BillboardFacing8::FrontRight,
+                BillboardFacing8::FrontLeft,
             ),
-            (PI / 2.0, SpriteDirection::Right, BillboardFacing8::Right),
+            (PI / 2.0, SpriteDirection::Right, BillboardFacing8::Left),
             (
                 3.0 * PI / 4.0,
                 SpriteDirection::BackLeft,
@@ -720,12 +756,12 @@ mod tests {
             (
                 3.0 * PI / 2.0,
                 SpriteDirection::Left,
-                BillboardFacing8::Left,
+                BillboardFacing8::Right,
             ),
             (
                 7.0 * PI / 4.0,
                 SpriteDirection::FrontLeft,
-                BillboardFacing8::FrontLeft,
+                BillboardFacing8::FrontRight,
             ),
         ];
 
@@ -736,6 +772,23 @@ mod tests {
             let facing = BillboardFacing8::from_relative_angle(angle);
             assert_eq!(facing, collision_facing);
             assert_eq!(facing.index(), renderer_index);
+            assert_eq!(
+                sprite_direction_for_facing(facing),
+                sprite_direction,
+                "conversion helper must agree with the quantized asset list"
+            );
+        }
+    }
+
+    #[test]
+    fn sprite_direction_for_facing_covers_all_buckets() {
+        let dirs = standard_8_directions();
+        for facing in BillboardFacing8::ALL {
+            assert_eq!(
+                sprite_direction_for_facing(facing),
+                dirs[facing.index()].direction,
+                "{facing:?} must map to its bucket's asset key"
+            );
         }
     }
 
