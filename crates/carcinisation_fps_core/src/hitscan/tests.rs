@@ -649,3 +649,82 @@ fn flame_fallback_circle_when_frame_missing() {
         "zero fallback radius → no hit"
     );
 }
+
+#[test]
+fn flame_origin_inside_wall_does_no_damage() {
+    // Origin in the west border wall (cell (0,*)) → wall-capped length is 0,
+    // so no part can be reached regardless of the target.
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let target = PartHitscanTarget {
+        position: Vec2::new(2.5, 1.5),
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let hit = flame_hits_target_parts(
+        FirePose2d::new(Vec2::new(0.5, 1.5), 0.0, 0.0), // x=0.5 is inside the border wall
+        8.0,
+        0.3,
+        &map,
+        target,
+    );
+    assert!(hit.is_none(), "flame from inside a wall deals no damage");
+}
+
+/// Single part offset laterally (local +Y), no on-axis body — lets a wide flame
+/// strip reach a part that sits behind a wall corner off the fire axis.
+fn flame_offset_only_set() -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([PartCollider2d {
+                part_id: LEG,
+                collider: Collider::Circle(Circle::new(Vec2::new(0.0, 0.8), 0.2)),
+            }]),
+        );
+    }
+    set
+}
+
+#[test]
+fn flame_off_axis_part_behind_wall_corner_is_blocked() {
+    // Flame axis runs along open row y=1.5; the part sits at world (3.5, 2.3),
+    // fully behind wall (3,2). The wide strip reaches it geometrically, but the
+    // contact point is inside the wall cell so per-contact LOS blocks it.
+    let map = test_map();
+    let set = flame_offset_only_set();
+    let pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0); // +X along y=1.5
+
+    let behind_corner = PartHitscanTarget {
+        position: Vec2::new(3.5, 1.5), // part local (0,0.8) → world (3.5, 2.3)
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.0,
+    };
+    assert!(
+        flame_hits_target_parts(pose, 8.0, 0.7, &map, behind_corner).is_none(),
+        "off-axis part behind a wall corner is LOS-blocked"
+    );
+
+    // Control: same fixture in fully open space (part at world (3.5, 1.8)) IS
+    // hit — proving the block above is LOS, not a geometric miss.
+    let in_open = PartHitscanTarget {
+        position: Vec2::new(3.5, 1.0), // part → world (3.5, 1.8), all open rows
+        ..behind_corner
+    };
+    let hit = flame_hits_target_parts(pose, 8.0, 0.7, &map, in_open)
+        .expect("clear LOS to the offset part should hit");
+    assert_eq!(hit.part_id, LEG);
+}

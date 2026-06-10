@@ -180,6 +180,16 @@ pub struct FlamePartHit {
 ///
 /// Uses the same [`PartHitscanTarget`] setup and fallback policy as
 /// [`hitscan_parts_from_pose`] — no separate target-selection path.
+///
+/// # Range at the far cap
+///
+/// The strip is a capsule, so its rounded far cap can overlap a part up to
+/// `half_width` beyond the nominal `range` (when no wall caps it sooner). This
+/// is an accepted ~`half_width` over-reach at the very tip — the flame has
+/// width, so this reads as correct, and it avoids special-casing the cap. Wall
+/// stopping is unaffected (the wall caps `len` and per-contact LOS still
+/// applies). Clamp `len` by `half_width` here only if exact parity with the old
+/// flat-ended strip is ever required.
 #[must_use]
 pub fn flame_hits_target_parts(
     pose: FirePose2d,

@@ -33,12 +33,34 @@ use crate::collision::{
     BillboardFacing8, Circle, Collider, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
     PartMetadata, TargetCollisionFrame, TargetCollisionSet,
 };
+use crate::config::FpsCombatConfig;
 use crate::enemy::FpsEnemyKind;
 
 /// Default animation key used until per-animation collision frames exist.
 pub const DEFAULT_ANIMATION: crate::collision::AnimationKey = crate::collision::AnimationKey(0);
 /// Default frame index used until runtime frame selection exists.
 pub const DEFAULT_FRAME: u16 = 0;
+
+/// Whole-body fallback radius for `Basic` enemies. Matches the legacy
+/// `Enemy::new` hitscan radius.
+pub const BASIC_FALLBACK_RADIUS: f32 = 0.3;
+
+/// Type-specific whole-body fallback radius, used when a target has no authored
+/// collision frame for the requested animation/frame/facing.
+///
+/// This is the shared source of truth for both server hitscan and server flame
+/// so they agree with each other and with single-player (which derives the same
+/// values from per-instance configs). For `Mosquiton`/`Spidey` it tracks the
+/// gameplay collision radius from [`FpsCombatConfig`] (e.g. Spidey is 0.25, not
+/// the uniform 0.3 that earlier server code used).
+#[must_use]
+pub fn enemy_fallback_radius(kind: FpsEnemyKind, combat: &FpsCombatConfig) -> f32 {
+    match kind {
+        FpsEnemyKind::Basic => BASIC_FALLBACK_RADIUS,
+        FpsEnemyKind::Mosquiton => combat.mosquiton_collision_radius,
+        FpsEnemyKind::Spidey => combat.spidey.collision_radius,
+    }
+}
 
 /// Whole-body part shared by every fixture.
 pub const PART_BODY: PartId = PartId(1);
@@ -155,6 +177,29 @@ pub fn collision_set(kind: FpsEnemyKind) -> &'static TargetCollisionSet {
 mod tests {
     use super::*;
     use crate::collision::TargetQueryPose2d;
+
+    #[test]
+    fn fallback_radius_is_type_specific() {
+        let combat = FpsCombatConfig::default();
+        // Spidey must use its own (smaller) collision radius, not the uniform
+        // 0.3 the earlier server code applied to every kind.
+        let spidey = enemy_fallback_radius(FpsEnemyKind::Spidey, &combat);
+        assert!(
+            (spidey - 0.25).abs() < 1e-6,
+            "spidey fallback should be 0.25, got {spidey}"
+        );
+        assert!(
+            (spidey - BASIC_FALLBACK_RADIUS).abs() > 1e-6,
+            "spidey fallback must differ from the basic 0.3"
+        );
+        assert!((enemy_fallback_radius(FpsEnemyKind::Basic, &combat) - 0.3).abs() < 1e-6);
+        assert!(
+            (enemy_fallback_radius(FpsEnemyKind::Mosquiton, &combat)
+                - combat.mosquiton_collision_radius)
+                .abs()
+                < 1e-6
+        );
+    }
 
     #[test]
     fn every_kind_has_all_facings() {
