@@ -203,3 +203,48 @@ fn enemy_projectile_blocked_by_wall() {
         "player behind wall should not take projectile damage: hp={hp}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3.5: authoritative enemy facing
+// ---------------------------------------------------------------------------
+
+/// Read the first enemy's (position, angle) from replicated `NetEnemy`.
+fn get_enemy_pose(server: &mut App) -> Option<(Vec2, f32)> {
+    server
+        .world_mut()
+        .query::<&carcinisation_net::NetEnemy>()
+        .iter(server.world())
+        .next()
+        .map(|e| (e.position, e.angle))
+}
+
+#[test]
+fn enemy_faces_engaged_player_after_tick() {
+    use std::f32::consts::{PI, TAU};
+
+    // Enemy east of player; both on the same row. Once the Mosquiton engages,
+    // its authoritative `NetEnemy.angle` should orient toward the player.
+    let mut server = build_deterministic_server_with_enemy(5.5, 3.5);
+    server.update();
+    spawn_alive_player(&mut server, 1, 2.5, 3.5);
+
+    let (_, angle_before) = get_enemy_pose(&mut server).unwrap();
+    assert_eq!(angle_before, 0.0, "angle defaults to 0 before engaging");
+
+    // Tick enough for AI to run and orient toward the player.
+    for _ in 0..5 {
+        server.update();
+    }
+
+    let player_pos = get_player_position(&mut server, 1).unwrap();
+    let (enemy_pos, angle) = get_enemy_pose(&mut server).unwrap();
+
+    let to_player = player_pos - enemy_pos;
+    let expected = to_player.y.atan2(to_player.x);
+    // Shortest angular difference.
+    let diff = ((angle - expected + PI).rem_euclid(TAU) - PI).abs();
+    assert!(
+        diff < 0.2,
+        "enemy should face engaged player: angle={angle:.3}, expected={expected:.3}"
+    );
+}

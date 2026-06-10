@@ -9,12 +9,15 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::burning::{self, BurnConfig, BurnState};
+use carcinisation_fps_core::collision_set;
 use carcinisation_fps_core::combat::{
     FirePose2d, flame_hits_position_configured_from_pose, wall_obstruction_distance_for_pose,
 };
 use carcinisation_fps_core::config::FpsCombatConfig;
-use carcinisation_fps_core::enemy::{Enemy, hitscan_from_pose};
+use carcinisation_fps_core::enemy::{Enemy, FpsEnemyKind};
+use carcinisation_fps_core::enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME};
 use carcinisation_fps_core::fire_death::corpse_seed;
+use carcinisation_fps_core::hitscan::{PartHitscanTarget, hitscan_parts_from_pose};
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
     DamageEffect, DeathEffect, FlameActive, FlameCharMark, HitConfirm, MuzzleFlash, NetAttackId,
@@ -24,8 +27,17 @@ use carcinisation_net::{
 use std::collections::HashMap;
 
 use crate::systems::NetEnemy;
-use crate::systems::NetEnemyState;
 use crate::systems::NetHealth;
+use crate::systems::{NetEnemyState, NetEnemyType};
+
+/// Map the replicated enemy type to the shared collision fixture kind.
+const fn fps_kind_from_net(enemy_type: NetEnemyType) -> FpsEnemyKind {
+    match enemy_type {
+        NetEnemyType::Basic => FpsEnemyKind::Basic,
+        NetEnemyType::Mosquiton => FpsEnemyKind::Mosquiton,
+        NetEnemyType::Spidey => FpsEnemyKind::Spidey,
+    }
+}
 
 /// Server-only burn state wrapper. Not replicated — intensity is synced to `NetBurning`.
 #[derive(Component, Debug, Clone, Default)]
@@ -204,6 +216,9 @@ pub fn process_combat(
     // shots on already-dead enemies.
     let mut enemy_entities: Vec<Entity> = Vec::new();
     let mut enemy_list: Vec<Enemy> = Vec::new();
+    // Parallel to `enemy_list`: authoritative collision identity (kind, yaw)
+    // read from the replicated `NetEnemy` (enemy_type / angle).
+    let mut enemy_meta: Vec<(FpsEnemyKind, f32)> = Vec::new();
 
     // Entities hit by any flamethrower this tick — exposure applied after the player loop.
     let mut flame_exposed_entities: Vec<Entity> = Vec::new();
@@ -268,6 +283,7 @@ pub fn process_combat(
                 // Rebuild enemy list with fresh health/state (Vecs reuse capacity).
                 enemy_entities.clear();
                 enemy_list.clear();
+                enemy_meta.clear();
                 for (entity, net_enemy, net_health, _) in enemies.iter() {
                     if matches!(
                         net_enemy.state,
@@ -282,12 +298,34 @@ pub fn process_combat(
                         net_health.current as u32,
                         0.0,
                     ));
+                    enemy_meta.push((fps_kind_from_net(net_enemy.enemy_type), net_enemy.angle));
                 }
 
-                let result = hitscan_from_pose(fire_pose, &enemy_list, &server_map.0);
+                // Per-part hitscan using authoritative collision identity:
+                // per-enemy kind (NetEnemy.enemy_type) selects the fixture and
+                // per-enemy yaw (NetEnemy.angle) selects the billboard facing.
+                // Frame is DEFAULT_FRAME=0: no discrete enemy animation frame is
+                // replicated yet (see Phase 3.5 limitations / TODO).
+                let part_hit = hitscan_parts_from_pose(
+                    fire_pose,
+                    &server_map.0,
+                    enemy_list
+                        .iter()
+                        .zip(enemy_meta.iter())
+                        .map(|(e, &(kind, yaw))| PartHitscanTarget {
+                            position: e.position,
+                            yaw,
+                            alive: e.is_alive(),
+                            set: collision_set(kind),
+                            animation: DEFAULT_ANIMATION,
+                            frame: DEFAULT_FRAME,
+                            fallback_radius: e.radius,
+                        }),
+                );
 
                 // Also check hitscan against enemy projectiles (player can shoot them down).
-                let wall_dist = result.distance;
+                let wall_dist =
+                    wall_obstruction_distance_for_pose(&server_map.0, fire_pose, f32::MAX);
                 let mut closest_proj: Option<(
                     Entity,
                     NetworkObjectId,
@@ -317,7 +355,7 @@ pub fn process_combat(
                 }
 
                 // Determine what was hit first: enemy or projectile.
-                let enemy_hit = result.enemy_idx.map(|idx| (idx, result.distance));
+                let enemy_hit = part_hit.map(|r| (r.target_idx, r.distance));
                 let proj_hit = closest_proj;
 
                 // Projectile closer than enemy?
@@ -790,5 +828,25 @@ fn apply_damage(
                 was_player: false,
             },
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fps_kind_from_net;
+    use crate::systems::NetEnemyType;
+    use carcinisation_fps_core::FpsEnemyKind;
+
+    #[test]
+    fn kind_mapping_matches_net_enemy_type() {
+        assert_eq!(fps_kind_from_net(NetEnemyType::Basic), FpsEnemyKind::Basic);
+        assert_eq!(
+            fps_kind_from_net(NetEnemyType::Mosquiton),
+            FpsEnemyKind::Mosquiton
+        );
+        assert_eq!(
+            fps_kind_from_net(NetEnemyType::Spidey),
+            FpsEnemyKind::Spidey
+        );
     }
 }

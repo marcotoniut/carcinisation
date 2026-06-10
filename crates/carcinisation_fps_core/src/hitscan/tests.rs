@@ -1,0 +1,352 @@
+use super::*;
+use crate::collision::{
+    BillboardFacing8, Circle, Collider, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
+    PartMetadata, TargetCollisionFrame, TargetCollisionSet,
+};
+use crate::map::test_map;
+
+const ANIM: AnimationKey = AnimationKey(0);
+const BODY: PartId = PartId(1);
+const HEAD: PartId = PartId(2);
+const LEG: PartId = PartId(3);
+
+const EPS: f32 = 1e-4;
+
+fn approx(a: f32, b: f32) -> bool {
+    (a - b).abs() < EPS
+}
+
+/// Pose firing along +X from `origin`. Visual pitch defaults to zero.
+fn pose_east(origin: Vec2) -> FirePose2d {
+    FirePose2d::new(origin, 0.0, 0.0)
+}
+
+/// Single body-circle set registered for every facing under ANIM/frame 0.
+fn single_body_set(radius: f32) -> TargetCollisionSet {
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([PartCollider2d {
+                part_id: BODY,
+                collider: Collider::Circle(Circle::new(Vec2::ZERO, radius)),
+            }]),
+        );
+    }
+    set.insert_part_metadata(
+        BODY,
+        PartMetadata {
+            material: MaterialId(7),
+            damage_scale: 1.0,
+        },
+    );
+    set
+}
+
+/// Multi-facing demo: Front-ish facings have a HEAD in front, Right/Left have a
+/// LEG to the side, Back facings have body only. Target-local +X = forward.
+fn multi_facing_set() -> TargetCollisionSet {
+    let body = PartCollider2d {
+        part_id: BODY,
+        collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.25)),
+    };
+    let head = PartCollider2d {
+        part_id: HEAD,
+        collider: Collider::Circle(Circle::new(Vec2::new(0.3, 0.0), 0.15)),
+    };
+    let leg = PartCollider2d {
+        part_id: LEG,
+        collider: Collider::Circle(Circle::new(Vec2::new(0.0, 0.3), 0.15)),
+    };
+
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        let parts: Vec<PartCollider2d> = match facing {
+            BillboardFacing8::Front
+            | BillboardFacing8::FrontLeft
+            | BillboardFacing8::FrontRight => {
+                vec![body, head]
+            }
+            BillboardFacing8::Left | BillboardFacing8::Right => vec![body, leg],
+            BillboardFacing8::Back | BillboardFacing8::BackLeft | BillboardFacing8::BackRight => {
+                vec![body]
+            }
+        };
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new(parts),
+        );
+    }
+    set
+}
+
+fn target<'a>(
+    set: &'a TargetCollisionSet,
+    position: Vec2,
+    fallback_radius: f32,
+) -> PartHitscanTarget<'a> {
+    PartHitscanTarget {
+        position,
+        yaw: 0.0,
+        alive: true,
+        set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius,
+    }
+}
+
+// --- nearest surface, not centre ---
+
+#[test]
+fn nearest_surface_wins_not_nearest_centre() {
+    // A: centre far (x=5) but large radius → near surface at 3.0.
+    // B: centre near (x=4) but small radius → near surface at 3.8.
+    // Legacy centre-projection ordering would pick B (centre 4 < 5);
+    // surface ordering picks A (surface 3.0 < 3.8).
+    let map = test_map();
+    let set_a = single_body_set(2.0);
+    let set_b = single_body_set(0.2);
+    let targets = [
+        target(&set_a, Vec2::new(5.0, 1.5), 2.0),
+        target(&set_b, Vec2::new(4.0, 1.5), 0.2),
+    ];
+    let hit =
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, targets.into_iter()).unwrap();
+    assert_eq!(hit.target_idx, 0, "large far circle has nearer surface");
+    assert!(approx(hit.distance, 1.5), "surface at x=3.0 from x=1.5");
+}
+
+// --- wall obstruction ---
+
+#[test]
+fn enemy_before_wall_is_hit() {
+    // Interior wall at cell (3,2). Fire +X along y=2.5 from x=1.5.
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let targets = [target(&set, Vec2::new(2.5, 2.5), 0.3)];
+    let hit = hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 2.5)), &map, targets.into_iter());
+    assert!(hit.is_some(), "enemy before wall should be hit");
+    assert_eq!(hit.unwrap().part_id, BODY);
+}
+
+#[test]
+fn enemy_behind_wall_is_blocked() {
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let targets = [target(&set, Vec2::new(5.5, 2.5), 0.3)];
+    let hit = hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 2.5)), &map, targets.into_iter());
+    assert!(hit.is_none(), "enemy behind wall (3,2) must be blocked");
+}
+
+// --- multiple enemies ---
+
+#[test]
+fn two_enemies_nearer_surface_wins() {
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let targets = [
+        target(&set, Vec2::new(4.5, 1.5), 0.3),
+        target(&set, Vec2::new(2.5, 1.5), 0.3),
+    ];
+    let hit =
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, targets.into_iter()).unwrap();
+    assert_eq!(hit.target_idx, 1, "nearer enemy wins");
+}
+
+// --- per-part ids ---
+
+#[test]
+fn head_and_body_part_ids_returned() {
+    let map = test_map();
+    let set = multi_facing_set();
+    // Attacker east of enemy, enemy faces east (yaw 0) → Front facing.
+    // Head sticks out forward (+X) so it is hit before body.
+    let targets = [target(&set, Vec2::new(3.5, 1.5), 0.3)];
+    let hit =
+        hitscan_parts_from_pose(pose_west(Vec2::new(5.5, 1.5)), &map, targets.into_iter()).unwrap();
+    assert_eq!(hit.part_id, HEAD, "front shot hits head first");
+    assert_eq!(hit.material, None, "demo set has no head metadata");
+}
+
+/// Pose firing along -X from `origin`.
+fn pose_west(origin: Vec2) -> FirePose2d {
+    FirePose2d::new(origin, std::f32::consts::PI, 0.0)
+}
+
+// --- facing selection ---
+
+#[test]
+fn attacker_front_rear_side_select_matching_facing_frame() {
+    let map = test_map();
+    let set = multi_facing_set();
+    let enemy = Vec2::new(2.5, 1.5);
+
+    // Front: attacker east, fire -X. Front frame has head.
+    let front = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(front.part_id, HEAD, "front facing exposes head");
+
+    // Rear: attacker west, fire +X. Back frame is body only.
+    let rear = hitscan_parts_from_pose(
+        pose_east(Vec2::new(1.5, 1.5)),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+    assert_eq!(rear.part_id, BODY, "back facing is body only");
+
+    // Side: attacker north, fire -Y. Right frame has a leg.
+    let pose_south = FirePose2d::new(Vec2::new(2.5, 3.5), -std::f32::consts::FRAC_PI_2, 0.0);
+    let side =
+        hitscan_parts_from_pose(pose_south, &map, [target(&set, enemy, 0.3)].into_iter()).unwrap();
+    assert_eq!(side.part_id, LEG, "side facing exposes leg");
+}
+
+#[test]
+fn target_yaw_changes_selected_part() {
+    // Same attacker and enemy position; only the target yaw changes.
+    // Enemy facing the attacker (head toward attacker) → front shot hits head.
+    // Enemy facing away → Back frame has no head, and the head collider is now
+    // behind the body anyway → body is hit.
+    let map = test_map();
+    let set = multi_facing_set();
+    let enemy = Vec2::new(2.5, 1.5);
+    let attacker = Vec2::new(5.5, 1.5); // east of enemy, fires -X
+
+    // Yaw toward attacker (east, 0 rad): Front facing, head exposed forward.
+    let facing_player = PartHitscanTarget {
+        position: enemy,
+        yaw: 0.0,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let hit_front =
+        hitscan_parts_from_pose(pose_west(attacker), &map, [facing_player].into_iter()).unwrap();
+    assert_eq!(hit_front.part_id, HEAD, "enemy facing attacker → head");
+
+    // Yaw facing away (west, π rad): Back facing → body only.
+    let facing_away = PartHitscanTarget {
+        position: enemy,
+        yaw: std::f32::consts::PI,
+        alive: true,
+        set: &set,
+        animation: ANIM,
+        frame: 0,
+        fallback_radius: 0.3,
+    };
+    let hit_back =
+        hitscan_parts_from_pose(pose_west(attacker), &map, [facing_away].into_iter()).unwrap();
+    assert_eq!(hit_back.part_id, BODY, "enemy facing away → body");
+
+    assert_ne!(
+        hit_front.part_id, hit_back.part_id,
+        "yaw changed the hit part"
+    );
+}
+
+#[test]
+fn two_attackers_resolve_different_facings_same_target() {
+    let map = test_map();
+    let set = multi_facing_set();
+    let enemy = Vec2::new(2.5, 1.5);
+
+    let from_front = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+    let from_side = hitscan_parts_from_pose(
+        FirePose2d::new(Vec2::new(2.5, 3.5), -std::f32::consts::FRAC_PI_2, 0.0),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+
+    assert_eq!(from_front.part_id, HEAD);
+    assert_eq!(from_side.part_id, LEG);
+    assert_ne!(from_front.part_id, from_side.part_id);
+}
+
+// --- fallback ---
+
+#[test]
+fn missing_frame_falls_back_to_circle() {
+    let map = test_map();
+    let set = single_body_set(0.3);
+    // Query an animation key that has no registered frame.
+    let mut t = target(&set, Vec2::new(2.5, 1.5), 0.3);
+    t.animation = AnimationKey(99);
+    let hit =
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).unwrap();
+    assert_eq!(hit.part_id, PartId::FALLBACK, "no frame → fallback circle");
+    assert_eq!(hit.material, None);
+    assert!(
+        approx(hit.distance, 0.7),
+        "circle surface at x=2.2 from x=1.5"
+    );
+}
+
+#[test]
+fn fallback_zero_radius_does_not_hit() {
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let mut t = target(&set, Vec2::new(2.5, 1.5), 0.0);
+    t.animation = AnimationKey(99);
+    assert!(
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).is_none()
+    );
+}
+
+// --- visual pitch is ignored ---
+
+#[test]
+fn visual_pitch_does_not_affect_selection() {
+    let map = test_map();
+    let set = multi_facing_set();
+    let enemy = Vec2::new(3.5, 1.5);
+
+    let flat = hitscan_parts_from_pose(
+        FirePose2d::new(Vec2::new(5.5, 1.5), std::f32::consts::PI, 0.0),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+    let pitched = hitscan_parts_from_pose(
+        FirePose2d::new(Vec2::new(5.5, 1.5), std::f32::consts::PI, 9999.0),
+        &map,
+        [target(&set, enemy, 0.3)].into_iter(),
+    )
+    .unwrap();
+
+    assert_eq!(flat, pitched, "visual_pitch_px must not change hit result");
+}
+
+// --- dead targets skipped ---
+
+#[test]
+fn dead_target_is_skipped() {
+    let map = test_map();
+    let set = single_body_set(0.3);
+    let mut t = target(&set, Vec2::new(2.5, 1.5), 0.3);
+    t.alive = false;
+    assert!(
+        hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).is_none()
+    );
+}

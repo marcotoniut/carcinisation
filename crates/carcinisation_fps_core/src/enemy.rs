@@ -270,12 +270,25 @@ fn nearest_alive_target(
 }
 
 fn face_target(enemy: &mut EnemySim, target_position: Vec2) {
-    let to_target = target_position - enemy.position;
+    if let Some(yaw) = facing_yaw_toward(enemy.position, target_position) {
+        enemy.angle = yaw.rem_euclid(std::f32::consts::TAU);
+    }
+}
+
+/// Authoritative facing yaw (radians) for an entity at `from` oriented toward
+/// `target`.
+///
+/// Returns `None` when the two points are coincident, so callers can preserve
+/// the previous facing instead of snapping to an arbitrary angle. This is the
+/// single shared facing basis used by both single-player and server collision
+/// so the selected [`BillboardFacing8`] matches across authorities.
+#[must_use]
+pub fn facing_yaw_toward(from: Vec2, target: Vec2) -> Option<f32> {
+    let to_target = target - from;
     if to_target.length_squared() > f32::EPSILON {
-        enemy.angle = to_target
-            .y
-            .atan2(to_target.x)
-            .rem_euclid(std::f32::consts::TAU);
+        Some(to_target.y.atan2(to_target.x))
+    } else {
+        None
     }
 }
 
@@ -1044,6 +1057,36 @@ pub fn hitscan_projectiles_from_pose(
 mod tests {
     use super::*;
     use crate::map::test_map;
+
+    #[test]
+    fn facing_yaw_toward_points_at_target() {
+        // East.
+        let yaw = facing_yaw_toward(Vec2::ZERO, Vec2::new(5.0, 0.0)).unwrap();
+        assert!((yaw - 0.0).abs() < 1e-4, "east → 0 rad, got {yaw}");
+        // North (+Y).
+        let yaw = facing_yaw_toward(Vec2::ZERO, Vec2::new(0.0, 3.0)).unwrap();
+        assert!(
+            (yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-4,
+            "north → π/2, got {yaw}"
+        );
+    }
+
+    #[test]
+    fn facing_yaw_toward_coincident_is_none() {
+        assert!(facing_yaw_toward(Vec2::new(2.0, 2.0), Vec2::new(2.0, 2.0)).is_none());
+    }
+
+    #[test]
+    fn facing_yaw_toward_is_symmetric_basis_for_sp_and_server() {
+        // Both SP and server derive enemy facing from the same helper and the
+        // same authoritative inputs (enemy position, engaged player position),
+        // so the selected facing is identical across authorities.
+        let enemy = Vec2::new(3.0, 4.0);
+        let player = Vec2::new(7.0, 1.0);
+        let sp = facing_yaw_toward(enemy, player);
+        let server = facing_yaw_toward(enemy, player);
+        assert_eq!(sp, server);
+    }
 
     fn make_enemy(x: f32, y: f32) -> Enemy {
         Enemy::new(Vec2::new(x, y), 30, 1.5)

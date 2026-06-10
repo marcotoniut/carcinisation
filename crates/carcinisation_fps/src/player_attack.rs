@@ -2,7 +2,10 @@
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carcinisation_fps_core::{
-    FirePose2d, flame_hits_position_configured_from_pose, flame_visual_max_distance,
+    FirePose2d, FpsEnemyKind, PartHitscanTarget, collision_set,
+    enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
+    facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
+    hitscan_parts_from_pose,
 };
 
 /// Snap turn state snapshot passed into the presentation layer.
@@ -1555,36 +1558,69 @@ fn apply_hitscan_damage(
     damage: u32,
     max_range: Option<f32>,
 ) {
-    let enemy_hit = carcinisation_fps_core::hitscan_from_pose(fire_pose, enemies, map);
-    let mosquiton_hit = carcinisation_fps_core::hitscan_generic_from_pose(
+    // Per-part hitscan against each target list. Authoritative facing: each
+    // enemy orients toward the local player. In single-player the shooter IS
+    // that player (`fire_pose.origin_xy`), so this matches the server's
+    // `NetEnemy.angle` (also facing toward the engaged player) for SP/server
+    // parity. Frame is DEFAULT_FRAME=0 (no discrete enemy frame yet).
+    // `visual_pitch_px` is ignored throughout.
+    let player_pos = fire_pose.origin_xy;
+    let basic_set = collision_set(FpsEnemyKind::Basic);
+    let mosquiton_set = collision_set(FpsEnemyKind::Mosquiton);
+    let spidey_set = collision_set(FpsEnemyKind::Spidey);
+
+    let enemy_hit = hitscan_parts_from_pose(
         fire_pose,
         map,
-        mosquitons
-            .iter()
-            .map(|m| (m.position, m.config.collision_radius, m.is_alive())),
+        enemies.iter().map(|e| PartHitscanTarget {
+            position: e.position,
+            yaw: facing_yaw_toward(e.position, player_pos).unwrap_or(0.0),
+            alive: e.is_alive(),
+            set: basic_set,
+            animation: DEFAULT_ANIMATION,
+            frame: DEFAULT_FRAME,
+            fallback_radius: e.radius,
+        }),
     );
-    let spidey_hit = carcinisation_fps_core::hitscan_generic_from_pose(
+    let mosquiton_hit = hitscan_parts_from_pose(
         fire_pose,
         map,
-        spideys
-            .iter()
-            .map(|s| (s.position, s.config.sim.collision_radius, s.is_alive())),
+        mosquitons.iter().map(|m| PartHitscanTarget {
+            position: m.position,
+            yaw: facing_yaw_toward(m.position, player_pos).unwrap_or(0.0),
+            alive: m.is_alive(),
+            set: mosquiton_set,
+            animation: DEFAULT_ANIMATION,
+            frame: DEFAULT_FRAME,
+            fallback_radius: m.config.collision_radius,
+        }),
+    );
+    let spidey_hit = hitscan_parts_from_pose(
+        fire_pose,
+        map,
+        spideys.iter().map(|s| PartHitscanTarget {
+            position: s.position,
+            yaw: facing_yaw_toward(s.position, player_pos).unwrap_or(0.0),
+            alive: s.is_alive(),
+            set: spidey_set,
+            animation: DEFAULT_ANIMATION,
+            frame: DEFAULT_FRAME,
+            fallback_radius: s.config.sim.collision_radius,
+        }),
     );
     let projectile_hit =
         carcinisation_fps_core::hitscan_projectiles_from_pose(fire_pose, projectiles, map);
 
-    let mut hit = enemy_hit
-        .enemy_idx
-        .map(|enemy_idx| (FpShotHit::Enemy(enemy_idx), enemy_hit.distance));
-    if let Some((mosquiton_idx, distance)) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance)| distance < current_distance)
+    let mut hit = enemy_hit.map(|r| (FpShotHit::Enemy(r.target_idx), r.distance));
+    if let Some(r) = mosquiton_hit
+        && hit.is_none_or(|(_, current_distance)| r.distance < current_distance)
     {
-        hit = Some((FpShotHit::Mosquiton(mosquiton_idx), distance));
+        hit = Some((FpShotHit::Mosquiton(r.target_idx), r.distance));
     }
-    if let Some((spidey_idx, distance)) = spidey_hit
-        && hit.is_none_or(|(_, current_distance)| distance < current_distance)
+    if let Some(r) = spidey_hit
+        && hit.is_none_or(|(_, current_distance)| r.distance < current_distance)
     {
-        hit = Some((FpShotHit::Spidey(spidey_idx), distance));
+        hit = Some((FpShotHit::Spidey(r.target_idx), r.distance));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
         && hit.is_none_or(|(_, current_distance)| distance < current_distance)

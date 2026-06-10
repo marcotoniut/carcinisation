@@ -26,6 +26,12 @@ use super::primitives::{Collider, HitResult};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PartId(pub u16);
 
+impl PartId {
+    /// Sentinel part id used when a target has no authored collision frame and
+    /// the query falls back to a single whole-body circle.
+    pub const FALLBACK: Self = Self(u16::MAX);
+}
+
 /// Opaque material identifier for future damage routing.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MaterialId(pub u16);
@@ -224,6 +230,39 @@ impl TargetCollisionFrame {
     #[must_use]
     pub fn nearest_segment_hit(&self, start: Vec2, end: Vec2) -> Option<HitResult<PartId>> {
         nearest::nearest_segment_hit_tagged(start, end, &self.tagged)
+    }
+
+    /// Nearest ray hit for a target placed at `target` in world space.
+    ///
+    /// Part colliders are authored in target-local space where local `+X` is
+    /// the target forward (yaw) direction and local `+Y` is 90° CCW from it.
+    /// The world ray is transformed into that local frame, queried, and the
+    /// resulting hit point/normal transformed back to world space. Distance is
+    /// rotation-invariant, so it is directly comparable across targets and
+    /// against wall obstruction.
+    #[must_use]
+    pub fn nearest_world_ray_hit(
+        &self,
+        target: TargetQueryPose2d,
+        world_origin: Vec2,
+        world_dir: Vec2,
+    ) -> Option<HitResult<PartId>> {
+        let (sin, cos) = target.yaw.sin_cos();
+        // Rotate a world vector into local space by -yaw.
+        let rot_in = |v: Vec2| Vec2::new(v.x * cos + v.y * sin, v.y * cos - v.x * sin);
+        // Rotate a local vector back into world space by +yaw.
+        let rot_out = |v: Vec2| Vec2::new(v.x * cos - v.y * sin, v.x * sin + v.y * cos);
+
+        let local_origin = rot_in(world_origin - target.position);
+        let local_dir = rot_in(world_dir);
+
+        let hit = self.nearest_ray_hit(local_origin, local_dir)?;
+        Some(HitResult {
+            point: target.position + rot_out(hit.point),
+            normal: rot_out(hit.normal),
+            distance: hit.distance,
+            id: hit.id,
+        })
     }
 }
 

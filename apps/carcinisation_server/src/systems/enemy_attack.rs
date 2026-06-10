@@ -18,6 +18,7 @@ use carcinisation_fps_core::mosquiton::{
 };
 use carcinisation_fps_core::spidey::{SpideySim, SpideySimConfig, SpideySimState, tick_spidey_sim};
 
+use carcinisation_fps_core::facing_yaw_toward;
 use carcinisation_fps_core::try_move;
 
 use crate::ServerMap;
@@ -213,6 +214,12 @@ pub fn tick_enemy_attacks(
 
         // Write back sim state.
         enemy.position = sim.position;
+        // Authoritative facing: orient toward the engaged player. This is the
+        // shared facing basis for both directional rendering and per-facing
+        // collision selection (see `carcinisation_fps_core::facing_yaw_toward`).
+        if let Some(yaw) = facing_yaw_toward(enemy.position, player_pos) {
+            enemy.angle = yaw;
+        }
         mosquiton_sim.sim_state = sim.state.clone();
         mosquiton_sim.shoot_cooldown = sim.shoot_cooldown;
         mosquiton_sim.melee_cooldown = sim.melee_cooldown;
@@ -492,6 +499,11 @@ pub fn tick_spidey_attacks(
 
         // Write back sim state.
         enemy.position = sim.position;
+        // Authoritative facing toward the engaged player (shared basis for
+        // rendering and per-facing collision).
+        if let Some(yaw) = facing_yaw_toward(enemy.position, player_pos) {
+            enemy.angle = yaw;
+        }
         enemy.visual_height = output.visual_height;
         // During death states, repurpose visual_phase for death animation progress.
         enemy.visual_phase = match &sim.state {

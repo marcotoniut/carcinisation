@@ -12,9 +12,11 @@ pub mod collision;
 pub mod combat;
 pub mod config;
 pub mod enemy;
+pub mod enemy_collision;
 pub mod fire_death;
 pub mod ground_fire;
 pub mod hash_util;
+pub mod hitscan;
 pub mod map;
 pub mod mosquiton;
 pub mod movement;
@@ -54,11 +56,12 @@ pub use config::{
 pub use enemy::{
     DamageOutcome, Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim,
     EnemyState, FpsEnemyAiState, FpsEnemyKind, HitscanResult, MosquitonAiConfig, Projectile,
-    ProjectileImpact, ProjectileKind, ProjectileSlowEffect, apply_damage, hitscan,
-    hitscan_from_pose, hitscan_generic, hitscan_generic_from_pose, hitscan_projectiles_from_pose,
-    is_showing_damage_invert, segment_circle_hit_distance, tick_enemies, tick_enemy_ai,
-    tick_projectiles, tick_single_enemy,
+    ProjectileImpact, ProjectileKind, ProjectileSlowEffect, apply_damage, facing_yaw_toward,
+    hitscan, hitscan_from_pose, hitscan_generic, hitscan_generic_from_pose,
+    hitscan_projectiles_from_pose, is_showing_damage_invert, segment_circle_hit_distance,
+    tick_enemies, tick_enemy_ai, tick_projectiles, tick_single_enemy,
 };
+pub use enemy_collision::collision_set;
 pub use fire_death::{
     DamageKind, FireDeathConfig, PerimeterFlame, centered_flames_from_mask, corpse_seed,
     perimeter_flames_from_mask,
@@ -67,6 +70,7 @@ pub use ground_fire::{
     GroundFire, GroundFireConfig, GroundFireContactResult, GroundFireContactState,
     ground_fire_contact_damage, ground_fire_flame_layout, tick_ground_fires, try_spawn_ground_fire,
 };
+pub use hitscan::{PartHitscanResult, PartHitscanTarget, hitscan_parts_from_pose};
 pub use map::{
     EntitySpawnData, EntitySpawnKind, Map, MapError, MapLoadData, PlayerStartData, test_map,
 };
