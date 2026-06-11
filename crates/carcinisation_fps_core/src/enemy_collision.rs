@@ -31,7 +31,7 @@ use bevy_math::Vec2;
 
 use crate::collision::{
     BillboardFacing8, Circle, Collider, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
-    PartMetadata, TargetCollisionFrame, TargetCollisionSet,
+    PartMetadata, PartReactionProfile, TargetCollisionFrame, TargetCollisionSet,
 };
 use crate::config::FpsCombatConfig;
 use crate::enemy::FpsEnemyKind;
@@ -101,6 +101,7 @@ fn basic_set() -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set
@@ -123,6 +124,7 @@ fn mosquiton_set() -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set
@@ -153,6 +155,7 @@ fn spidey_set() -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set.insert_part_metadata(
@@ -164,6 +167,7 @@ fn spidey_set() -> TargetCollisionSet {
             damage_scale: 2.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set

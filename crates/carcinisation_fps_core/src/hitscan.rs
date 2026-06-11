@@ -29,7 +29,7 @@
 use bevy_math::Vec2;
 
 use crate::collision::primitives::HitResult;
-use crate::collision::target::{AnimationKey, MaterialId, PartId};
+use crate::collision::target::{AnimationKey, MaterialId, PartId, PartReactionProfile};
 use crate::collision::{Circle, TargetCollisionSet, TargetQueryPose2d, swept_circle_vs_circle};
 use crate::combat::{FirePose2d, wall_obstruction_distance, wall_obstruction_distance_for_pose};
 use crate::config::PlayerFlamethrowerConfig;
@@ -70,6 +70,10 @@ pub struct PartHitscanResult {
     /// Flat armour of the hit part (`PartMetadata::armour`), subtracted after
     /// scaling. `0.0` for the fallback circle and parts with no metadata.
     pub armour: f32,
+    /// Per-part reaction modifiers of the hit part (`PartMetadata::reaction`).
+    /// [`PartReactionProfile::NEUTRAL`] for the fallback circle and parts with
+    /// no metadata, so reactions are unchanged unless explicitly authored.
+    pub reaction: PartReactionProfile,
     /// Distance from ray origin to the hit surface.
     pub distance: f32,
     /// World-space hit point on the part surface.
@@ -161,14 +165,22 @@ pub fn routed_damage(base: f32, scale: f32, armour: f32) -> f32 {
     (scaled - armour).max(0.0)
 }
 
-/// Material + damage scale + armour for a part, with neutral defaults when no
-/// metadata is registered (`None` material, [`NEUTRAL_DAMAGE_SCALE`], `0.0`
-/// armour).
-fn part_routing(set: &TargetCollisionSet, id: PartId) -> (Option<MaterialId>, f32, f32) {
-    set.part_metadata(id)
-        .map_or((None, NEUTRAL_DAMAGE_SCALE, 0.0), |m| {
-            (Some(m.material), m.damage_scale, m.armour)
-        })
+/// Material + damage scale + armour + reaction profile for a part, with neutral
+/// defaults when no metadata is registered (`None` material,
+/// [`NEUTRAL_DAMAGE_SCALE`], `0.0` armour, [`PartReactionProfile::NEUTRAL`]).
+fn part_routing(
+    set: &TargetCollisionSet,
+    id: PartId,
+) -> (Option<MaterialId>, f32, f32, PartReactionProfile) {
+    set.part_metadata(id).map_or(
+        (
+            None,
+            NEUTRAL_DAMAGE_SCALE,
+            0.0,
+            PartReactionProfile::NEUTRAL,
+        ),
+        |m| (Some(m.material), m.damage_scale, m.armour, m.reaction),
+    )
 }
 
 /// Resolve the nearest per-part hit for a fire pose against a set of targets.
@@ -205,19 +217,28 @@ pub fn hitscan_parts_from_pose<'a>(
                     target.set.is_targetable(id)
                 })
                 .map(|hit| {
-                    let (material, scale, armour) = part_routing(target.set, hit.id);
-                    (hit, material, scale, armour)
+                    let (material, scale, armour, reaction) = part_routing(target.set, hit.id);
+                    (hit, material, scale, armour, reaction)
                 }),
             // Missing OR empty frame falls back to the whole-body circle. An
             // empty frame (zero parts) is treated as unauthored, not as "no
             // hittable surface": bad/sparse generated metadata must not be able
             // to make a target invulnerable. A non-empty frame whose parts the
             // ray simply misses is a genuine miss (no fallback).
-            _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius)
-                .map(|hit| (hit, None, NEUTRAL_DAMAGE_SCALE, 0.0)),
+            _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius).map(
+                |hit| {
+                    (
+                        hit,
+                        None,
+                        NEUTRAL_DAMAGE_SCALE,
+                        0.0,
+                        PartReactionProfile::NEUTRAL,
+                    )
+                },
+            ),
         };
 
-        let Some((hit, material, damage_scale, armour)) = resolved else {
+        let Some((hit, material, damage_scale, armour, reaction)) = resolved else {
             continue;
         };
 
@@ -231,6 +252,7 @@ pub fn hitscan_parts_from_pose<'a>(
             material,
             damage_scale,
             armour,
+            reaction,
             distance: hit.distance,
             point: hit.point,
         };

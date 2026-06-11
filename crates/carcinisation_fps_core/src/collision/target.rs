@@ -229,6 +229,44 @@ pub struct PartCollider2d {
 // Part metadata (gameplay, separate from geometry)
 // ---------------------------------------------------------------------------
 
+/// Per-part reaction modifiers (Phase 12): multiplicative scales applied to the
+/// **weapon** reaction profile when a hit lands on this part. `1.0` means "no
+/// modifier"; the resolved reaction is `weapon × part` (see
+/// `PendingHitReaction::from_profiles`).
+///
+/// Authored static data (same category as [`PartMetadata`], in which it is
+/// embedded). Deliberately a small POD value, not an id into a profile table:
+/// there is no ORS source for reaction profiles (ORS has no material/reaction
+/// system — see [`MaterialId`]), so an id/table layer would be FPS-local
+/// indirection with no importer behind it. Scalars match how `damage_scale` and
+/// `armour` already live on [`PartMetadata`], and an ORS importer can populate
+/// or omit them (omission ⇒ [`NEUTRAL`](Self::NEUTRAL)).
+///
+/// Extend by adding fields here (e.g. a future `stagger_scale`) — each new field
+/// must default to its neutral value so authored data stays behaviour-stable.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PartReactionProfile {
+    /// Multiplier on the weapon's poise damage for hits on this part.
+    pub poise_scale: f32,
+    /// Multiplier on the weapon's knockback distance for hits on this part.
+    pub knockback_scale: f32,
+}
+
+impl PartReactionProfile {
+    /// No modifier — `weapon × NEUTRAL == weapon`. The default for every part
+    /// with no authored reaction profile, so existing enemies are unchanged.
+    pub const NEUTRAL: Self = Self {
+        poise_scale: 1.0,
+        knockback_scale: 1.0,
+    };
+}
+
+impl Default for PartReactionProfile {
+    fn default() -> Self {
+        Self::NEUTRAL
+    }
+}
+
 /// Static authored gameplay metadata for a collision part.
 ///
 /// Kept separate from [`PartCollider2d`] so the collision kernel does not
@@ -264,10 +302,14 @@ pub struct PartMetadata {
     /// and single-player; authored/ORS values are non-negative integers that
     /// represent exactly. Applied via `routed_damage`.
     pub armour: f32,
+    /// Per-part reaction modifiers (Phase 12). [`PartReactionProfile::NEUTRAL`]
+    /// (the default) reproduces the weapon-only Phase 11 behaviour exactly.
+    pub reaction: PartReactionProfile,
 }
 
 impl PartMetadata {
-    /// Targetable part with the given material and damage scale, no armour.
+    /// Targetable part with the given material and damage scale, no armour,
+    /// neutral reaction profile.
     #[must_use]
     pub const fn targetable(material: MaterialId, damage_scale: f32) -> Self {
         Self {
@@ -275,6 +317,7 @@ impl PartMetadata {
             damage_scale,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         }
     }
 }
@@ -930,6 +973,7 @@ mod tests {
                 damage_scale: 2.0,
                 targetable: true,
                 armour: 0.0,
+                reaction: PartReactionProfile::NEUTRAL,
             },
         );
         set
@@ -1190,6 +1234,7 @@ mod phase7_tests {
                 damage_scale: 1.0,
                 targetable: false,
                 armour: 0.0,
+                reaction: PartReactionProfile::NEUTRAL,
             },
         );
         assert!(set.is_targetable(PartId(1)), "explicit targetable");

@@ -47,6 +47,7 @@
 
 use bevy_math::Vec2;
 
+use crate::collision::PartReactionProfile;
 use crate::occupancy::OccupancyImpulse;
 
 // ---------------------------------------------------------------------------
@@ -200,11 +201,37 @@ impl PendingHitReaction {
     /// negative poise.
     #[must_use]
     pub fn from_profile(profile: &WeaponReactionProfile, direction: Vec2) -> Self {
+        Self::from_profiles(profile, PartReactionProfile::NEUTRAL, direction)
+    }
+
+    /// Build a pending reaction from the weapon profile **and** the hit part's
+    /// reaction profile (Phase 12): `resolved = weapon × part`.
+    ///
+    /// Poise damage is `weapon.poise_damage × part.poise_scale`; knockback
+    /// distance is `weapon.knockback_distance × part.knockback_scale`. Knockback
+    /// *duration* is a weapon property and is not part-scaled.
+    ///
+    /// Fail-safe: non-finite or negative **weapon** values clamp to zero (no
+    /// reaction); a non-finite or negative **part scale** clamps to the neutral
+    /// `1.0` (so bad part data degrades to weapon-only, never to NaN/negative).
+    /// With [`PartReactionProfile::NEUTRAL`] this is identical to the Phase 11
+    /// weapon-only result.
+    #[must_use]
+    pub fn from_profiles(
+        profile: &WeaponReactionProfile,
+        part: PartReactionProfile,
+        direction: Vec2,
+    ) -> Self {
         let sanitize = |v: f32| if v.is_finite() { v.max(0.0) } else { 0.0 };
+        // A part scale of `0.0` is a *valid* authored value (e.g. an armour
+        // plate that grants no poise). Only invalid data — negative or
+        // non-finite — degrades to the neutral `1.0` (weapon-only), never to a
+        // reaction-killing `0.0`.
+        let scale = |v: f32| if v.is_finite() && v >= 0.0 { v } else { 1.0 };
         Self {
             direction: direction.normalize_or_zero(),
-            poise_damage: sanitize(profile.poise_damage),
-            knockback_distance: sanitize(profile.knockback_distance),
+            poise_damage: sanitize(profile.poise_damage) * scale(part.poise_scale),
+            knockback_distance: sanitize(profile.knockback_distance) * scale(part.knockback_scale),
             knockback_duration: sanitize(profile.knockback_duration),
         }
     }
@@ -620,5 +647,209 @@ mod tests {
         assert!(state.knockback.is_none());
         assert!(state.pending.is_none());
         assert!(state.pending_next.is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 12: weapon profile × part reaction profile
+    // -----------------------------------------------------------------------
+
+    fn pistol() -> WeaponReactionProfile {
+        // Stable local fixture (independent of tuning defaults): 25 poise, a
+        // small nudge.
+        WeaponReactionProfile {
+            poise_damage: 25.0,
+            knockback_distance: 0.08,
+            knockback_duration: 0.12,
+        }
+    }
+
+    fn part(poise_scale: f32, knockback_scale: f32) -> PartReactionProfile {
+        PartReactionProfile {
+            poise_scale,
+            knockback_scale,
+        }
+    }
+
+    /// 1. Default parity: a neutral part profile reproduces the Phase 11
+    ///    weapon-only result exactly (this is what every shipped part uses).
+    #[test]
+    fn neutral_part_profile_matches_weapon_only() {
+        let dir = Vec2::X;
+        let weapon = pistol();
+        let weapon_only = PendingHitReaction::from_profile(&weapon, dir);
+        let with_neutral =
+            PendingHitReaction::from_profiles(&weapon, PartReactionProfile::NEUTRAL, dir);
+        assert_eq!(
+            weapon_only, with_neutral,
+            "NEUTRAL part ⇒ identical reaction"
+        );
+        // And the default `PartMetadata`/`PartReactionProfile` IS neutral.
+        assert_eq!(PartReactionProfile::default(), PartReactionProfile::NEUTRAL);
+        assert_eq!(with_neutral.poise_damage, 25.0);
+        assert_eq!(with_neutral.knockback_distance, 0.08);
+    }
+
+    /// 2. Amplified part profile: more poise pressure ⇒ stun crosses sooner.
+    #[test]
+    fn amplified_part_profile_increases_poise_pressure() {
+        let dir = Vec2::X;
+        let weapon = pistol(); // 25 poise
+        let amplified = PendingHitReaction::from_profiles(&weapon, part(2.0, 1.0), dir);
+        assert_eq!(amplified.poise_damage, 50.0, "poise ×2.0");
+
+        // Neutral: 4 hits (4×25=100) to reach threshold. Amplified (×2 ⇒ 50):
+        // 2 hits. Verify amplified stuns on the 2nd hit, neutral does not.
+        let cfg = cfg();
+        let mut amp = EnemyReactionState::default();
+        amp.queue_hit(amplified);
+        let _ = amp.tick(&cfg, 0.001);
+        assert!(!amp.is_stunned(), "1 amplified hit (50) below threshold");
+        amp.queue_hit(amplified);
+        let _ = amp.tick(&cfg, 0.001);
+        assert!(amp.is_stunned(), "2 amplified hits (100) stun");
+
+        let mut neu = EnemyReactionState::default();
+        for _ in 0..2 {
+            neu.queue_hit(PendingHitReaction::from_profiles(
+                &weapon,
+                PartReactionProfile::NEUTRAL,
+                dir,
+            ));
+            let _ = neu.tick(&cfg, 0.001);
+        }
+        assert!(!neu.is_stunned(), "2 neutral hits (50) do not stun");
+    }
+
+    /// 3. Reduced part profile: less poise pressure ⇒ stun takes longer.
+    #[test]
+    fn reduced_part_profile_decreases_poise_pressure() {
+        let weapon = pistol(); // 25 poise
+        let reduced = PendingHitReaction::from_profiles(&weapon, part(0.5, 1.0), Vec2::X);
+        assert_eq!(reduced.poise_damage, 12.5, "poise ×0.5");
+
+        // Neutral stuns in 4 hits; reduced (12.5) needs 8.
+        let cfg = cfg();
+        let mut state = EnemyReactionState::default();
+        for _ in 0..7 {
+            state.queue_hit(reduced);
+            let _ = state.tick(&cfg, 0.001);
+        }
+        assert!(!state.is_stunned(), "7 reduced hits (87.5) below threshold");
+        state.queue_hit(reduced);
+        let _ = state.tick(&cfg, 0.001);
+        assert!(state.is_stunned(), "8th reduced hit (100) stuns");
+    }
+
+    /// 4. Knockback modifier: the part scales the resulting impulse.
+    #[test]
+    fn part_profile_scales_knockback_impulse() {
+        let weapon = pistol(); // 0.08 distance
+        let strong = PendingHitReaction::from_profiles(&weapon, part(1.0, 1.25), Vec2::X);
+        let weak = PendingHitReaction::from_profiles(&weapon, part(1.0, 0.25), Vec2::X);
+        assert!(
+            (strong.knockback_distance - 0.10).abs() < 1e-6,
+            "0.08 ×1.25"
+        );
+        assert!((weak.knockback_distance - 0.02).abs() < 1e-6, "0.08 ×0.25");
+
+        let cfg = cfg();
+        let integrate = |hit: PendingHitReaction| {
+            let mut s = EnemyReactionState::default();
+            s.queue_hit(hit);
+            let mut total = Vec2::ZERO;
+            for _ in 0..30 {
+                total += s.tick(&cfg, 0.018);
+            }
+            total.x
+        };
+        let strong_disp = integrate(strong);
+        let weak_disp = integrate(weak);
+        assert!(
+            strong_disp > weak_disp * 4.0,
+            "stronger knockback scale ⇒ larger displacement: {strong_disp} vs {weak_disp}"
+        );
+    }
+
+    /// 5. Lethal hit: even an amplified pending reaction is dropped on death.
+    #[test]
+    fn lethal_clears_amplified_pending_reaction() {
+        let weapon = pistol();
+        let amplified = PendingHitReaction::from_profiles(&weapon, part(2.0, 2.0), Vec2::X);
+        let mut state = EnemyReactionState::default();
+        state.queue_hit(amplified);
+        state.queue_hit_after_current_tick(amplified);
+        // Lethal hit ⇒ sim calls clear().
+        state.clear();
+        assert!(state.pending.is_none());
+        assert!(state.pending_next.is_none());
+        assert!(state.knockback.is_none());
+        assert!(!state.is_stunned());
+    }
+
+    /// 6. SP/server parity: the resolver is the single shared function both
+    ///    authorities call (SP `apply_hitscan_damage`, server `process_combat`),
+    ///    so identical (weapon, part, direction) ⇒ identical resolved reaction.
+    #[test]
+    fn resolved_reaction_is_authority_independent() {
+        let weapon = pistol();
+        let p = part(1.5, 0.75);
+        let dir = Vec2::new(0.6, -0.8); // arbitrary, non-axis
+        let sp = PendingHitReaction::from_profiles(&weapon, p, dir);
+        let server = PendingHitReaction::from_profiles(&weapon, p, dir);
+        assert_eq!(
+            sp, server,
+            "shared resolver ⇒ bit-identical on both authorities"
+        );
+        // Hand-computed to pin the resolution rule.
+        assert!((sp.poise_damage - 25.0 * 1.5).abs() < 1e-6);
+        assert!((sp.knockback_distance - 0.08 * 0.75).abs() < 1e-6);
+        assert_eq!(
+            sp.knockback_duration, weapon.knockback_duration,
+            "duration not part-scaled"
+        );
+    }
+
+    /// 7. Anti-stunlock survives part amplification: after a stun the bar fully
+    ///    resets, so even a high-poise part cannot chain-stun on the next hit.
+    #[test]
+    fn amplified_hits_preserve_anti_stunlock() {
+        let weapon = pistol();
+        // ×2 ⇒ 50 poise/hit. Two hits stun (100), bar resets to 0.
+        let amplified = PendingHitReaction::from_profiles(&weapon, part(2.0, 1.0), Vec2::X);
+        let cfg = cfg();
+        let mut state = EnemyReactionState::default();
+        state.queue_hit(amplified);
+        let _ = state.tick(&cfg, 0.001);
+        state.queue_hit(amplified);
+        let _ = state.tick(&cfg, 0.001);
+        assert!(state.is_stunned(), "two amplified hits stun");
+        assert_eq!(state.poise_damage, 0.0, "bar resets on stun");
+
+        // Immediately after the reset, a single amplified hit (50) must NOT
+        // re-stun — a fresh full 100 is required (anti-stunlock holds).
+        state.queue_hit(amplified);
+        let _ = state.tick(&cfg, 0.001);
+        assert!(
+            state.poise_damage > 0.0 && state.poise_damage < cfg.poise_threshold,
+            "post-reset hit accumulates without trivially re-stunning"
+        );
+    }
+
+    /// Fail-safe: bad part scales degrade to weapon-only (neutral), never NaN.
+    #[test]
+    fn non_finite_part_scale_degrades_to_neutral() {
+        let weapon = pistol();
+        for bad in [f32::NAN, f32::INFINITY, -1.0] {
+            let r = PendingHitReaction::from_profiles(&weapon, part(bad, bad), Vec2::X);
+            assert_eq!(
+                r.poise_damage, weapon.poise_damage,
+                "bad poise scale ⇒ ×1.0"
+            );
+            assert_eq!(
+                r.knockback_distance, weapon.knockback_distance,
+                "bad knockback scale ⇒ ×1.0"
+            );
+            assert!(r.poise_damage.is_finite() && r.knockback_distance.is_finite());
+        }
     }
 }

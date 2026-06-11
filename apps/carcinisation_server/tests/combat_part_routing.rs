@@ -25,7 +25,7 @@ use std::f32::consts::PI;
 use bevy::prelude::Vec2;
 use carcinisation_fps_core::collision::{
     BillboardFacing8, Circle, Collider, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
-    PartMetadata, TargetCollisionFrame, TargetCollisionSet,
+    PartMetadata, PartReactionProfile, TargetCollisionFrame, TargetCollisionSet,
 };
 use carcinisation_fps_core::enemy_collision::{
     DEFAULT_ANIMATION, DEFAULT_FRAME, enemy_fallback_radius,
@@ -33,7 +33,7 @@ use carcinisation_fps_core::enemy_collision::{
 use carcinisation_fps_core::hitscan::{PartHitscanTarget, hitscan_parts_from_pose, routed_damage};
 use carcinisation_fps_core::map::test_map;
 use carcinisation_fps_core::{
-    FirePose2d, FpsCombatConfig, FpsEnemyKind, collision_set, facing_yaw_toward,
+    FirePose2d, FpsCombatConfig, FpsEnemyKind, PendingHitReaction, collision_set, facing_yaw_toward,
 };
 
 use common::{
@@ -178,6 +178,66 @@ fn sp_server_parity_spidey_headshot() {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 12: SP/server parity of the per-part REACTION profile
+// ---------------------------------------------------------------------------
+
+/// Both authorities read the hit part's [`PartReactionProfile`] from the same
+/// `PartHitscanResult.reaction` and resolve it via the same
+/// `PendingHitReaction::from_profiles`. Construct the hit under both authorities'
+/// styles (SP yaw via `facing_yaw_toward` + instance radius; server replicated
+/// angle + config radius) and assert they surface the same part reaction and
+/// resolve to the same pending reaction. Non-tautological: distinct
+/// construction inputs, real kernel.
+#[test]
+fn sp_server_parity_part_reaction_profile() {
+    let combat = FpsCombatConfig::default();
+    let weapon = combat.enemy_reaction.pistol;
+    let dir = FirePose2d::new(PLAYER_POS, 0.0, 0.0).direction();
+
+    let reaction_of = |yaw: f32, fallback_radius: f32| {
+        let set = collision_set(FpsEnemyKind::Spidey);
+        hitscan_parts_from_pose(
+            FirePose2d::new(PLAYER_POS, 0.0, 0.0),
+            &test_map(),
+            [PartHitscanTarget {
+                position: ENEMY_POS,
+                yaw,
+                alive: true,
+                set,
+                animation: DEFAULT_ANIMATION,
+                frame: DEFAULT_FRAME,
+                fallback_radius,
+            }]
+            .into_iter(),
+        )
+        .expect("front shot hits the spidey head")
+        .reaction
+    };
+
+    let sp_yaw = facing_yaw_toward(ENEMY_POS, PLAYER_POS).unwrap_or(0.0);
+    let sp_reaction = reaction_of(sp_yaw, 0.25);
+    let srv_reaction = reaction_of(PI, enemy_fallback_radius(FpsEnemyKind::Spidey, &combat));
+
+    assert_eq!(
+        sp_reaction, srv_reaction,
+        "same part reaction under both constructions"
+    );
+    // Shipped data is neutral ⇒ Phase 11 behaviour preserved until authored.
+    assert_eq!(
+        sp_reaction,
+        PartReactionProfile::NEUTRAL,
+        "shipped head reaction is neutral"
+    );
+
+    let sp_pending = PendingHitReaction::from_profiles(&weapon, sp_reaction, dir);
+    let srv_pending = PendingHitReaction::from_profiles(&weapon, srv_reaction, dir);
+    assert_eq!(
+        sp_pending, srv_pending,
+        "resolved reaction identical on both authorities"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Task 5: armour reduces damage through the routing boundary the server calls
 // ---------------------------------------------------------------------------
 
@@ -210,6 +270,7 @@ fn armoured_test_set(armour: f32) -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set

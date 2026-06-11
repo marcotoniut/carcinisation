@@ -4,7 +4,7 @@ use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carcinisation_fps_core::{
     EnemyReactionTuning, FirePose2d, FlameStrip, FpsEnemyKind, HIT_DEBUG_TARGET, PartHitscanTarget,
     PendingHitReaction, WeaponReactionProfile,
-    collision::PartId,
+    collision::{PartId, PartReactionProfile},
     collision_set,
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
     facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
@@ -1698,10 +1698,11 @@ fn apply_hitscan_damage(
             r.damage_scale,
             r.armour,
             r.part_id,
+            r.reaction,
         )
     });
     if let Some(r) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance, _, _, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Mosquiton(r.target_idx),
@@ -1709,10 +1710,11 @@ fn apply_hitscan_damage(
             r.damage_scale,
             r.armour,
             r.part_id,
+            r.reaction,
         ));
     }
     if let Some(r) = spidey_hit
-        && hit.is_none_or(|(_, current_distance, _, _, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Spidey(r.target_idx),
@@ -1720,10 +1722,11 @@ fn apply_hitscan_damage(
             r.damage_scale,
             r.armour,
             r.part_id,
+            r.reaction,
         ));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
-        && hit.is_none_or(|(_, current_distance, _, _, _)| distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _, _)| distance < current_distance)
     {
         // Projectiles are not enemy parts: neutral routing, FALLBACK part id.
         hit = Some((
@@ -1732,10 +1735,11 @@ fn apply_hitscan_damage(
             1.0,
             0.0,
             PartId::FALLBACK,
+            PartReactionProfile::NEUTRAL,
         ));
     }
 
-    let Some((hit, distance, damage_scale, armour, part_id)) = hit else {
+    let Some((hit, distance, damage_scale, armour, part_id, part_reaction)) = hit else {
         return;
     };
     if max_range.is_some_and(|range| distance > range) {
@@ -1765,11 +1769,13 @@ fn apply_hitscan_damage(
         distance,
         "fps hit"
     );
-    // Hit reaction (weapon-only profile, Phase 11): queue on the enemy's sim
-    // reaction state; consumed on its next sim tick. Knockback direction is
-    // the shot travel direction. Basic `Enemy` targets have no sim and do not
-    // react. The flamethrower path never queues (no poise from flame).
-    let pending = PendingHitReaction::from_profile(reaction_profile, fire_pose.direction());
+    // Hit reaction (Phase 12: weapon profile × hit part's reaction profile):
+    // queue on the enemy's sim reaction state; consumed on its next sim tick.
+    // Knockback direction is the shot travel direction. Basic `Enemy` targets
+    // have no sim and do not react. The flamethrower path never queues (no
+    // poise from flame). A neutral `part_reaction` reproduces Phase 11 exactly.
+    let pending =
+        PendingHitReaction::from_profiles(reaction_profile, part_reaction, fire_pose.direction());
     match hit {
         FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(dealt),
         FpShotHit::Mosquiton(mosquiton_idx) => {

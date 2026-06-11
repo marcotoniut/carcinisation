@@ -1,7 +1,7 @@
 use super::*;
 use crate::collision::{
     BillboardFacing8, Circle, Collider, CollisionFrameKey, MaterialId, PartCollider2d, PartId,
-    PartMetadata, TargetCollisionFrame, TargetCollisionSet,
+    PartMetadata, PartReactionProfile, TargetCollisionFrame, TargetCollisionSet,
 };
 use crate::map::test_map;
 
@@ -44,6 +44,7 @@ fn single_body_set(radius: f32) -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set
@@ -788,6 +789,7 @@ fn routing_set() -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set.insert_part_metadata(
@@ -797,6 +799,7 @@ fn routing_set() -> TargetCollisionSet {
             damage_scale: 3.0,
             targetable: true,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set
@@ -904,6 +907,7 @@ fn gated_set() -> TargetCollisionSet {
             damage_scale: 5.0, // would be huge if it ever applied — proves it doesn't
             targetable: false,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set
@@ -954,6 +958,7 @@ fn only_non_targetable_part_takes_no_damage() {
             damage_scale: 1.0,
             targetable: false,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     assert!(
@@ -1018,6 +1023,7 @@ fn flame_only_non_targetable_does_not_burn() {
             damage_scale: 1.0,
             targetable: false,
             armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     let strip = FlameStrip::from_pose(pose_east(Vec2::new(1.5, 1.5)), 8.0, 0.3, &map).unwrap();
@@ -1100,6 +1106,7 @@ fn armoured_set() -> TargetCollisionSet {
             damage_scale: 1.0,
             targetable: true,
             armour: 10.0,
+            reaction: PartReactionProfile::NEUTRAL,
         },
     );
     set

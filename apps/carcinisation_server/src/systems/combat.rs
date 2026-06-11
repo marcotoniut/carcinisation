@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::burning::{self, BurnConfig, BurnState};
-use carcinisation_fps_core::collision::PartId;
+use carcinisation_fps_core::collision::{PartId, PartReactionProfile};
 use carcinisation_fps_core::collision_set;
 use carcinisation_fps_core::combat::{FirePose2d, wall_obstruction_distance_for_pose};
 use carcinisation_fps_core::config::FpsCombatConfig;
@@ -414,17 +414,20 @@ pub fn process_combat(
 
                 let hit_entity = enemy_entities[hit_idx];
 
-                // Hit reaction (weapon-only pistol profile, Phase 11): queue on
-                // the enemy's sim reaction state only if the target survives;
-                // the shared sim consumes it on its next tick (knockback via
-                // try_move, poise/stun gating).
+                // Hit reaction (Phase 12: weapon pistol profile × hit part's
+                // reaction profile): queue on the enemy's sim reaction state
+                // only if the target survives; the shared sim consumes it on its
+                // next tick (knockback via try_move, poise/stun gating). A
+                // neutral part profile reproduces the Phase 11 result exactly.
                 //
                 // `NetAttackId::Melee` currently reaches this server branch as
                 // a pistol-equivalent network attack. Keep the pistol profile
                 // here until server melee has distinct range/damage semantics;
                 // SP-local melee uses `enemy_reaction.melee`.
-                let pending = carcinisation_fps_core::PendingHitReaction::from_profile(
+                let part_reaction = part_hit.map_or(PartReactionProfile::NEUTRAL, |r| r.reaction);
+                let pending = carcinisation_fps_core::PendingHitReaction::from_profiles(
                     &combat_config.enemy_reaction.pistol,
+                    part_reaction,
                     fire_pose.direction(),
                 );
                 let target_survived = apply_damage(
