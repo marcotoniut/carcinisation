@@ -435,7 +435,7 @@ pub fn spawn_static_spidey(
     health: f32,
 ) -> Entity {
     use carcinisation_net::{NetEnemyType, NetworkObjectId};
-    use carcinisation_server::systems::combat::ServerBurnState;
+    use carcinisation_server::systems::combat::{EnemyGameplayYaw, ServerBurnState};
     server
         .world_mut()
         .spawn((
@@ -453,6 +453,9 @@ pub fn spawn_static_spidey(
                 max: health,
             },
             ServerBurnState::default(),
+            // Collision reads gameplay yaw (Phase 13A decouple), so seed it to
+            // the same facing as NetEnemy.angle. No sim ⇒ stays static.
+            EnemyGameplayYaw(angle),
             Replicated,
         ))
         .id()

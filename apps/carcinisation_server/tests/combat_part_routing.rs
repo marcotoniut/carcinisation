@@ -36,6 +36,7 @@ use carcinisation_fps_core::{
     FirePose2d, FpsCombatConfig, FpsEnemyKind, PendingHitReaction, collision_set, facing_yaw_toward,
 };
 
+use carcinisation_server::systems::NetEnemy;
 use common::{
     build_deterministic_server_with_enemies, get_enemy_health, inject_fire, spawn_alive_player,
     spawn_static_spidey,
@@ -175,6 +176,48 @@ fn sp_server_parity_spidey_headshot() {
         "live server == SP routed (u32)"
     );
     assert_eq!(server_live, base * 2.0);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 13A: collision facing uses gameplay yaw, NOT NetEnemy.angle
+// ---------------------------------------------------------------------------
+
+/// The gameplay-yaw decouple: server collision reads `EnemyGameplayYaw`, never
+/// the (future-visual) `NetEnemy.angle`. Set gameplay yaw to face the player
+/// (→ head, 2×) but corrupt `NetEnemy.angle` to face away (→ would be body, 1×).
+/// The shot must still hit the head, proving collision ignores `NetEnemy.angle`.
+#[test]
+fn collision_facing_uses_gameplay_yaw_not_net_enemy_angle() {
+    let mut server = build_deterministic_server_with_enemies(test_map(), vec![]);
+    server.update();
+
+    // Gameplay yaw = PI (faces the west player → head reached first).
+    let entity = spawn_static_spidey(&mut server, 1, ENEMY_POS, PI, ENEMY_HP);
+
+    // Corrupt ONLY the replicated/visual yaw to face away (0.0). If collision
+    // still read NetEnemy.angle this would select the body (1×).
+    {
+        let mut ne = server
+            .world_mut()
+            .get_mut::<NetEnemy>(entity)
+            .expect("spawned spidey");
+        ne.angle = 0.0;
+    }
+
+    spawn_alive_player(&mut server, 1, PLAYER_POS.x, PLAYER_POS.y);
+    let before = get_enemy_health(&mut server).expect("spidey present");
+    inject_fire(&mut server, 1);
+    for _ in 0..3 {
+        server.update();
+    }
+    let after = get_enemy_health(&mut server).expect("spidey present");
+
+    let base = FpsCombatConfig::default().hitscan_damage;
+    assert_eq!(
+        before - after,
+        base * 2.0,
+        "collision used gameplay yaw (head 2×); corrupted NetEnemy.angle was ignored"
+    );
 }
 
 // ---------------------------------------------------------------------------

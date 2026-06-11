@@ -35,7 +35,12 @@ impl ServerEnemyAiConfig {
 #[allow(clippy::type_complexity)]
 pub fn tick_net_enemy_ai(
     mut enemies: Query<
-        (&mut NetEnemy, &NetHealth, Option<&ServerEnemyAiConfig>),
+        (
+            &mut NetEnemy,
+            &NetHealth,
+            Option<&ServerEnemyAiConfig>,
+            &mut super::combat::EnemyGameplayYaw,
+        ),
         (Without<ServerMosquitonSim>, Without<ServerSpideySim>),
     >,
     players: Query<&NetPlayer>,
@@ -51,7 +56,7 @@ pub fn tick_net_enemy_ai(
         })
         .collect();
 
-    for (mut net_enemy, net_health, ai_config) in &mut enemies {
+    for (mut net_enemy, net_health, ai_config, mut gameplay_yaw) in &mut enemies {
         if net_enemy.enemy_type != NetEnemyType::Mosquiton {
             continue;
         }
@@ -64,7 +69,9 @@ pub fn tick_net_enemy_ai(
             continue;
         };
 
-        let mut sim = net_enemy_to_sim(&net_enemy, net_health);
+        // Seed the AI sim from the authoritative gameplay yaw, never the
+        // (future-visual) NetEnemy.angle.
+        let mut sim = net_enemy_to_sim(&net_enemy, net_health, gameplay_yaw.0);
         let _output = tick_enemy_ai(
             &mut sim,
             &target_sims,
@@ -73,10 +80,16 @@ pub fn tick_net_enemy_ai(
             ai_config.0,
         );
         apply_sim_to_net_enemy(&sim, &mut net_enemy);
+        // Keep gameplay yaw and the replicated facing in lock-step for now.
+        gameplay_yaw.0 = sim.angle;
     }
 }
 
-const fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth) -> EnemySim {
+/// Build a transient AI sim from the replicated enemy. `gameplay_yaw` is the
+/// authoritative collision/AI facing (server-only `EnemyGameplayYaw`) — passed
+/// explicitly so this never reads `NetEnemy.angle`, which is reserved as the
+/// future visual-yaw channel.
+const fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth, gameplay_yaw: f32) -> EnemySim {
     EnemySim {
         kind: match enemy.enemy_type {
             NetEnemyType::Basic => FpsEnemyKind::Basic,
@@ -84,7 +97,7 @@ const fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth) -> EnemySim {
             NetEnemyType::Spidey => FpsEnemyKind::Spidey,
         },
         position: enemy.position,
-        angle: enemy.angle,
+        angle: gameplay_yaw,
         health: health.current,
         state: match enemy.state {
             NetEnemyState::Idle => FpsEnemyAiState::Idle,

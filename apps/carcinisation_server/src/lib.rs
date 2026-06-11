@@ -649,6 +649,9 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
                 },
                 carcinisation_net::NetBurning::default(),
                 crate::systems::combat::ServerBurnState::default(),
+                // Authoritative gameplay yaw (collision/AI), initialised to the
+                // same facing as NetEnemy.angle. Server-only, not replicated.
+                crate::systems::combat::EnemyGameplayYaw(0.0),
                 Replicated,
             ));
             // Attach occupancy with type-appropriate collision radius.

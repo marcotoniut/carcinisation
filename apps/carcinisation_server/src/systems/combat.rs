@@ -46,6 +46,18 @@ const fn fps_kind_from_net(enemy_type: NetEnemyType) -> FpsEnemyKind {
 #[derive(Component, Debug, Clone, Default)]
 pub struct ServerBurnState(pub BurnState);
 
+/// Server-only **authoritative gameplay yaw** (radians) for an enemy: the
+/// face-the-engaged-player facing used for per-facing collision selection
+/// (hitscan + flame) and for seeding the AI sim. **Not replicated.**
+///
+/// Decoupled from [`NetEnemy::angle`] (Phase 13A foundation). Today this equals
+/// `NetEnemy.angle`; they are split so that `NetEnemy.angle` can later become a
+/// purely *visual* facing channel (e.g. flinch turning) that may diverge from
+/// gameplay yaw **without** moving the collision hit surface. Collision and AI
+/// must read **this**, never `NetEnemy.angle`.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct EnemyGameplayYaw(pub f32);
+
 /// Load `BurnConfig` from the embedded RON asset.
 #[must_use]
 pub fn load_burn_config() -> BurnConfig {
@@ -189,7 +201,13 @@ pub fn process_combat(
     buffer: Res<super::PlayerIntentBuffer>,
     mut players: Query<&mut NetPlayer>,
     mut enemies: Query<
-        (Entity, &mut NetEnemy, &mut NetHealth, &mut ServerBurnState),
+        (
+            Entity,
+            &mut NetEnemy,
+            &mut NetHealth,
+            &mut ServerBurnState,
+            &EnemyGameplayYaw,
+        ),
         Without<NetPlayer>,
     >,
     // Disjoint from `enemies` (different components): used only to queue hit
@@ -291,7 +309,7 @@ pub fn process_combat(
                 enemy_entities.clear();
                 enemy_list.clear();
                 enemy_meta.clear();
-                for (entity, net_enemy, net_health, _) in enemies.iter() {
+                for (entity, net_enemy, net_health, _, gameplay_yaw) in enemies.iter() {
                     if matches!(
                         net_enemy.state,
                         NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
@@ -305,7 +323,9 @@ pub fn process_combat(
                         net_health.current as u32,
                         0.0,
                     ));
-                    enemy_meta.push((fps_kind_from_net(net_enemy.enemy_type), net_enemy.angle));
+                    // Collision facing uses the authoritative gameplay yaw, NOT
+                    // the (future-visual) NetEnemy.angle.
+                    enemy_meta.push((fps_kind_from_net(net_enemy.enemy_type), gameplay_yaw.0));
                 }
 
                 // Per-part hitscan using authoritative collision identity:
@@ -453,7 +473,7 @@ pub fn process_combat(
                 // Send hit confirmation for blood splat visual. Use the part
                 // surface hit point so the effect aligns with where the shot
                 // landed rather than the enemy centre.
-                if let Ok((_, hit_enemy, _, _)) = enemies.get(hit_entity) {
+                if let Ok((_, hit_enemy, _, _, _)) = enemies.get(hit_entity) {
                     let impact_pos = part_hit.map_or(hit_enemy.position, |r| r.point);
                     commands.server_trigger(ToClients {
                         mode: SendMode::Broadcast,
@@ -502,7 +522,7 @@ pub fn process_combat(
                 // matching the hitscan target setup. Frame is DEFAULT_FRAME=0.
                 // The wall-capped strip is computed once and reused per target.
                 if let Some(strip) = FlameStrip::from_config(fire_pose, &server_map.0, &flame_cfg) {
-                    for (entity, net_enemy, _, _) in enemies.iter() {
+                    for (entity, net_enemy, _, _, gameplay_yaw) in enemies.iter() {
                         if matches!(
                             net_enemy.state,
                             NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
@@ -512,7 +532,8 @@ pub fn process_combat(
                         let kind = fps_kind_from_net(net_enemy.enemy_type);
                         let target = PartHitscanTarget {
                             position: net_enemy.position,
-                            yaw: net_enemy.angle,
+                            // Collision facing uses gameplay yaw, not NetEnemy.angle.
+                            yaw: gameplay_yaw.0,
                             alive: true,
                             set: collision_set(kind),
                             animation: DEFAULT_ANIMATION,
@@ -593,7 +614,7 @@ pub fn process_combat(
     flame_exposed_entities.sort_unstable();
     flame_exposed_entities.dedup();
     for entity in &flame_exposed_entities {
-        if let Ok((_, _, _, mut burn)) = enemies.get_mut(*entity) {
+        if let Ok((_, _, _, mut burn, _)) = enemies.get_mut(*entity) {
             burning::apply_exposure(
                 &mut burn.0,
                 &burn_config,
@@ -856,7 +877,13 @@ pub fn tick_enemy_burning(
 fn apply_damage(
     commands: &mut Commands,
     enemies: &mut Query<
-        (Entity, &mut NetEnemy, &mut NetHealth, &mut ServerBurnState),
+        (
+            Entity,
+            &mut NetEnemy,
+            &mut NetHealth,
+            &mut ServerBurnState,
+            &EnemyGameplayYaw,
+        ),
         Without<NetPlayer>,
     >,
     entity: Entity,
@@ -864,7 +891,7 @@ fn apply_damage(
     burn: bool,
     combat_config: &FpsCombatConfig,
 ) -> bool {
-    let Ok((_, mut net_enemy, mut net_health, _)) = enemies.get_mut(entity) else {
+    let Ok((_, mut net_enemy, mut net_health, _, _)) = enemies.get_mut(entity) else {
         return false;
     };
     if net_health.current <= 0.0 {

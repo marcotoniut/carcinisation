@@ -24,6 +24,7 @@ use carcinisation_fps_core::try_move;
 use crate::ServerMap;
 
 use super::NetProjectile;
+use super::combat::EnemyGameplayYaw;
 
 /// Per-enemy Mosquiton simulation state, attached at spawn time.
 ///
@@ -176,6 +177,7 @@ pub fn tick_enemy_attacks(
         &NetHealth,
         &mut ServerMosquitonSim,
         &ServerMosquitonSimConfig,
+        &mut EnemyGameplayYaw,
     )>,
     players: Query<&NetPlayer>,
     mut player_query: Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
@@ -187,7 +189,9 @@ pub fn tick_enemy_attacks(
     let dt = fixed_time.delta_secs();
     let mut melee_hits: Vec<MeleeHit> = Vec::new();
 
-    for (enemy_entity, mut enemy, health, mut mosquiton_sim, sim_config) in &mut enemies {
+    for (enemy_entity, mut enemy, health, mut mosquiton_sim, sim_config, mut gameplay_yaw) in
+        &mut enemies
+    {
         if enemy.enemy_type != NetEnemyType::Mosquiton {
             continue;
         }
@@ -223,10 +227,11 @@ pub fn tick_enemy_attacks(
 
         // Write back sim state.
         enemy.position = sim.position;
-        // Authoritative facing: orient toward the engaged player. This is the
-        // shared facing basis for both directional rendering and per-facing
-        // collision selection (see `carcinisation_fps_core::facing_yaw_toward`).
+        // Authoritative facing: orient toward the engaged player. Written to
+        // both the gameplay yaw (collision/AI source of truth) and NetEnemy.angle
+        // (replicated facing; equal today, may carry visual-only yaw later).
         if let Some(yaw) = facing_yaw_toward(enemy.position, player_pos) {
+            gameplay_yaw.0 = yaw;
             enemy.angle = yaw;
         }
         mosquiton_sim.sim_state = sim.state.clone();
@@ -458,6 +463,7 @@ pub fn tick_spidey_attacks(
         &NetHealth,
         &mut ServerSpideySim,
         &ServerSpideySimConfig,
+        &mut EnemyGameplayYaw,
     )>,
     mut player_query: Query<(Entity, &mut NetPlayer, &mut NetHealth), Without<NetEnemy>>,
     fixed_time: Res<Time<Fixed>>,
@@ -469,7 +475,9 @@ pub fn tick_spidey_attacks(
     let mut melee_hits: Vec<MeleeHit> = Vec::new();
     let mut lunge_impulse_hits: Vec<LungeHit> = Vec::new();
 
-    for (enemy_entity, mut enemy, health, mut spidey_sim, sim_config) in &mut enemies {
+    for (enemy_entity, mut enemy, health, mut spidey_sim, sim_config, mut gameplay_yaw) in
+        &mut enemies
+    {
         if enemy.enemy_type != NetEnemyType::Spidey {
             continue;
         }
@@ -510,9 +518,11 @@ pub fn tick_spidey_attacks(
 
         // Write back sim state.
         enemy.position = sim.position;
-        // Authoritative facing toward the engaged player (shared basis for
-        // rendering and per-facing collision).
+        // Authoritative facing toward the engaged player. Gameplay yaw is the
+        // collision/AI source of truth; NetEnemy.angle mirrors it today (and may
+        // carry visual-only yaw later).
         if let Some(yaw) = facing_yaw_toward(enemy.position, player_pos) {
+            gameplay_yaw.0 = yaw;
             enemy.angle = yaw;
         }
         enemy.visual_height = output.visual_height;
@@ -692,6 +702,7 @@ fn apply_lunge_displacement(
         &NetHealth,
         &mut ServerSpideySim,
         &ServerSpideySimConfig,
+        &mut EnemyGameplayYaw,
     )>,
     combat_config: &FpsCombatConfig,
     server_map: &ServerMap,
@@ -740,7 +751,7 @@ fn apply_lunge_displacement(
         }
 
         // --- Spidey recoil: opposite of push direction ---
-        if let Ok((_, mut enemy, _, _, _)) = enemies.get_mut(hit.source_entity) {
+        if let Ok((_, mut enemy, _, _, _, _)) = enemies.get_mut(hit.source_entity) {
             let displacement = -push_dir * spidey_cfg.lunge_spidey_recoil_distance;
             try_move(
                 &mut enemy.position,
