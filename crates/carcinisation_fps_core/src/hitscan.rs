@@ -29,7 +29,7 @@
 use bevy_math::Vec2;
 
 use crate::collision::primitives::HitResult;
-use crate::collision::target::{AnimationKey, MaterialId, PartId, PartReactionProfile};
+use crate::collision::target::{AnimationKey, PartId, PartReactionProfile};
 use crate::collision::{Circle, TargetCollisionSet, TargetQueryPose2d, swept_circle_vs_circle};
 use crate::combat::{FirePose2d, wall_obstruction_distance, wall_obstruction_distance_for_pose};
 use crate::config::PlayerFlamethrowerConfig;
@@ -61,8 +61,6 @@ pub struct PartHitscanResult {
     /// Which part was hit. [`PartId::FALLBACK`] when the whole-body circle
     /// fallback was used.
     pub part_id: PartId,
-    /// Material of the hit part, if registered. `None` for fallback hits.
-    pub material: Option<MaterialId>,
     /// Damage multiplier of the hit part (`PartMetadata::damage_scale`).
     /// [`NEUTRAL_DAMAGE_SCALE`] for the fallback circle and for parts with no
     /// registered metadata.
@@ -165,21 +163,17 @@ pub fn routed_damage(base: f32, scale: f32, armour: f32) -> f32 {
     (scaled - armour).max(0.0)
 }
 
-/// Material + damage scale + armour + reaction profile for a part, with neutral
-/// defaults when no metadata is registered (`None` material,
-/// [`NEUTRAL_DAMAGE_SCALE`], `0.0` armour, [`PartReactionProfile::NEUTRAL`]).
-fn part_routing(
-    set: &TargetCollisionSet,
-    id: PartId,
-) -> (Option<MaterialId>, f32, f32, PartReactionProfile) {
+/// Damage scale + armour + reaction profile for a part, with neutral defaults
+/// when no metadata is registered ([`NEUTRAL_DAMAGE_SCALE`], `0.0` armour,
+/// [`PartReactionProfile::NEUTRAL`]).
+///
+/// `MaterialId` is intentionally not surfaced: it has no consumer (see
+/// [`MaterialId`](crate::collision::MaterialId)), so it is not threaded through
+/// the hot-path result.
+fn part_routing(set: &TargetCollisionSet, id: PartId) -> (f32, f32, PartReactionProfile) {
     set.part_metadata(id).map_or(
-        (
-            None,
-            NEUTRAL_DAMAGE_SCALE,
-            0.0,
-            PartReactionProfile::NEUTRAL,
-        ),
-        |m| (Some(m.material), m.damage_scale, m.armour, m.reaction),
+        (NEUTRAL_DAMAGE_SCALE, 0.0, PartReactionProfile::NEUTRAL),
+        |m| (m.damage_scale, m.armour, m.reaction),
     )
 }
 
@@ -217,28 +211,19 @@ pub fn hitscan_parts_from_pose<'a>(
                     target.set.is_targetable(id)
                 })
                 .map(|hit| {
-                    let (material, scale, armour, reaction) = part_routing(target.set, hit.id);
-                    (hit, material, scale, armour, reaction)
+                    let (scale, armour, reaction) = part_routing(target.set, hit.id);
+                    (hit, scale, armour, reaction)
                 }),
             // Missing OR empty frame falls back to the whole-body circle. An
             // empty frame (zero parts) is treated as unauthored, not as "no
             // hittable surface": bad/sparse generated metadata must not be able
             // to make a target invulnerable. A non-empty frame whose parts the
             // ray simply misses is a genuine miss (no fallback).
-            _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius).map(
-                |hit| {
-                    (
-                        hit,
-                        None,
-                        NEUTRAL_DAMAGE_SCALE,
-                        0.0,
-                        PartReactionProfile::NEUTRAL,
-                    )
-                },
-            ),
+            _ => fallback_circle_hit(origin, dir, target.position, target.fallback_radius)
+                .map(|hit| (hit, NEUTRAL_DAMAGE_SCALE, 0.0, PartReactionProfile::NEUTRAL)),
         };
 
-        let Some((hit, material, damage_scale, armour, reaction)) = resolved else {
+        let Some((hit, damage_scale, armour, reaction)) = resolved else {
             continue;
         };
 
@@ -249,7 +234,6 @@ pub fn hitscan_parts_from_pose<'a>(
         let candidate = PartHitscanResult {
             target_idx: idx,
             part_id: hit.id,
-            material,
             damage_scale,
             armour,
             reaction,
@@ -293,8 +277,6 @@ fn fallback_circle_hit(
 pub struct FlamePartHit {
     /// Nearest overlapping part. [`PartId::FALLBACK`] for the whole-body circle.
     pub part_id: PartId,
-    /// Material of the hit part, if registered. `None` for fallback hits.
-    pub material: Option<MaterialId>,
     /// Distance along the flame axis to the contact.
     pub distance: f32,
     /// World-space contact point on the part surface.
@@ -396,8 +378,7 @@ impl FlameStrip {
                     self.end,
                     self.half_width,
                     |id| target.set.is_targetable(id),
-                )
-                .map(|hit| (hit, target.set.part_metadata(hit.id).map(|m| m.material))),
+                ),
             // Missing/empty frame → fail-open whole-body swept circle (same
             // policy as the ray fallback).
             _ => fallback_swept_circle(
@@ -406,10 +387,9 @@ impl FlameStrip {
                 self.half_width,
                 target.position,
                 target.fallback_radius,
-            )
-            .map(|hit| (hit, None)),
+            ),
         };
-        let (hit, material) = resolved?;
+        let hit = resolved?;
 
         // Per-contact line-of-sight: a wall between the origin and the contact
         // point blocks the flame. Preserves the legacy `flame_hits_position`
@@ -423,7 +403,6 @@ impl FlameStrip {
 
         Some(FlamePartHit {
             part_id: hit.id,
-            material,
             distance: hit.distance,
             point: hit.point,
         })

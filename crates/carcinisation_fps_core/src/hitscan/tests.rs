@@ -177,7 +177,6 @@ fn head_and_body_part_ids_returned() {
     let hit =
         hitscan_parts_from_pose(pose_west(Vec2::new(5.5, 1.5)), &map, targets.into_iter()).unwrap();
     assert_eq!(hit.part_id, HEAD, "front shot hits head first");
-    assert_eq!(hit.material, None, "demo set has no head metadata");
 }
 
 /// Pose firing along -X from `origin`.
@@ -299,7 +298,6 @@ fn missing_frame_falls_back_to_circle() {
     let hit =
         hitscan_parts_from_pose(pose_east(Vec2::new(1.5, 1.5)), &map, [t].into_iter()).unwrap();
     assert_eq!(hit.part_id, PartId::FALLBACK, "no frame → fallback circle");
-    assert_eq!(hit.material, None);
     assert!(
         approx(hit.distance, 0.7),
         "circle surface at x=2.2 from x=1.5"
@@ -823,7 +821,6 @@ fn hitscan_returns_part_damage_scale() {
         (weak.damage_scale - 3.0).abs() < 1e-4,
         "weak point scale 3.0"
     );
-    assert_eq!(weak.material, Some(MaterialId(9)));
 
     // From the west, the body occludes the (eastward) weak point → body hit.
     let body = hitscan_parts_from_pose(
@@ -849,7 +846,6 @@ fn hitscan_fallback_uses_neutral_scale() {
         (hit.damage_scale - 1.0).abs() < 1e-4,
         "fallback is neutral 1.0"
     );
-    assert_eq!(hit.material, None);
 }
 
 #[test]
@@ -868,7 +864,6 @@ fn part_with_no_metadata_is_neutral_scale() {
         (hit.damage_scale - 1.0).abs() < 1e-4,
         "no metadata → neutral"
     );
-    assert_eq!(hit.material, None);
 }
 
 // ---------------------------------------------------------------------------
@@ -1181,4 +1176,115 @@ fn flame_ignores_part_armour() {
         .hits_target(&map, target(&set, Vec2::new(3.5, 1.5), 0.3))
         .unwrap();
     assert_eq!(hit.part_id, ARMOUR_PART, "armoured part still burns");
+}
+
+// ---------------------------------------------------------------------------
+// Combined end-to-end fixture (consolidation cleanup)
+//
+// One query that exercises the whole routing stack at once — non-targetable
+// transparency + non-zero armour + a non-neutral reaction profile — so the
+// integration is covered the day real per-part content is authored, not just
+// the unit pieces in isolation. Test-only fixture; not shipped enemy content.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn combined_transparency_armour_and_reaction_flow_through_one_hit() {
+    // Local-space layout (enemy faces +X toward an east shooter firing -X):
+    //   PLATE (x=0.5, non-targetable) is nearest → transparent, skipped.
+    //   WEAKPT (x=0.25, targetable)   is hit: armour 10, scale 2.0, hot reaction.
+    //   CORE  (x=0.0, targetable)     is the backstop behind it.
+    const PLATE: PartId = PartId(20); // non-targetable shell
+    const WEAKPT: PartId = PartId(21); // armoured, amplified weak point
+    const CORE: PartId = PartId(22); // body backstop
+
+    let hot = PartReactionProfile {
+        poise_scale: 1.5,
+        knockback_scale: 0.75,
+    };
+
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([
+                PartCollider2d {
+                    part_id: CORE,
+                    collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.2)),
+                },
+                PartCollider2d {
+                    part_id: WEAKPT,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.25, 0.0), 0.1)),
+                },
+                PartCollider2d {
+                    part_id: PLATE,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.5, 0.0), 0.12)),
+                },
+            ]),
+        );
+    }
+    set.insert_part_metadata(CORE, PartMetadata::targetable(MaterialId(1), 1.0));
+    set.insert_part_metadata(
+        WEAKPT,
+        PartMetadata {
+            material: MaterialId(2),
+            damage_scale: 2.0,
+            targetable: true,
+            armour: 10.0,
+            reaction: hot,
+        },
+    );
+    set.insert_part_metadata(
+        PLATE,
+        PartMetadata {
+            material: MaterialId(3),
+            // Would be enormous if it ever applied — proves transparency skips it.
+            damage_scale: 9.0,
+            targetable: false,
+            armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
+        },
+    );
+
+    let map = test_map();
+    let hit = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+
+    // 1. Transparency: the non-targetable plate is skipped; the weak point wins.
+    assert_eq!(hit.part_id, WEAKPT, "plate is transparent → weak point hit");
+
+    // 2. Routing fields surface on the result.
+    assert!(approx(hit.damage_scale, 2.0));
+    assert!(approx(hit.armour, 10.0));
+
+    // 3. Armour applies after scaling: (37 × 2.0) − 10 = 64.
+    let base = 37.0;
+    assert!(
+        approx(hit.routed_damage(base), 64.0),
+        "(base×scale) − armour, clamped"
+    );
+
+    // 4. The non-neutral reaction profile flows through to the resolver:
+    //    weapon poise ×1.5, weapon knockback ×0.75.
+    assert!(approx(hit.reaction.poise_scale, 1.5));
+    assert!(approx(hit.reaction.knockback_scale, 0.75));
+    let weapon = crate::reaction::WeaponReactionProfile {
+        poise_damage: 20.0,
+        knockback_distance: 0.1,
+        knockback_duration: 0.12,
+    };
+    let pending = crate::reaction::PendingHitReaction::from_profiles(
+        &weapon,
+        hit.reaction,
+        pose_west(Vec2::new(5.5, 1.5)).direction(),
+    );
+    assert!(approx(pending.poise_damage, 30.0), "20 × 1.5");
+    assert!(approx(pending.knockback_distance, 0.075), "0.1 × 0.75");
 }

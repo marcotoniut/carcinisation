@@ -41,13 +41,15 @@ impl PartId {
 
 /// Opaque material identifier.
 ///
-/// **Reserved / frozen (Phase 6 conclusion).** `MaterialId` is an FPS-local
-/// concept with **no ORS source** — ORS has no material/reaction system (it
-/// routes via part `tags` + `health_pool`). It is carried through
-/// `PartMetadata`/`PartHitscanResult`/`FlamePartHit` as a placeholder but has
-/// **no consumer yet**: do not expand it (no material tables, no reactions)
-/// until an FPS-local material/reaction system actually reads it. It is
-/// intentionally not produced by any future ORS importer.
+/// **Reserved / frozen — groundwork only, 0 production consumers.** `MaterialId`
+/// is an FPS-local concept with **no ORS source** — ORS has no material/reaction
+/// system (it routes via part `tags` + `health_pool`). It is stored on
+/// [`PartMetadata`] as a placeholder; nothing reads it. As of the consolidation
+/// cleanup it is **no longer threaded** through `PartHitscanResult`/`FlamePartHit`
+/// (those result structs carried it with no reader). Do not re-add it to results
+/// and do not expand it (no material tables, no reactions) until an FPS-local
+/// material/reaction system actually reads it. It is intentionally not produced
+/// by any future ORS importer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MaterialId(pub u16);
 
@@ -56,6 +58,17 @@ pub struct MaterialId(pub u16);
 /// The caller maps from their domain-specific animation concept (e.g.
 /// `EnemyPresentationState`) to this key. The collision system only stores
 /// and looks up by key — it does not interpret the value.
+///
+/// # Reserved-unused today
+///
+/// This is a forward-looking index dimension of [`CollisionFrameKey`]
+/// (alongside the `frame` index). **No shipped content varies it**: every
+/// authored fixture registers under `DEFAULT_ANIMATION` (`AnimationKey(0)`) and
+/// `DEFAULT_FRAME` (`0`), and both authorities query with those constants. It is
+/// kept (rather than collapsed) so per-animation / per-frame collision geometry
+/// can be authored later with no call-site change — but until then, treat any
+/// non-zero animation/frame as unauthored (it falls back to the whole-body
+/// circle).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AnimationKey(pub u16);
 
@@ -328,9 +341,14 @@ impl PartMetadata {
 
 /// Mutable per-part runtime state for a live target instance.
 ///
-/// **Placeholder for the static/runtime boundary (Phase 7); not wired into any
-/// gameplay system yet.** It documents where future per-part mutable state will
-/// live so it never leaks into the static [`PartMetadata`] / [`TargetCollisionSet`].
+/// **Groundwork only — 0 production callers. Do not expand until a real
+/// consumer exists.** This is a placeholder for the static/runtime boundary
+/// (Phase 7), not wired into any gameplay system. It documents where future
+/// per-part mutable state will live so it never leaks into the static
+/// [`PartMetadata`] / [`TargetCollisionSet`]. Its fields
+/// (`current_durability`/`broken`/`collision_enabled`) are part of the
+/// deferred durability/breakables work and must not be read or replicated until
+/// that work is actually scheduled.
 ///
 /// # Ownership contract (when adopted)
 ///
@@ -644,6 +662,12 @@ pub enum PartIdRegistryError {
 
 /// Bidirectional map between source part names (e.g. ORS `String` ids) and the
 /// compact [`PartId`] used on hot paths.
+///
+/// **Groundwork only — 0 production callers (exercised by tests).** This is the
+/// import-time name→id mapping a future ORS importer will use; there is no
+/// importer yet. Keep it frozen — do not expand or wire it into runtime until an
+/// importer actually consumes it. Gameplay carries `PartId` directly and never
+/// needs this map on the hot path.
 ///
 /// Names are stored **owned**, so the registry accepts runtime/asset-loaded
 /// strings (an ORS importer hands over `String` part ids directly) as well as

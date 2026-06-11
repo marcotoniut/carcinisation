@@ -440,10 +440,19 @@ pub fn process_combat(
                 // next tick (knockback via try_move, poise/stun gating). A
                 // neutral part profile reproduces the Phase 11 result exactly.
                 //
-                // `NetAttackId::Melee` currently reaches this server branch as
-                // a pistol-equivalent network attack. Keep the pistol profile
-                // here until server melee has distinct range/damage semantics;
-                // SP-local melee uses `enemy_reaction.melee`.
+                // TODO(mp-melee): converge server melee with SP before real MP
+                // melee semantics ship. `NetAttackId::Melee` is currently folded
+                // into this pistol branch (same `match` arm above) and is
+                // therefore PISTOL-EQUIVALENT on the server: it uses
+                // `combat_config.fire_cooldown_secs`, `hitscan_damage`, and the
+                // `enemy_reaction.pistol` reaction profile below. This is an
+                // intentional placeholder — there is no distinct server melee
+                // range/damage path yet. By contrast, SP-local melee
+                // (`carcinisation_fps::player_attack`) applies a ×3 base-damage
+                // multiplier and the `enemy_reaction.melee` profile. These two
+                // paths MUST be reconciled (shared melee config + reaction
+                // profile, server-side range/arc) before MP melee is authored,
+                // or SP and server will disagree on melee damage and stagger.
                 let part_reaction = part_hit.map_or(PartReactionProfile::NEUTRAL, |r| r.reaction);
                 let pending = carcinisation_fps_core::PendingHitReaction::from_profiles(
                     &combat_config.enemy_reaction.pistol,

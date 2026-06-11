@@ -883,6 +883,12 @@ pub fn process_player_attacks(
         // TODO(balance): this melee × part-scale interaction has not been
         // balance-reviewed. Pre-existing multiplier; left as-is here (no config
         // field exists yet). Revisit when melee or part scaling is tuned.
+        //
+        // TODO(mp-melee): this is the SP-only melee path (×3 base damage +
+        // `enemy_reaction.melee` profile). The server has NO distinct melee
+        // path — `NetAttackId::Melee` is pistol-equivalent there (see
+        // `apps/carcinisation_server/src/systems/combat.rs`, TODO(mp-melee)).
+        // These must converge into shared melee config before MP melee ships.
         apply_hitscan_damage(
             fire_pose,
             map,
