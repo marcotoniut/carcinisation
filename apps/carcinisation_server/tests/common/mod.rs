@@ -419,6 +419,45 @@ pub fn get_enemy_health(server: &mut App) -> Option<f32> {
         .map(|(_, h)| h.current)
 }
 
+/// Spawn a **static, sim-less Spidey** directly as a replicated `NetEnemy`.
+///
+/// `tick_net_enemy_ai` only ticks Mosquitons and no `ServerSpideySim` is
+/// attached, so this enemy never moves or re-orients — its `position`/`angle`
+/// stay exactly as given. That makes per-part hitscan geometry fully
+/// deterministic, which is required to aim shots at the head vs the body. The
+/// `enemy_type: Spidey` still drives the authoritative `collision_set(Spidey)`
+/// path inside real server combat. Returns the spawned entity.
+pub fn spawn_static_spidey(
+    server: &mut App,
+    object_id: u32,
+    pos: Vec2,
+    angle: f32,
+    health: f32,
+) -> Entity {
+    use carcinisation_net::{NetEnemyType, NetworkObjectId};
+    use carcinisation_server::systems::combat::ServerBurnState;
+    server
+        .world_mut()
+        .spawn((
+            NetEnemy {
+                object_id: NetworkObjectId(object_id),
+                position: pos,
+                angle,
+                state: NetEnemyState::Idle,
+                enemy_type: NetEnemyType::Spidey,
+                visual_height: 0.0,
+                visual_phase: 0.0,
+            },
+            NetHealth {
+                current: health,
+                max: health,
+            },
+            ServerBurnState::default(),
+            Replicated,
+        ))
+        .id()
+}
+
 /// Get the first enemy's state, if any.
 pub fn get_enemy_state(server: &mut App) -> Option<NetEnemyState> {
     server

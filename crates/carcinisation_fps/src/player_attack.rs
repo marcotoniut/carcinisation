@@ -2,8 +2,10 @@
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carcinisation_fps_core::{
-    EnemyReactionTuning, FirePose2d, FlameStrip, FpsEnemyKind, PartHitscanTarget,
-    PendingHitReaction, WeaponReactionProfile, collision_set,
+    EnemyReactionTuning, FirePose2d, FlameStrip, FpsEnemyKind, HIT_DEBUG_TARGET, PartHitscanTarget,
+    PendingHitReaction, WeaponReactionProfile,
+    collision::PartId,
+    collision_set,
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
     facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
     hitscan_parts_from_pose, routed_damage,
@@ -1490,13 +1492,14 @@ fn apply_flamethrower_damage(
                 frame: DEFAULT_FRAME,
                 fallback_radius: enemy.radius,
             };
-            if strip.hits_target(map, target).is_some() {
+            if let Some(part_hit) = strip.hits_target(map, target) {
                 carcinisation_fps_core::apply_exposure(
                     &mut enemy.burn_state,
                     burn_config,
                     burn_config.flame_exposure_per_sec,
                     dt,
                 );
+                trace_flame_exposure("Basic", part_hit.part_id);
             }
         }
 
@@ -1513,13 +1516,14 @@ fn apply_flamethrower_damage(
                 frame: DEFAULT_FRAME,
                 fallback_radius: mosquiton.config.collision_radius,
             };
-            if strip.hits_target(map, target).is_some() {
+            if let Some(part_hit) = strip.hits_target(map, target) {
                 carcinisation_fps_core::apply_exposure(
                     &mut mosquiton.burn_state,
                     burn_config,
                     burn_config.flame_exposure_per_sec,
                     dt,
                 );
+                trace_flame_exposure("Mosquiton", part_hit.part_id);
             }
         }
 
@@ -1536,18 +1540,33 @@ fn apply_flamethrower_damage(
                 frame: DEFAULT_FRAME,
                 fallback_radius: spidey.config.sim.collision_radius,
             };
-            if strip.hits_target(map, target).is_some() {
+            if let Some(part_hit) = strip.hits_target(map, target) {
                 carcinisation_fps_core::apply_exposure(
                     &mut spidey.burn_state,
                     burn_config,
                     burn_config.flame_exposure_per_sec,
                     dt,
                 );
+                trace_flame_exposure("Spidey", part_hit.part_id);
             }
         }
     }
 
     destroy_projectiles_touching_flame(fire_pose, map, projectiles, impacts, flame_cfg);
+}
+
+/// Opt-in per-target flame-exposure trace (disabled by default; see
+/// [`HIT_DEBUG_TARGET`]). Flame is exposure-based and intentionally ignores
+/// `damage_scale`/armour, so only the touched part is reported. Logging only.
+fn trace_flame_exposure(kind: &str, part_id: PartId) {
+    bevy::log::trace!(
+        target: HIT_DEBUG_TARGET,
+        path = "sp_flame",
+        kind,
+        part_id = part_id.0,
+        fallback = part_id == PartId::FALLBACK,
+        "fps flame exposure"
+    );
 }
 
 fn destroy_projectiles_touching_flame(
@@ -1678,35 +1697,45 @@ fn apply_hitscan_damage(
             r.distance,
             r.damage_scale,
             r.armour,
+            r.part_id,
         )
     });
     if let Some(r) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance, _, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Mosquiton(r.target_idx),
             r.distance,
             r.damage_scale,
             r.armour,
+            r.part_id,
         ));
     }
     if let Some(r) = spidey_hit
-        && hit.is_none_or(|(_, current_distance, _, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Spidey(r.target_idx),
             r.distance,
             r.damage_scale,
             r.armour,
+            r.part_id,
         ));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
-        && hit.is_none_or(|(_, current_distance, _, _)| distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _)| distance < current_distance)
     {
-        hit = Some((FpShotHit::Projectile(projectile_idx), distance, 1.0, 0.0));
+        // Projectiles are not enemy parts: neutral routing, FALLBACK part id.
+        hit = Some((
+            FpShotHit::Projectile(projectile_idx),
+            distance,
+            1.0,
+            0.0,
+            PartId::FALLBACK,
+        ));
     }
 
-    let Some((hit, distance, damage_scale, armour)) = hit else {
+    let Some((hit, distance, damage_scale, armour, part_id)) = hit else {
         return;
     };
     if max_range.is_some_and(|range| distance > range) {
@@ -1720,6 +1749,22 @@ fn apply_hitscan_damage(
         clippy::cast_possible_truncation
     )]
     let dealt = routed_damage(damage as f32, damage_scale, armour).round() as u32;
+
+    // Opt-in per-shot routing trace (disabled by default; see HIT_DEBUG_TARGET).
+    // `fallback` = whole-body circle (no authored part hit). Logging only.
+    bevy::log::trace!(
+        target: HIT_DEBUG_TARGET,
+        path = "sp_hitscan",
+        hit = ?hit,
+        part_id = part_id.0,
+        fallback = part_id == PartId::FALLBACK,
+        damage_scale,
+        armour,
+        base = damage,
+        dealt,
+        distance,
+        "fps hit"
+    );
     // Hit reaction (weapon-only profile, Phase 11): queue on the enemy's sim
     // reaction state; consumed on its next sim tick. Knockback direction is
     // the shot travel direction. Basic `Enemy` targets have no sim and do not

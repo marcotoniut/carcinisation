@@ -1147,6 +1147,12 @@ fn fallback_and_no_metadata_have_zero_armour() {
 
 #[test]
 fn sp_and_server_route_identically() {
+    // Narrow invariant: the single shared routing function is deterministic.
+    // The *end-to-end* SP/server parity test (same authored Spidey + same shot
+    // through the live server vs the shared kernel under both authorities'
+    // target construction) lives in
+    // `apps/carcinisation_server/tests/combat_part_routing.rs`.
+    //
     // Both authorities call the same `routed_damage`; identical inputs →
     // identical output (SP then rounds at its u32 boundary).
     let base = 37.0;

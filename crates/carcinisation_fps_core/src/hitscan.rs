@@ -94,6 +94,18 @@ impl PartHitscanResult {
 /// per-part multipliers live in [`PartMetadata::damage_scale`].
 pub const NEUTRAL_DAMAGE_SCALE: f32 = 1.0;
 
+/// `tracing` target for opt-in per-hit combat debug logs (single-player and
+/// server hitscan + flame). Logs are emitted at `trace` level, so they are
+/// **disabled by default** with negligible cost when off (the macro short-
+/// circuits before formatting). Enable at runtime with a log filter, e.g.
+/// `RUST_LOG=carcinisation::fps::hit=trace`, to surface per-shot routing
+/// (kind, part, damage_scale, armour, base, dealt, fallback usage).
+///
+/// Logging only — the value must never influence simulation or be branched on
+/// for gameplay. It exists so per-part routing can be *observed* in the live
+/// FPS, which is otherwise invisible.
+pub const HIT_DEBUG_TARGET: &str = "carcinisation::fps::hit";
+
 /// Part damage routing rule: `base × scale`, clamped non-negative.
 ///
 /// The single source of truth for per-part damage scaling, so single-player

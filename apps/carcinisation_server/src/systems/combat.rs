@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::burning::{self, BurnConfig, BurnState};
+use carcinisation_fps_core::collision::PartId;
 use carcinisation_fps_core::collision_set;
 use carcinisation_fps_core::combat::{FirePose2d, wall_obstruction_distance_for_pose};
 use carcinisation_fps_core::config::FpsCombatConfig;
@@ -18,7 +19,7 @@ use carcinisation_fps_core::enemy_collision::{
 };
 use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::hitscan::{
-    FlameStrip, PartHitscanTarget, hitscan_parts_from_pose, routed_damage,
+    FlameStrip, HIT_DEBUG_TARGET, PartHitscanTarget, hitscan_parts_from_pose, routed_damage,
 };
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
@@ -394,6 +395,23 @@ pub fn process_combat(
                 // it only renders this `HitConfirm`.
                 let dealt = routed_damage(combat_config.hitscan_damage, damage_scale, armour);
 
+                // Opt-in per-shot routing trace (disabled by default; see
+                // HIT_DEBUG_TARGET). `fallback` = whole-body circle, no authored
+                // part. Logging only — never branched on for gameplay.
+                let part_id = part_hit.map_or(PartId::FALLBACK, |r| r.part_id);
+                trace!(
+                    target: HIT_DEBUG_TARGET,
+                    path = "srv_hitscan",
+                    kind = ?enemy_meta[hit_idx].0,
+                    part_id = part_id.0,
+                    fallback = part_id == PartId::FALLBACK,
+                    damage_scale,
+                    armour,
+                    base = combat_config.hitscan_damage,
+                    dealt,
+                    "fps hit"
+                );
+
                 let hit_entity = enemy_entities[hit_idx];
 
                 // Hit reaction (weapon-only pistol profile, Phase 11): queue on
@@ -498,8 +516,18 @@ pub fn process_combat(
                             frame: DEFAULT_FRAME,
                             fallback_radius: enemy_fallback_radius(kind, &combat_config),
                         };
-                        if strip.hits_target(&server_map.0, target).is_some() {
+                        if let Some(part_hit) = strip.hits_target(&server_map.0, target) {
                             flame_exposed_entities.push(entity);
+                            // Opt-in flame-exposure trace (disabled by default).
+                            // Flame is exposure-based: ignores damage_scale/armour.
+                            trace!(
+                                target: HIT_DEBUG_TARGET,
+                                path = "srv_flame",
+                                kind = ?kind,
+                                part_id = part_hit.part_id.0,
+                                fallback = part_hit.part_id == PartId::FALLBACK,
+                                "fps flame exposure"
+                            );
                         }
                     }
                 }
