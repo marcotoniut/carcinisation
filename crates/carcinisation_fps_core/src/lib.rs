@@ -24,6 +24,7 @@ pub mod occupancy;
 pub mod pickup;
 pub mod presentation;
 pub mod raycast;
+pub mod reaction;
 pub mod spidey;
 
 // Re-export pickup types
@@ -88,4 +89,8 @@ pub use movement::{
 pub use presentation::{AttackPresentationKind, EnemyPresentationState};
 pub use raycast::{HitSide, RayHit, cast_ray};
 pub use raycast::{WallSurfaceId, has_line_of_sight};
+pub use reaction::{
+    EnemyReactionConfig, EnemyReactionState, EnemyReactionTuning, PendingHitReaction,
+    WeaponReactionProfile,
+};
 pub use spidey::{SpideySim, SpideySimConfig, SpideySimOutput, SpideySimState, tick_spidey_sim};

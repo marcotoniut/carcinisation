@@ -2062,6 +2062,7 @@ fn handle_shooting(
                 total: quick_turn.total_radians(),
                 direction: quick_turn.direction(),
             },
+            &attack.combat_config.enemy_reaction,
         );
         return;
     }
@@ -2117,6 +2118,7 @@ fn handle_shooting(
             total: quick_turn.total_radians(),
             direction: quick_turn.direction(),
         },
+        &attack.combat_config.enemy_reaction,
     );
 
     // Scatter: write back changes to entities.
@@ -3987,6 +3989,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         let mut projectiles = vec![Projectile {

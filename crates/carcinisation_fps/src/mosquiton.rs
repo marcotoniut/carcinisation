@@ -45,6 +45,8 @@ pub struct MosquitonConfig {
     /// Derived from composed atlas cue frame; default matches
     /// `MOSQUITON_SHOOT_CUE_SECS`.
     pub shoot_cue_secs: f32,
+    /// Poise/stun rules for hit reactions (shared enemy tuning).
+    pub reaction: carcinisation_fps_core::EnemyReactionConfig,
 }
 
 impl Default for MosquitonConfig {
@@ -67,6 +69,7 @@ impl Default for MosquitonConfig {
             hover_height: 0.08,
             health: combat.mosquiton_health,
             shoot_cue_secs: combat.mosquiton_shoot_cue_secs,
+            reaction: combat.enemy_reaction.enemy,
         }
     }
 }
@@ -119,6 +122,9 @@ pub struct Mosquiton {
     /// Stable per-instance seed for deterministic sim decisions.
     pub seed: u32,
     pub burn_state: BurnState,
+    /// Hit-reaction runtime state (poise, stun, knockback) — round-tripped
+    /// through the shared sim each tick, written by the hitscan damage path.
+    pub reaction: carcinisation_fps_core::EnemyReactionState,
 }
 
 impl Mosquiton {
@@ -141,6 +147,7 @@ impl Mosquiton {
             damage_flicker: None,
             burn_state: BurnState::default(),
             seed: carcinisation_fps_core::corpse_seed(position),
+            reaction: carcinisation_fps_core::EnemyReactionState::default(),
         }
     }
 
@@ -230,6 +237,7 @@ pub fn tick_single_mosquiton(
         blood_shot_damage: mosquiton.config.blood_shot_damage,
         collision_radius: mosquiton.config.collision_radius,
         shoot_cue_secs: mosquiton.config.shoot_cue_secs,
+        reaction: mosquiton.config.reaction,
     };
 
     // Convert state to sim state.
@@ -243,6 +251,7 @@ pub fn tick_single_mosquiton(
         decision_timer: mosquiton.decision_timer,
         shoot_anim_elapsed: mosquiton.shoot_anim_elapsed,
         seed: mosquiton.seed,
+        reaction: mosquiton.reaction,
     };
 
     let output = tick_mosquiton_sim(&mut sim, &sim_config, player_pos, map, dt);
@@ -254,6 +263,7 @@ pub fn tick_single_mosquiton(
     mosquiton.melee_cooldown = sim.melee_cooldown;
     mosquiton.decision_timer = sim.decision_timer;
     mosquiton.shoot_anim_elapsed = sim.shoot_anim_elapsed;
+    mosquiton.reaction = sim.reaction;
     mosquiton.velocity = output.velocity;
 
     // Reset animation time on melee start (rendering concern).

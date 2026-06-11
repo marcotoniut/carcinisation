@@ -191,6 +191,10 @@ pub fn process_combat(
         (Entity, &mut NetEnemy, &mut NetHealth, &mut ServerBurnState),
         Without<NetPlayer>,
     >,
+    // Disjoint from `enemies` (different components): used only to queue hit
+    // reactions on the per-enemy sim state.
+    mut mosquiton_sims: Query<&mut super::enemy_attack::ServerMosquitonSim>,
+    mut spidey_sims: Query<&mut super::enemy_attack::ServerSpideySim>,
     projectiles: Query<(Entity, &NetProjectile)>,
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,
@@ -391,7 +395,21 @@ pub fn process_combat(
                 let dealt = routed_damage(combat_config.hitscan_damage, damage_scale, armour);
 
                 let hit_entity = enemy_entities[hit_idx];
-                apply_damage(
+
+                // Hit reaction (weapon-only pistol profile, Phase 11): queue on
+                // the enemy's sim reaction state only if the target survives;
+                // the shared sim consumes it on its next tick (knockback via
+                // try_move, poise/stun gating).
+                //
+                // `NetAttackId::Melee` currently reaches this server branch as
+                // a pistol-equivalent network attack. Keep the pistol profile
+                // here until server melee has distinct range/damage semantics;
+                // SP-local melee uses `enemy_reaction.melee`.
+                let pending = carcinisation_fps_core::PendingHitReaction::from_profile(
+                    &combat_config.enemy_reaction.pistol,
+                    fire_pose.direction(),
+                );
+                let target_survived = apply_damage(
                     &mut commands,
                     &mut enemies,
                     hit_entity,
@@ -399,6 +417,17 @@ pub fn process_combat(
                     false,
                     &combat_config,
                 );
+                if target_survived {
+                    if let Ok(mut sim) = mosquiton_sims.get_mut(hit_entity) {
+                        sim.reaction.queue_hit(pending);
+                    } else if let Ok(mut sim) = spidey_sims.get_mut(hit_entity) {
+                        sim.reaction.queue_hit(pending);
+                    }
+                } else if let Ok(mut sim) = mosquiton_sims.get_mut(hit_entity) {
+                    sim.reaction.clear();
+                } else if let Ok(mut sim) = spidey_sims.get_mut(hit_entity) {
+                    sim.reaction.clear();
+                }
 
                 // Send hit confirmation for blood splat visual. Use the part
                 // surface hit point so the effect aligns with where the shot
@@ -803,12 +832,12 @@ fn apply_damage(
     damage: f32,
     burn: bool,
     combat_config: &FpsCombatConfig,
-) {
+) -> bool {
     let Ok((_, mut net_enemy, mut net_health, _)) = enemies.get_mut(entity) else {
-        return;
+        return false;
     };
     if net_health.current <= 0.0 {
-        return;
+        return false;
     }
 
     net_health.current = (net_health.current - damage).max(0.0);
@@ -840,6 +869,7 @@ fn apply_damage(
                 was_player: false,
             },
         });
+        false
     } else {
         commands.server_trigger(ToClients {
             mode: SendMode::Broadcast,
@@ -850,6 +880,7 @@ fn apply_damage(
                 was_player: false,
             },
         });
+        true
     }
 }
 

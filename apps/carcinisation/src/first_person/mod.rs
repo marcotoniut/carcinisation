@@ -2573,6 +2573,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
         process_player_attacks(
             &camera,
@@ -2597,6 +2598,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
         assert_eq!(loadout.current(), AttackId::Pistol);
         assert!(!attack_state.has_pending_weapon_switch());

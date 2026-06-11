@@ -9,6 +9,7 @@ use crate::collision::try_move;
 use crate::enemy::Projectile;
 use crate::map::Map;
 use crate::raycast::has_line_of_sight;
+use crate::reaction::{EnemyReactionConfig, EnemyReactionState};
 
 /// Maximum visual height to prevent billboard exceeding the ceiling.
 ///
@@ -124,6 +125,8 @@ pub struct SpideySimConfig {
     pub recover_secs: f32,
     /// Death animation duration.
     pub death_secs: f32,
+    /// Poise/stun rules for hit reactions (shared enemy tuning).
+    pub reaction: EnemyReactionConfig,
 }
 
 impl Default for SpideySimConfig {
@@ -168,6 +171,9 @@ pub struct SpideySim {
     pub web_anim_elapsed: Option<f32>,
     /// Stable per-instance seed for deterministic decisions.
     pub seed: u32,
+    /// Hit-reaction runtime state (poise, stun, knockback). Persisted across
+    /// ticks by the SP wrapper / server component like the cooldowns above.
+    pub reaction: EnemyReactionState,
 }
 
 /// Outputs from one simulation tick.
@@ -225,6 +231,19 @@ pub fn tick_spidey_sim(
     sim.web_cooldown = (sim.web_cooldown - dt).max(0.0);
     sim.lunge_cooldown = (sim.lunge_cooldown - dt).max(0.0);
 
+    // Hit reactions: consume hits queued by the damage path, tick poise/stun,
+    // and apply knockback through wall-aware movement. Dead/dying enemies do
+    // not react (corpses never slide or stagger).
+    if sim.state.is_alive() {
+        let knockback = sim.reaction.tick(&config.reaction, dt);
+        if knockback != Vec2::ZERO {
+            try_move(&mut sim.position, knockback, config.collision_radius, map);
+        }
+    } else {
+        sim.reaction.clear();
+    }
+    let stunned = sim.reaction.is_stunned();
+
     // Tick web animation — spawn projectile at cue point.
     // Projectile originates from the spinneret (rear), offset away from the target.
     if let Some(elapsed) = &mut sim.web_anim_elapsed {
@@ -271,6 +290,12 @@ pub fn tick_spidey_sim(
         }
 
         SpideySimState::Idle => {
+            // Hit-stun: no decisions, no new attacks or hops. (Committed
+            // states — windups, lunges, airborne hops — are not gated and
+            // run to completion.)
+            if stunned {
+                return output;
+            }
             let to_player = player_pos - sim.position;
             let dist = to_player.length();
 
@@ -289,6 +314,10 @@ pub fn tick_spidey_sim(
         }
 
         SpideySimState::HopWait { timer } => {
+            // Hit-stun: freeze in place (the wait timer holds too).
+            if stunned {
+                return output;
+            }
             *timer -= dt;
             if *timer <= 0.0 {
                 let to_player = player_pos - sim.position;
@@ -354,6 +383,12 @@ pub fn tick_spidey_sim(
 
             if *timer <= 0.0 {
                 // Hop finished — check for attack or wait for next hop.
+                // While stunned, land into a wait instead of attacking
+                // (the airborne hop itself was committed and completed).
+                if stunned {
+                    start_hop_wait(sim, config);
+                    return output;
+                }
                 let to_player = player_pos - sim.position;
                 let dist = to_player.length();
 
@@ -558,6 +593,16 @@ mod tests {
             lunge_cooldown: 0.0,
             web_anim_elapsed: None,
             seed: crate::fire_death::corpse_seed(pos),
+            reaction: crate::reaction::EnemyReactionState::default(),
+        }
+    }
+
+    fn stun_hit() -> crate::reaction::PendingHitReaction {
+        crate::reaction::PendingHitReaction {
+            direction: Vec2::X,
+            poise_damage: 1_000.0,
+            knockback_distance: 0.0,
+            knockback_duration: 0.0,
         }
     }
 
@@ -595,6 +640,52 @@ mod tests {
     }
 
     // -- Chooses leap within range --
+
+    #[test]
+    fn stunned_idle_does_not_start_lunge() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(2.5, 3.5);
+        let mut sim = make_sim(config.lunge_range.mul_add(0.5, 2.5), 3.5);
+        sim.lunge_cooldown = 0.0;
+        sim.reaction.queue_hit(stun_hit());
+
+        let output = tick_spidey_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(sim.reaction.is_stunned());
+        assert!(!output.started_lunge, "stunned: lunge must not start");
+        assert!(
+            matches!(sim.state, SpideySimState::Idle),
+            "stunned: stays idle, got {:?}",
+            sim.state
+        );
+    }
+
+    #[test]
+    fn committed_lunge_completes_while_stunned() {
+        // Interruptibility decision: a committed lunge runs to completion.
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(3.5, 3.5);
+        let mut sim = make_sim(2.0, 3.5);
+        sim.state = SpideySimState::LungeAttack {
+            target: player,
+            timer: config.lunge_duration_secs,
+            dealt_damage: false,
+        };
+        sim.reaction.queue_hit(stun_hit());
+        let x_before = sim.position.x;
+
+        let _ = tick_spidey_sim(&mut sim, &config, player, &map, 0.05);
+
+        assert!(sim.reaction.is_stunned());
+        assert!(
+            sim.position.x > x_before,
+            "lunge keeps moving despite stun: {} -> {}",
+            x_before,
+            sim.position.x
+        );
+    }
 
     #[test]
     fn chooses_lunge_within_lunge_range() {

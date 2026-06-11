@@ -11,8 +11,8 @@ use carcinisation_net::{NetAttackId, NetEnemyState, PlayerNetState};
 use common::{
     build_deterministic_server_with_basic_enemy, build_deterministic_server_with_enemies,
     build_deterministic_server_with_enemy, force_enemy_state, force_player_attack,
-    get_enemy_health, get_player_health, inject_fire, inject_intent, spawn_alive_player,
-    spawn_player_with_state,
+    get_enemy_health, get_enemy_state, get_player_health, inject_fire, inject_intent,
+    spawn_alive_player, spawn_player_with_state,
 };
 
 // ---------------------------------------------------------------------------
@@ -275,5 +275,70 @@ fn pistol_damages_basic_enemy_via_kind_path() {
     assert!(
         hp_after < hp_before,
         "basic enemy should take pistol damage via per-kind path: {hp_before} -> {hp_after}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 11: weapon-only hit reactions
+// ---------------------------------------------------------------------------
+
+/// A pistol hit knocks the enemy back along the shot direction, through the
+/// real server combat → sim pipeline (reaction queued in CombatSet, consumed
+/// by the shared sim in EnemyAttackSet next tick, applied via try_move).
+#[test]
+fn pistol_hit_knocks_back_enemy() {
+    // Mosquiton spawned with speed 0.0 → no AI movement of its own, so any
+    // position change along +X is the knockback impulse.
+    let mut server = build_deterministic_server_with_enemy(4.5, 1.5);
+    server.update();
+    spawn_alive_player(&mut server, 1, 1.5, 1.5); // west of enemy, fires east
+
+    let (pos_before, _) = get_enemy_pose(&mut server).unwrap();
+
+    inject_fire(&mut server, 1);
+    // ~10 ticks at 30 Hz: one pistol shot (0.33s cooldown) + the full
+    // knockback impulse decay (0.12s).
+    for _ in 0..10 {
+        server.update();
+    }
+
+    let (pos_after, _) = get_enemy_pose(&mut server).unwrap();
+    assert!(
+        pos_after.x > pos_before.x + 0.03,
+        "enemy knocked back along shot direction: {} -> {}",
+        pos_before.x,
+        pos_after.x
+    );
+    assert!(
+        (pos_after.y - pos_before.y).abs() < 0.05,
+        "knockback is along the shot axis"
+    );
+}
+
+#[test]
+fn lethal_pistol_hit_clears_pending_reaction() {
+    let mut server = build_deterministic_server_with_enemies(
+        carcinisation_fps_core::map::test_map(),
+        vec![(4.5, 1.5, 1, 0.0)],
+    );
+    server.update();
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
+
+    inject_fire(&mut server, 1);
+    server.update();
+
+    assert!(
+        matches!(
+            get_enemy_state(&mut server),
+            Some(NetEnemyState::Dying { .. })
+        ),
+        "one pistol hit should kill the low-health Mosquiton"
+    );
+    let world = server.world_mut();
+    let mut sims = world.query::<&carcinisation_server::systems::ServerMosquitonSim>();
+    let sim = sims.single(world).expect("spawned Mosquiton sim");
+    assert!(
+        sim.reaction.pending.is_none() && sim.reaction.pending_next.is_none(),
+        "lethal hits must not leave stale reaction state"
     );
 }

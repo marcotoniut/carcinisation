@@ -115,6 +115,9 @@ pub struct Spidey {
     /// Stable per-instance seed for deterministic sim decisions.
     pub seed: u32,
     pub burn_state: BurnState,
+    /// Hit-reaction runtime state (poise, stun, knockback) — round-tripped
+    /// through the shared sim each tick, written by the hitscan damage path.
+    pub reaction: carcinisation_fps_core::EnemyReactionState,
 }
 
 impl Spidey {
@@ -136,6 +139,7 @@ impl Spidey {
             damage_flicker: None,
             burn_state: BurnState::default(),
             seed: carcinisation_fps_core::corpse_seed(position),
+            reaction: carcinisation_fps_core::EnemyReactionState::default(),
         }
     }
 
@@ -277,6 +281,7 @@ pub fn tick_single_spidey(
         lunge_cooldown: spidey.lunge_cooldown,
         web_anim_elapsed: spidey.web_anim_elapsed,
         seed: spidey.seed,
+        reaction: spidey.reaction,
     };
 
     let output = tick_spidey_sim(&mut sim, &spidey.config.sim, player_pos, map, dt);
@@ -288,6 +293,7 @@ pub fn tick_single_spidey(
     spidey.lunge_cooldown = sim.lunge_cooldown;
     spidey.web_anim_elapsed = sim.web_anim_elapsed;
     spidey.seed = sim.seed;
+    spidey.reaction = sim.reaction;
     spidey.velocity = output.velocity;
     spidey.visual_height = output.visual_height;
 

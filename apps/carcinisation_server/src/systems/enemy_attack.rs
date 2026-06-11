@@ -38,6 +38,9 @@ pub struct ServerMosquitonSim {
     pub sim_state: MosquitonSimState,
     /// Stable per-instance seed for deterministic sim decisions.
     pub seed: u32,
+    /// Hit-reaction runtime state (poise, stun, knockback). Written by the
+    /// combat hit path, consumed by the shared sim on the next tick.
+    pub reaction: carcinisation_fps_core::EnemyReactionState,
 }
 
 impl Default for ServerMosquitonSim {
@@ -49,6 +52,7 @@ impl Default for ServerMosquitonSim {
             shoot_anim_elapsed: None,
             sim_state: MosquitonSimState::Pursue,
             seed: 0,
+            reaction: carcinisation_fps_core::EnemyReactionState::default(),
         }
     }
 }
@@ -80,6 +84,9 @@ pub struct ServerSpideySim {
     pub sim_state: SpideySimState,
     /// Stable per-instance seed for deterministic sim decisions.
     pub seed: u32,
+    /// Hit-reaction runtime state (poise, stun, knockback). Written by the
+    /// combat hit path, consumed by the shared sim on the next tick.
+    pub reaction: carcinisation_fps_core::EnemyReactionState,
 }
 
 impl Default for ServerSpideySim {
@@ -90,6 +97,7 @@ impl Default for ServerSpideySim {
             web_anim_elapsed: None,
             sim_state: SpideySimState::Idle,
             seed: 0,
+            reaction: carcinisation_fps_core::EnemyReactionState::default(),
         }
     }
 }
@@ -208,6 +216,7 @@ pub fn tick_enemy_attacks(
             decision_timer: mosquiton_sim.decision_timer,
             shoot_anim_elapsed: mosquiton_sim.shoot_anim_elapsed,
             seed: mosquiton_sim.seed,
+            reaction: mosquiton_sim.reaction,
         };
 
         let output = tick_mosquiton_sim(&mut sim, &sim_config.0, player_pos, &server_map.0, dt);
@@ -225,6 +234,7 @@ pub fn tick_enemy_attacks(
         mosquiton_sim.melee_cooldown = sim.melee_cooldown;
         mosquiton_sim.decision_timer = sim.decision_timer;
         mosquiton_sim.shoot_anim_elapsed = sim.shoot_anim_elapsed;
+        mosquiton_sim.reaction = sim.reaction;
 
         // Map sim state → NetEnemyState for replication.
         let net_state = sim_state_to_net(&sim.state);
@@ -493,6 +503,7 @@ pub fn tick_spidey_attacks(
             lunge_cooldown: spidey_sim.lunge_cooldown,
             web_anim_elapsed: spidey_sim.web_anim_elapsed,
             seed: spidey_sim.seed,
+            reaction: spidey_sim.reaction,
         };
 
         let output = tick_spidey_sim(&mut sim, &sim_config.0, player_pos, &server_map.0, dt);
@@ -521,6 +532,7 @@ pub fn tick_spidey_attacks(
         spidey_sim.lunge_cooldown = sim.lunge_cooldown;
         spidey_sim.web_anim_elapsed = sim.web_anim_elapsed;
         spidey_sim.seed = sim.seed;
+        spidey_sim.reaction = sim.reaction;
 
         // Map sim state -> NetEnemyState for replication.
         let net_state = spidey_sim_state_to_net(&sim.state);

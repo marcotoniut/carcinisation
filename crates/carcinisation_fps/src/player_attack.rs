@@ -2,7 +2,8 @@
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carcinisation_fps_core::{
-    FirePose2d, FlameStrip, FpsEnemyKind, PartHitscanTarget, collision_set,
+    EnemyReactionTuning, FirePose2d, FlameStrip, FpsEnemyKind, PartHitscanTarget,
+    PendingHitReaction, WeaponReactionProfile, collision_set,
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
     facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
     hitscan_parts_from_pose, routed_damage,
@@ -856,6 +857,7 @@ pub fn process_player_attacks(
     view_bob_amplitude: f32,
     view_bob_freq_mult: f32,
     snap_turn: SnapTurnVisualInput,
+    reaction_tuning: &EnemyReactionTuning,
 ) {
     let fire_pose = FirePose2d::from(camera);
 
@@ -889,6 +891,7 @@ pub fn process_player_attacks(
             impacts,
             hitscan_damage.saturating_mul(3),
             Some(MELEE_RANGE_UNITS),
+            &reaction_tuning.melee,
         );
     } else {
         match loadout.current() {
@@ -910,6 +913,7 @@ pub fn process_player_attacks(
                         impacts,
                         hitscan_damage,
                         None,
+                        &reaction_tuning.pistol,
                     );
                 }
             }
@@ -1602,6 +1606,7 @@ fn apply_hitscan_damage(
     impacts: &mut Vec<ProjectileImpact>,
     damage: u32,
     max_range: Option<f32>,
+    reaction_profile: &WeaponReactionProfile,
 ) {
     // Per-part hitscan against each target list. Authoritative facing: each
     // enemy orients toward the local player. In single-player the shooter IS
@@ -1715,10 +1720,21 @@ fn apply_hitscan_damage(
         clippy::cast_possible_truncation
     )]
     let dealt = routed_damage(damage as f32, damage_scale, armour).round() as u32;
+    // Hit reaction (weapon-only profile, Phase 11): queue on the enemy's sim
+    // reaction state; consumed on its next sim tick. Knockback direction is
+    // the shot travel direction. Basic `Enemy` targets have no sim and do not
+    // react. The flamethrower path never queues (no poise from flame).
+    let pending = PendingHitReaction::from_profile(reaction_profile, fire_pose.direction());
     match hit {
         FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(dealt),
-        FpShotHit::Mosquiton(mosquiton_idx) => mosquitons[mosquiton_idx].take_damage(dealt),
-        FpShotHit::Spidey(spidey_idx) => spideys[spidey_idx].take_damage(dealt),
+        FpShotHit::Mosquiton(mosquiton_idx) => {
+            mosquitons[mosquiton_idx].take_damage(dealt);
+            queue_reaction(&mut mosquitons[mosquiton_idx].reaction, pending);
+        }
+        FpShotHit::Spidey(spidey_idx) => {
+            spideys[spidey_idx].take_damage(dealt);
+            queue_reaction(&mut spideys[spidey_idx].reaction, pending);
+        }
         FpShotHit::Projectile(projectile_idx) => {
             if let Some(projectile) = projectiles.get_mut(projectile_idx) {
                 projectile.alive = false;
@@ -1731,6 +1747,13 @@ fn apply_hitscan_damage(
             projectiles.retain(|projectile| projectile.alive);
         }
     }
+}
+
+fn queue_reaction(
+    state: &mut carcinisation_fps_core::EnemyReactionState,
+    pending: PendingHitReaction,
+) {
+    state.queue_hit_after_current_tick(pending);
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -2193,6 +2216,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         // Flash should be active.
@@ -2224,6 +2248,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         // Flash should have expired.
@@ -2280,6 +2305,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2334,6 +2360,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2363,6 +2390,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Pistol);
@@ -2415,6 +2443,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2444,6 +2473,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Pistol);
@@ -2500,6 +2530,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2556,6 +2587,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2630,6 +2662,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -2986,6 +3019,7 @@ mod tests {
                 1.5,
                 2.0,
                 SnapTurnVisualInput::default(),
+                &carcinisation_fps_core::EnemyReactionTuning::default(),
             );
         }
     }
@@ -3189,6 +3223,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         // Shoot pitched.
@@ -3215,6 +3250,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         // Verify hitscan actually hit the enemy (prevent vacuous pass).
@@ -3397,6 +3433,7 @@ mod tests {
             &mut Vec::new(),
             37,
             None,
+            &carcinisation_fps_core::WeaponReactionProfile::NONE,
         );
 
         assert_eq!(enemies[0].health, 100);
@@ -3418,6 +3455,7 @@ mod tests {
             &mut Vec::new(),
             37,
             None,
+            &carcinisation_fps_core::WeaponReactionProfile::NONE,
         );
 
         assert_eq!(enemies[0].health, 63);
@@ -3446,12 +3484,147 @@ mod tests {
             &mut Vec::new(),
             37,
             None,
+            &carcinisation_fps_core::WeaponReactionProfile::NONE,
         );
 
         assert_eq!(
             hp_before - spideys[0].health,
             74,
             "front headshot applies the 2.0 head multiplier"
+        );
+    }
+
+    #[test]
+    fn flamethrower_does_not_feed_poise_or_stagger() {
+        // Phase 11 policy: continuous flame exposure must not feed the poise
+        // meter (per-tick poise would re-create permanent stun) and never
+        // queues a hit reaction.
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let burn_config = carcinisation_fps_core::BurnConfig::default();
+        let flame_config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(3.5, 1.5),
+            crate::mosquiton::MosquitonConfig::default(),
+        )];
+        let mut spideys = vec![crate::spidey::Spidey::new(
+            Vec2::new(3.5, 1.5),
+            crate::spidey::SpideyConfig::default(),
+        )];
+
+        for _ in 0..10 {
+            apply_flamethrower_damage(
+                fire_pose,
+                &map,
+                &mut [],
+                &mut mosquitons,
+                &mut spideys,
+                &mut Vec::new(),
+                &mut Vec::new(),
+                &burn_config,
+                &flame_config,
+                1.0 / 30.0,
+            );
+        }
+
+        assert!(mosquitons[0].burn_state.intensity > 0.0, "flame burns");
+        assert!(spideys[0].burn_state.intensity > 0.0, "flame burns");
+        for reaction in [&mosquitons[0].reaction, &spideys[0].reaction] {
+            assert_eq!(reaction.poise_damage, 0.0, "no poise from flame");
+            assert!(!reaction.is_stunned(), "no stagger from flame");
+            assert!(reaction.pending.is_none(), "no queued reaction from flame");
+            assert!(
+                reaction.pending_next.is_none(),
+                "no deferred reaction from flame"
+            );
+        }
+    }
+
+    #[test]
+    fn pistol_hit_queues_reaction_on_mosquiton() {
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(3.5, 1.5),
+            crate::mosquiton::MosquitonConfig::default(),
+        )];
+        let tuning = carcinisation_fps_core::EnemyReactionTuning::default();
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut [],
+            &mut mosquitons,
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            37,
+            None,
+            &tuning.pistol,
+        );
+
+        let pending = mosquitons[0]
+            .reaction
+            .pending_next
+            .expect("SP-local reaction queued after current sim tick");
+        assert_eq!(pending.poise_damage, tuning.pistol.poise_damage);
+        assert_eq!(pending.direction, Vec2::X, "knockback along shot direction");
+    }
+
+    #[test]
+    fn sp_pistol_reaction_suppresses_on_next_sim_tick_not_current_tick() {
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(4.0, 1.5),
+            crate::mosquiton::MosquitonConfig {
+                preferred_range: 0.5,
+                move_speed: 1.0,
+                reaction: carcinisation_fps_core::EnemyReactionConfig {
+                    poise_threshold: 100.0,
+                    hit_stun_secs: 0.3,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )];
+        let profile = carcinisation_fps_core::WeaponReactionProfile {
+            poise_damage: 150.0,
+            knockback_distance: 0.0,
+            knockback_duration: 0.0,
+        };
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut [],
+            &mut mosquitons,
+            &mut [],
+            &mut Vec::new(),
+            &mut Vec::new(),
+            1,
+            None,
+            &profile,
+        );
+
+        let player = fire_pose.origin_xy;
+        let x_before = mosquitons[0].position.x;
+        let _ = crate::mosquiton::tick_single_mosquiton(&mut mosquitons[0], player, &map, 0.1);
+        assert!(
+            mosquitons[0].position.x < x_before,
+            "current SP sim tick is not suppressed by a same-frame shot"
+        );
+        assert!(
+            !mosquitons[0].reaction.is_stunned(),
+            "deferred hit only promoted after current tick"
+        );
+
+        let x_after_first_tick = mosquitons[0].position.x;
+        let _ = crate::mosquiton::tick_single_mosquiton(&mut mosquitons[0], player, &map, 0.1);
+        assert!(mosquitons[0].reaction.is_stunned());
+        assert_eq!(
+            mosquitons[0].position.x, x_after_first_tick,
+            "following tick consumes promoted reaction and suppresses movement"
         );
     }
 
@@ -3582,6 +3755,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         let positions: Vec<Vec2> = state.flame_world_positions().collect();
@@ -3634,6 +3808,7 @@ mod tests {
             1.5,
             2.0,
             SnapTurnVisualInput::default(),
+            &carcinisation_fps_core::EnemyReactionTuning::default(),
         );
 
         let positions: Vec<Vec2> = state.flame_world_positions().collect();

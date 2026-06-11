@@ -353,6 +353,11 @@ pub struct FpsCombatConfig {
     /// Positive = lower. Zero = no change. Ignored in `Legacy` mode.
     #[serde(default = "FpsCombatConfig::default_weapon_lowered_offset_px")]
     pub weapon_lowered_offset_px: f32,
+    // -- Hit reactions --
+    /// Enemy poise/stun rules + per-weapon reaction profiles (Phase 11,
+    /// weapon-only). Defaults are provisional; override in `combat.ron`.
+    #[serde(default)]
+    pub enemy_reaction: crate::reaction::EnemyReactionTuning,
 }
 
 /// Soft occupancy separation tuning.
@@ -434,6 +439,7 @@ impl FpsCombatConfig {
             blood_shot_damage: self.mosquiton_projectile_damage as u32,
             collision_radius: self.mosquiton_collision_radius,
             shoot_cue_secs: self.mosquiton_shoot_cue_secs,
+            reaction: self.enemy_reaction.enemy,
         }
     }
 
@@ -463,6 +469,7 @@ impl FpsCombatConfig {
             web_projectile_damage: s.web_projectile_damage,
             recover_secs: s.recover_secs,
             death_secs: s.death_secs,
+            reaction: self.enemy_reaction.enemy,
         }
     }
 
@@ -523,6 +530,7 @@ impl Default for FpsCombatConfig {
             aim_turn_speed: Self::default_aim_turn_speed(),
             aim_pitch_speed: Self::default_aim_pitch_speed(),
             weapon_lowered_offset_px: Self::default_weapon_lowered_offset_px(),
+            enemy_reaction: crate::reaction::EnemyReactionTuning::default(),
         }
     }
 }

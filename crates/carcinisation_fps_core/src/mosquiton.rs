@@ -10,6 +10,7 @@ use crate::config;
 use crate::enemy::Projectile;
 use crate::map::Map;
 use crate::raycast::has_line_of_sight;
+use crate::reaction::{EnemyReactionConfig, EnemyReactionState};
 
 // ---------------------------------------------------------------------------
 // State
@@ -64,6 +65,8 @@ pub struct MosquitonSimConfig {
     pub blood_shot_damage: u32,
     pub collision_radius: f32,
     pub shoot_cue_secs: f32,
+    /// Poise/stun rules for hit reactions (shared enemy tuning).
+    pub reaction: EnemyReactionConfig,
 }
 
 impl Default for MosquitonSimConfig {
@@ -89,6 +92,9 @@ pub struct MosquitonSim {
     /// Stable per-instance seed for deterministic decisions (e.g. initial strafe direction).
     /// Should be set once at spawn from position bits and not changed.
     pub seed: u32,
+    /// Hit-reaction runtime state (poise, stun, knockback). Persisted across
+    /// ticks by the SP wrapper / server component like the cooldowns above.
+    pub reaction: EnemyReactionState,
 }
 
 /// Outputs from one simulation tick.
@@ -131,6 +137,19 @@ pub fn tick_mosquiton_sim(
     sim.melee_cooldown = (sim.melee_cooldown - dt).max(0.0);
     sim.decision_timer = (sim.decision_timer - dt).max(0.0);
 
+    // Hit reactions: consume hits queued by the damage path, tick poise/stun,
+    // and apply knockback through wall-aware movement. Dead/dying enemies do
+    // not react (corpses never slide or stagger).
+    if sim.state.is_alive() {
+        let knockback = sim.reaction.tick(&config.reaction, dt);
+        if knockback != Vec2::ZERO {
+            try_move(&mut sim.position, knockback, config.collision_radius, map);
+        }
+    } else {
+        sim.reaction.clear();
+    }
+    let stunned = sim.reaction.is_stunned();
+
     // Tick shoot animation — spawn projectile at cue point.
     if let Some(elapsed) = &mut sim.shoot_anim_elapsed {
         *elapsed += dt;
@@ -164,6 +183,11 @@ pub fn tick_mosquiton_sim(
         }
 
         MosquitonSimState::Pursue => {
+            // Hit-stun: no movement, no new attacks. (Committed states like
+            // MeleeAttack are not gated — they run to completion.)
+            if stunned {
+                return output;
+            }
             let to_player = player_pos - sim.position;
             let dist = to_player.length();
 
@@ -195,6 +219,10 @@ pub fn tick_mosquiton_sim(
         }
 
         MosquitonSimState::RangedAttack { strafe_dir } => {
+            // Hit-stun: no strafing, no new attacks.
+            if stunned {
+                return output;
+            }
             let to_player = player_pos - sim.position;
             let dist = to_player.length();
 
@@ -329,6 +357,16 @@ mod tests {
             decision_timer: 0.0,
             shoot_anim_elapsed: None,
             seed: crate::fire_death::corpse_seed(pos),
+            reaction: crate::reaction::EnemyReactionState::default(),
+        }
+    }
+
+    fn stun_hit() -> crate::reaction::PendingHitReaction {
+        crate::reaction::PendingHitReaction {
+            direction: Vec2::X,
+            poise_damage: 1_000.0, // far past any threshold → immediate stun
+            knockback_distance: 0.0,
+            knockback_duration: 0.0,
         }
     }
 
@@ -550,6 +588,161 @@ mod tests {
         assert_eq!(c.melee_cooldown, combat.mosquiton_melee_cooldown);
         assert_eq!(c.blood_shot_speed, combat.mosquiton_blood_shot_speed);
         assert_eq!(c.shoot_cue_secs, combat.mosquiton_shoot_cue_secs);
+    }
+
+    #[test]
+    fn stunned_pursue_does_not_move_or_shoot() {
+        let map = test_map();
+        let config = MosquitonSimConfig {
+            shoot_range: 10.0,
+            ..default_config()
+        };
+        let mut sim = make_sim(1.5, 1.5);
+        sim.reaction.queue_hit(stun_hit());
+        let player = Vec2::new(1.5 + config.preferred_range + 1.0, 1.5);
+        let pos_before = sim.position;
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(sim.reaction.is_stunned());
+        assert_eq!(sim.position, pos_before, "stunned: no pursuit movement");
+        assert!(!output.started_shoot_anim, "stunned: no new shot");
+        assert!(matches!(sim.state, MosquitonSimState::Pursue));
+    }
+
+    #[test]
+    fn stunned_does_not_start_melee() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(1.5, 1.5);
+        let mut sim = make_sim(config.melee_range.mul_add(0.5, 1.5), 1.5);
+        sim.reaction.queue_hit(stun_hit());
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(!output.started_melee, "stunned: melee must not start");
+        assert!(matches!(sim.state, MosquitonSimState::Pursue));
+    }
+
+    #[test]
+    fn committed_melee_completes_while_stunned() {
+        // Interruptibility decision: committed actions run to completion.
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(1.5, 1.5);
+        let mut sim = make_sim(config.melee_range.mul_add(0.3, 1.5), 1.5);
+        sim.state = MosquitonSimState::MeleeAttack {
+            timer: 0.5,
+            dealt_damage: false,
+        };
+        sim.reaction.queue_hit(stun_hit());
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(sim.reaction.is_stunned());
+        assert!(
+            output.melee_damage.is_some(),
+            "in-flight melee still lands despite stun"
+        );
+    }
+
+    #[test]
+    fn knockback_moves_enemy_along_shot_direction() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(3.5, 3.5);
+        // Player far away so the sim has no movement of its own this tick.
+        let player = Vec2::new(3.5, 3.5 + config.preferred_range + 3.0);
+        sim.reaction.queue_hit(crate::reaction::PendingHitReaction {
+            direction: Vec2::X,
+            poise_damage: 0.0,
+            knockback_distance: 0.3,
+            knockback_duration: 0.1,
+        });
+        let x_before = sim.position.x;
+
+        // Stun-free knockback: tick through the impulse duration.
+        for _ in 0..10 {
+            let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.02);
+        }
+
+        assert!(
+            sim.position.x > x_before + 0.2,
+            "knocked back along +X: {} -> {}",
+            x_before,
+            sim.position.x
+        );
+    }
+
+    #[test]
+    fn knockback_respects_walls() {
+        let map = test_map();
+        let config = default_config();
+        // Adjacent to the west border wall (x=0 column is solid).
+        let mut sim = make_sim(1.2, 1.5);
+        let player = Vec2::new(6.5, 1.5);
+        sim.state = MosquitonSimState::Recover { timer: 10.0 }; // no own movement
+        sim.reaction.queue_hit(crate::reaction::PendingHitReaction {
+            direction: Vec2::NEG_X, // into the wall
+            poise_damage: 0.0,
+            knockback_distance: 1.0,
+            knockback_duration: 0.1,
+        });
+
+        for _ in 0..10 {
+            let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.02);
+        }
+
+        assert!(
+            sim.position.x > 1.0,
+            "wall clamps knockback: {}",
+            sim.position.x
+        );
+    }
+
+    #[test]
+    fn dead_enemy_does_not_react() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(3.0, 1.5);
+        sim.state = MosquitonSimState::Dead;
+        sim.reaction.queue_hit(crate::reaction::PendingHitReaction {
+            direction: Vec2::X,
+            poise_damage: 1_000.0,
+            knockback_distance: 1.0,
+            knockback_duration: 0.2,
+        });
+        let pos_before = sim.position;
+
+        let _ = tick_mosquiton_sim(&mut sim, &config, Vec2::ZERO, &map, 0.02);
+
+        assert_eq!(sim.position, pos_before, "corpse never slides");
+        assert!(!sim.reaction.is_stunned());
+        assert!(sim.reaction.pending.is_none(), "pending dropped on corpse");
+    }
+
+    #[test]
+    fn stun_expires_and_behaviour_resumes() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(1.5, 1.5);
+        sim.reaction.queue_hit(stun_hit());
+        let player = Vec2::new(1.5 + config.preferred_range + 1.0, 1.5);
+
+        // Consume + ride out the stun.
+        let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+        let _ = tick_mosquiton_sim(
+            &mut sim,
+            &config,
+            player,
+            &map,
+            config.reaction.hit_stun_secs + 0.05,
+        );
+        assert!(!sim.reaction.is_stunned());
+
+        let pos_before = sim.position;
+        let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+        assert!(sim.position.x > pos_before.x, "pursuit resumes after stun");
     }
 
     #[test]
