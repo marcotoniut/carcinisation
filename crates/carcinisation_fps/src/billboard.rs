@@ -403,6 +403,57 @@ pub fn make_burning_corpse_sprite(sprite: &CxImage) -> CxImage {
     make_charred_sprite(sprite)
 }
 
+/// Which transient flash an enemy billboard should render this frame.
+///
+/// Combat-feedback differentiation: a hit and a poise-break/stagger are
+/// distinct outcomes and must read differently. Priority is `Stagger > Hit >
+/// None` — a stun tick usually coincides with a recent hit flicker, so the
+/// stagger visual must win or it would be masked by the hit flash. Driven
+/// entirely by shared simulation state (`EnemyReactionState`/`NetEnemy.stunned`
+/// and the local damage flicker), never inferred from presentation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EnemyFlash {
+    None,
+    /// Brief white invert on a hit (the existing damage flicker).
+    Hit,
+    /// Sustained "dazed" dim while hit-stunned (poise break / stagger).
+    Stagger,
+}
+
+/// Apply the per-frame flash transform for `flash` to a billboard sprite.
+///
+/// Recomputed per frame like the existing invert (no caching) — the flash is
+/// brief and rare, so the allocation matches the established cost model.
+#[must_use]
+pub fn flash_sprite(sprite: &Arc<CxImage>, flash: EnemyFlash) -> Arc<CxImage> {
+    match flash {
+        EnemyFlash::Hit => Arc::new(make_damage_invert_sprite(sprite)),
+        EnemyFlash::Stagger => Arc::new(make_stagger_tint_sprite(sprite)),
+        EnemyFlash::None => Arc::clone(sprite),
+    }
+}
+
+/// Stagger tint: dim every opaque pixel one step down the brightness ramp,
+/// floored at the darkest opaque index, preserving transparency and silhouette
+/// (`3→2`, `2→1`, `1→1`, `0` stays transparent). Distinct from the white
+/// damage-invert (which brightens) and from the flat charred fill — reads as a
+/// "dazed/reeling" enemy. Presentation only.
+#[must_use]
+pub fn make_stagger_tint_sprite(sprite: &CxImage) -> CxImage {
+    let data = sprite
+        .data()
+        .iter()
+        .map(|pixel| {
+            if *pixel == TRANSPARENT_INDEX {
+                TRANSPARENT_INDEX
+            } else {
+                pixel.saturating_sub(1).max(1)
+            }
+        })
+        .collect();
+    CxImage::new(data, sprite.width())
+}
+
 /// Apply the same visual role as the ORS hit invert filter to an FP sprite.
 #[must_use]
 pub fn make_damage_invert_sprite(sprite: &CxImage) -> CxImage {
@@ -604,29 +655,49 @@ pub fn billboard_from_mosquiton(
         height: mosquiton.height,
         world_height: mosquiton.config.billboard_height,
         palette_variant: None,
-        sprite: match mosquiton.state {
-            MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
-            MosquitonState::BurningCorpse { .. } => {
-                Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
-            }
-            MosquitonState::MeleeAttack { .. } => {
-                let sprite = sprites.melee_sprite_at(mosquiton.animation_time);
-                if mosquiton.showing_damage_invert() {
-                    Arc::new(make_damage_invert_sprite(sprite))
-                } else {
-                    Arc::clone(sprite)
+        sprite: {
+            // Death/burning branches select their own sprite and never flash.
+            let flash = mosquiton_flash(mosquiton);
+            match mosquiton.state {
+                MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
+                MosquitonState::BurningCorpse { .. } => {
+                    Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
                 }
-            }
-            _ => {
-                let sprite = sprites.alive_sprite_at(mosquiton.animation_time);
-                if mosquiton.showing_damage_invert() {
-                    Arc::new(make_damage_invert_sprite(sprite))
-                } else {
-                    Arc::clone(sprite)
+                MosquitonState::MeleeAttack { .. } => {
+                    flash_sprite(sprites.melee_sprite_at(mosquiton.animation_time), flash)
                 }
+                _ => flash_sprite(sprites.alive_sprite_at(mosquiton.animation_time), flash),
             }
         },
         flip_x: false,
+    }
+}
+
+/// Classify the transient flash for a Mosquiton from shared sim state.
+/// `Stagger > Hit > None`; dead/dying enemies never flash.
+fn mosquiton_flash(m: &Mosquiton) -> EnemyFlash {
+    if !m.is_alive() {
+        EnemyFlash::None
+    } else if m.reaction.is_stunned() {
+        EnemyFlash::Stagger
+    } else if m.showing_hit_flash() {
+        EnemyFlash::Hit
+    } else {
+        EnemyFlash::None
+    }
+}
+
+/// Classify the transient flash for a Spidey from shared sim state.
+/// `Stagger > Hit > None`; dead/dying enemies never flash.
+fn spidey_flash(s: &Spidey) -> EnemyFlash {
+    if !s.is_alive() {
+        EnemyFlash::None
+    } else if s.reaction.is_stunned() {
+        EnemyFlash::Stagger
+    } else if s.showing_hit_flash() {
+        EnemyFlash::Hit
+    } else {
+        EnemyFlash::None
     }
 }
 
@@ -643,28 +714,22 @@ pub fn billboards_from_mosquitons(
             height: m.height,
             world_height: m.config.billboard_height,
             palette_variant: None,
-            sprite: match m.state {
-                MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
-                MosquitonState::BurningCorpse { .. } => {
-                    Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
-                }
-                MosquitonState::MeleeAttack { .. } => {
-                    let sprite = sprites.melee_sprite_at(m.animation_time);
-                    if m.showing_damage_invert() {
-                        Arc::new(make_damage_invert_sprite(sprite))
-                    } else {
-                        Arc::clone(sprite)
+            sprite: {
+                let flash = mosquiton_flash(m);
+                match m.state {
+                    MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
+                    MosquitonState::BurningCorpse { .. } => {
+                        Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
                     }
-                }
-                _ => {
-                    let sprite = m.shoot_anim_elapsed.map_or_else(
-                        || sprites.alive_sprite_at(m.animation_time),
-                        |elapsed| sprites.shoot_sprite_at(elapsed),
-                    );
-                    if m.showing_damage_invert() {
-                        Arc::new(make_damage_invert_sprite(sprite))
-                    } else {
-                        Arc::clone(sprite)
+                    MosquitonState::MeleeAttack { .. } => {
+                        flash_sprite(sprites.melee_sprite_at(m.animation_time), flash)
+                    }
+                    _ => {
+                        let sprite = m.shoot_anim_elapsed.map_or_else(
+                            || sprites.alive_sprite_at(m.animation_time),
+                            |elapsed| sprites.shoot_sprite_at(elapsed),
+                        );
+                        flash_sprite(sprite, flash)
                     }
                 }
             },
@@ -722,7 +787,7 @@ pub fn billboards_from_spideys(
 pub fn spidey_sprite_for_presentation(
     state: &carcinisation_fps_core::EnemyPresentationState,
     sprites: &SpideyBillboardSprites,
-    showing_damage_invert: bool,
+    flash: EnemyFlash,
     animation_time: f32,
 ) -> Arc<CxImage> {
     use carcinisation_fps_core::presentation::{AttackPresentationKind, EnemyPresentationState};
@@ -738,12 +803,7 @@ pub fn spidey_sprite_for_presentation(
             // Convert normalized phase (0-1) to elapsed seconds so the full
             // hop animation plays across one hop. Identical for SP and MP.
             let elapsed = phase * sprites.hop_total_duration();
-            let sprite = sprites.hop_sprite_at(elapsed);
-            if showing_damage_invert {
-                Arc::new(make_damage_invert_sprite(sprite))
-            } else {
-                Arc::clone(sprite)
-            }
+            flash_sprite(sprites.hop_sprite_at(elapsed), flash)
         }
         EnemyPresentationState::Windup {
             attack: AttackPresentationKind::Ranged,
@@ -752,14 +812,7 @@ pub fn spidey_sprite_for_presentation(
         | EnemyPresentationState::Attacking {
             attack: AttackPresentationKind::Ranged,
             phase,
-        } => {
-            let sprite = sprites.shoot_sprite_at(*phase);
-            if showing_damage_invert {
-                Arc::new(make_damage_invert_sprite(sprite))
-            } else {
-                Arc::clone(sprite)
-            }
-        }
+        } => flash_sprite(sprites.shoot_sprite_at(*phase), flash),
         EnemyPresentationState::Windup {
             attack: AttackPresentationKind::Melee,
             phase,
@@ -769,23 +822,13 @@ pub fn spidey_sprite_for_presentation(
             phase,
         } => {
             // Lunge animation — clamped to last frame until landing.
-            let sprite = sprites.lunge_sprite_at(*phase);
-            if showing_damage_invert {
-                Arc::new(make_damage_invert_sprite(sprite))
-            } else {
-                Arc::clone(sprite)
-            }
+            flash_sprite(sprites.lunge_sprite_at(*phase), flash)
         }
         // Idle, Moving, Recover — use looping idle animation.
         EnemyPresentationState::Idle
         | EnemyPresentationState::Moving
         | EnemyPresentationState::Recover => {
-            let sprite = sprites.alive_sprite_at(animation_time);
-            if showing_damage_invert {
-                Arc::new(make_damage_invert_sprite(sprite))
-            } else {
-                Arc::clone(sprite)
-            }
+            flash_sprite(sprites.alive_sprite_at(animation_time), flash)
         }
     }
 }
@@ -800,12 +843,7 @@ fn spidey_presentation_sprite(spidey: &Spidey, sprites: &SpideyBillboardSprites)
         spidey.animation_time,
         spidey.visual_height,
     );
-    spidey_sprite_for_presentation(
-        &pres,
-        sprites,
-        spidey.showing_damage_invert(),
-        spidey.animation_time,
-    )
+    spidey_sprite_for_presentation(&pres, sprites, spidey_flash(spidey), spidey.animation_time)
 }
 
 // ── Pickup billboard sprites from composed atlas ──────────────────────────
@@ -1358,5 +1396,97 @@ mod tests {
             proj_flip.palette_remap, proj_noflip.palette_remap,
             "flip_x must not change the palette remap table"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Combat-feedback differentiation (hit vs stagger)
+    // -----------------------------------------------------------------------
+
+    use crate::mosquiton::{Mosquiton, MosquitonConfig, MosquitonState};
+    use crate::spidey::{Spidey, SpideyConfig, SpideyState};
+    use carcinisation_fps_core::enemy::DamageFlicker;
+
+    /// A flicker advanced into its inverted phase (a fresh flicker starts in the
+    /// non-inverted "regular" phase).
+    fn inverting_flicker() -> DamageFlicker {
+        let f = DamageFlicker::new()
+            .tick(0.15)
+            .expect("flicker still active");
+        assert!(f.showing_invert(), "flicker must be in the invert phase");
+        f
+    }
+
+    #[test]
+    fn stagger_tint_dims_one_step_and_keeps_transparency() {
+        // 0 transparent; opaque dims one step floored at 1: 3→2, 2→1, 1→1.
+        let src = CxImage::new(vec![TRANSPARENT_INDEX, 1, 2, 3], 2);
+        let out = make_stagger_tint_sprite(&src);
+        assert_eq!(out.data(), &[TRANSPARENT_INDEX, 1, 1, 2]);
+    }
+
+    #[test]
+    fn flash_sprite_selects_distinct_transforms() {
+        let src = Arc::new(CxImage::new(vec![TRANSPARENT_INDEX, 1, 2, 3], 2));
+        let none = flash_sprite(&src, EnemyFlash::None);
+        let hit = flash_sprite(&src, EnemyFlash::Hit);
+        let stagger = flash_sprite(&src, EnemyFlash::Stagger);
+        assert_eq!(none.data(), src.data(), "None is the untouched sprite");
+        assert_eq!(
+            hit.data(),
+            make_damage_invert_sprite(&src).data(),
+            "Hit is the white damage invert"
+        );
+        assert_eq!(
+            stagger.data(),
+            make_stagger_tint_sprite(&src).data(),
+            "Stagger is the dim tint"
+        );
+        // The three outcomes are visually distinct.
+        assert_ne!(hit.data(), stagger.data(), "hit and stagger must differ");
+        assert_ne!(none.data(), hit.data());
+        assert_ne!(none.data(), stagger.data());
+    }
+
+    #[test]
+    fn mosquiton_flash_priority_stagger_over_hit() {
+        let mut m = Mosquiton::new(Vec2::ZERO, MosquitonConfig::default());
+        // Both a stun and a hit flicker active → Stagger wins (a stun tick
+        // usually coincides with a recent hit flicker).
+        m.reaction.hit_stun_remaining = 0.5;
+        m.damage_flicker = Some(inverting_flicker());
+        assert_eq!(mosquiton_flash(&m), EnemyFlash::Stagger);
+
+        // Hit flicker only → Hit.
+        m.reaction.hit_stun_remaining = 0.0;
+        assert_eq!(mosquiton_flash(&m), EnemyFlash::Hit);
+
+        // Neither → None.
+        m.damage_flicker = None;
+        assert_eq!(mosquiton_flash(&m), EnemyFlash::None);
+
+        // Dead enemies never flash, even with stun/flicker set (corpse guard).
+        m.reaction.hit_stun_remaining = 0.5;
+        m.damage_flicker = Some(inverting_flicker());
+        m.state = MosquitonState::Dead;
+        assert_eq!(mosquiton_flash(&m), EnemyFlash::None);
+    }
+
+    #[test]
+    fn spidey_flash_priority_stagger_over_hit() {
+        let mut s = Spidey::new(Vec2::ZERO, SpideyConfig::default());
+        s.reaction.hit_stun_remaining = 0.5;
+        s.damage_flicker = Some(inverting_flicker());
+        assert_eq!(spidey_flash(&s), EnemyFlash::Stagger);
+
+        s.reaction.hit_stun_remaining = 0.0;
+        assert_eq!(spidey_flash(&s), EnemyFlash::Hit);
+
+        s.damage_flicker = None;
+        assert_eq!(spidey_flash(&s), EnemyFlash::None);
+
+        s.reaction.hit_stun_remaining = 0.5;
+        s.damage_flicker = Some(inverting_flicker());
+        s.state = SpideyState::Dead;
+        assert_eq!(spidey_flash(&s), EnemyFlash::None);
     }
 }

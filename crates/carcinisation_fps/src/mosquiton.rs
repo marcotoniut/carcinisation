@@ -191,8 +191,11 @@ impl Mosquiton {
         }
     }
 
+    /// Whether the brief white hit-flash (damage flicker) should render. Stagger
+    /// is a separate visual classified at billboard build (see
+    /// `billboard::EnemyFlash`), so this is flicker-only.
     #[must_use]
-    pub fn showing_damage_invert(&self) -> bool {
+    pub fn showing_hit_flash(&self) -> bool {
         self.is_alive() && carcinisation_fps_core::is_showing_damage_invert(&self.damage_flicker)
     }
 }

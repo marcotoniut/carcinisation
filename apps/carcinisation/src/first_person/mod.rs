@@ -19,7 +19,7 @@ use bevy_replicon_renet2::RenetChannelsExt;
 #[cfg(not(target_family = "wasm"))]
 use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient};
 use carcinisation_fps::billboard::{
-    Billboard, PickupBillboardSprites, make_blood_shot_sprite, make_damage_invert_sprite,
+    Billboard, EnemyFlash, PickupBillboardSprites, flash_sprite, make_blood_shot_sprite,
     make_enemy_sprite, make_health_pickup_sprite, make_mosquiton_placeholder_sprite,
 };
 use carcinisation_fps::directional_billboard::{
@@ -1634,10 +1634,24 @@ fn sync_camera_from_net_player(
     // Enemy billboards (including dying/dead for death pose, excludes despawned).
     for (enemy, _health, net_burning, enemy_pos_interp, _enemy_angle_interp) in net_enemies.iter() {
         let visual_pos = enemy_pos_interp.map_or(enemy.position, |i| i.interpolated());
-        let show_invert = damage_flickers
+        // Combat-feedback flash classification (priority Stagger > Hit > None).
+        // A poise-break/stagger holds a distinct "dazed" tint for the whole stun
+        // window; a hit is the brief white invert. Both come from
+        // simulation-authoritative state — the replicated `NetEnemy.stunned`
+        // (mirrors `EnemyReactionState::is_stunned()`) and the local damage
+        // flicker — never inferred from presentation. Stagger must win, since a
+        // stun tick usually coincides with a recent hit flicker.
+        let flash = if enemy.stunned {
+            EnemyFlash::Stagger
+        } else if damage_flickers
             .0
             .get(&enemy.object_id)
-            .is_some_and(|f| f.showing_invert());
+            .is_some_and(|f| f.showing_invert())
+        {
+            EnemyFlash::Hit
+        } else {
+            EnemyFlash::None
+        };
         extra_bbs.0.push(net_enemy_billboard(
             enemy,
             visual_pos,
@@ -1645,7 +1659,7 @@ fn sync_camera_from_net_player(
             mosquiton_sprites.as_deref(),
             spidey_sprites.as_deref(),
             attack_overrides.0.get(&enemy.object_id),
-            show_invert,
+            flash,
         ));
 
         // Burn flame effect for enemies killed by fire (persists through Dead until despawn).
@@ -1913,7 +1927,7 @@ fn net_enemy_billboard(
     mosquiton_sprites: Option<&MosquitonSprites>,
     spidey_sprites: Option<&SpideySprites>,
     attack_override: Option<&AttackAnimOverride>,
-    damage_invert: bool,
+    flash: EnemyFlash,
 ) -> Billboard {
     match enemy.enemy_type {
         NetEnemyType::Basic => Billboard {
@@ -1948,24 +1962,13 @@ fn net_enemy_billboard(
                     }
                     // Select base sprite from attack override or idle state.
                     attack_override.map_or_else(
-                        || {
-                            let sprite = sprites.0.alive_sprite_at(elapsed_secs);
-                            if damage_invert {
-                                Arc::new(make_damage_invert_sprite(sprite))
-                            } else {
-                                Arc::clone(sprite)
-                            }
-                        },
+                        || flash_sprite(sprites.0.alive_sprite_at(elapsed_secs), flash),
                         |anim| {
                             let sprite = match anim.kind {
                                 EnemyAttackKind::Melee => sprites.0.melee_sprite_at(anim.elapsed),
                                 EnemyAttackKind::Ranged => sprites.0.shoot_sprite_at(anim.elapsed),
                             };
-                            if damage_invert {
-                                Arc::new(make_damage_invert_sprite(sprite))
-                            } else {
-                                Arc::clone(sprite)
-                            }
+                            flash_sprite(sprite, flash)
                         },
                     )
                 },
@@ -1994,7 +1997,7 @@ fn net_enemy_billboard(
                         carcinisation_fps::billboard::spidey_sprite_for_presentation(
                             &pres,
                             &sprites.0,
-                            damage_invert,
+                            flash,
                             elapsed_secs,
                         )
                     },
@@ -3188,7 +3191,10 @@ mod tests {
         ];
         for state in states {
             let sprite = carcinisation_fps::billboard::spidey_sprite_for_presentation(
-                &state, &sprites, false, 0.0,
+                &state,
+                &sprites,
+                EnemyFlash::None,
+                0.0,
             );
             assert!(
                 !sprite.data().is_empty(),
