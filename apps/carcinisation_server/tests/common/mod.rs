@@ -447,6 +447,7 @@ pub fn spawn_static_spidey(
                 enemy_type: NetEnemyType::Spidey,
                 visual_height: 0.0,
                 visual_phase: 0.0,
+                stunned: false,
             },
             NetHealth {
                 current: health,

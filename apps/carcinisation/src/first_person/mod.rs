@@ -2745,6 +2745,7 @@ mod tests {
                 enemy_type: NetEnemyType::Mosquiton,
                 visual_height: 0.0,
                 visual_phase: 0.0,
+                stunned: false,
             },
             NetHealth {
                 current: 100.0,
@@ -2760,6 +2761,7 @@ mod tests {
                 enemy_type: NetEnemyType::Mosquiton,
                 visual_height: 0.0,
                 visual_phase: 0.0,
+                stunned: false,
             },
             NetHealth {
                 current: 0.0,
@@ -2813,6 +2815,7 @@ mod tests {
                 enemy_type: NetEnemyType::Mosquiton,
                 visual_height: 0.0,
                 visual_phase: 0.0,
+                stunned: false,
             },
             NetHealth {
                 current: 100.0,

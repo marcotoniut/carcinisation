@@ -121,6 +121,14 @@ pub struct NetEnemy {
     /// check `state` before interpreting the value.
     #[serde(default)]
     pub visual_phase: f32,
+    /// Presentation-only: the enemy is currently hit-stunned (a poise break /
+    /// stagger window). Mirrors the shared sim's
+    /// `EnemyReactionState::is_stunned()` so clients can render a stagger cue
+    /// from authoritative simulation state, never inferred from presentation.
+    /// Defaults to `false` for backward compatibility and for enemy kinds with
+    /// no reaction sim (Basic).
+    #[serde(default)]
+    pub stunned: bool,
 }
 
 /// Replicated temporary player speed modifier.
@@ -237,11 +245,13 @@ mod tests {
             enemy_type: NetEnemyType::Mosquiton,
             visual_height: 0.0,
             visual_phase: 0.0,
+            stunned: true,
         };
         let back = roundtrip_component(&enemy);
         assert_eq!(back.object_id.0, 5);
         assert!(matches!(back.state, NetEnemyState::Chase));
         assert_eq!(back.enemy_type, NetEnemyType::Mosquiton);
+        assert!(back.stunned, "stunned flag round-trips");
     }
 
     #[test]
@@ -254,6 +264,7 @@ mod tests {
             enemy_type: NetEnemyType::Spidey,
             visual_height: 0.15,
             visual_phase: 0.5,
+            stunned: false,
         };
         let back = roundtrip_component(&enemy);
         assert_eq!(back.object_id.0, 7);

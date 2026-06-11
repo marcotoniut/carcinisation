@@ -342,3 +342,51 @@ fn lethal_pistol_hit_clears_pending_reaction() {
         "lethal hits must not leave stale reaction state"
     );
 }
+
+/// Phase 2 stagger visibility: the server mirrors the shared sim's hit-stun into
+/// the replicated `NetEnemy.stunned` so clients can render a stagger cue. Drives
+/// the real combat → reaction → sim pipeline with sustained pistol fire and
+/// asserts (a) `NetEnemy.stunned` equals `sim.reaction.is_stunned()` every tick
+/// (the presentation mirror is exact, never drifts), and (b) a poise break
+/// actually occurs end-to-end (4 pistol hits at 25 poise cross the 100
+/// threshold). Presentation-only: the stun flag is never read back by the sim.
+#[test]
+fn server_replicates_hit_stun_to_net_enemy() {
+    use carcinisation_net::NetEnemy;
+    use carcinisation_server::systems::ServerMosquitonSim;
+
+    // High-HP stationary Mosquiton so it survives long enough to stagger.
+    let mut server = build_deterministic_server_with_enemies(
+        carcinisation_fps_core::map::test_map(),
+        vec![(4.5, 1.5, 1000, 0.0)],
+    );
+    server.update();
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
+
+    let mut saw_stun = false;
+    for _ in 0..150 {
+        inject_fire(&mut server, 1);
+        server.update();
+
+        let world = server.world_mut();
+        let mut q = world.query::<(&NetEnemy, &ServerMosquitonSim)>();
+        let Ok((enemy, sim)) = q.single(world) else {
+            break; // enemy despawned (should not happen at 1000 HP)
+        };
+        // The replicated flag is an exact mirror of the authoritative sim state.
+        assert_eq!(
+            enemy.stunned,
+            sim.reaction.is_stunned(),
+            "NetEnemy.stunned must mirror EnemyReactionState::is_stunned() each tick"
+        );
+        if enemy.stunned {
+            saw_stun = true;
+            break;
+        }
+    }
+
+    assert!(
+        saw_stun,
+        "sustained pistol fire crosses the poise threshold and staggers the enemy"
+    );
+}

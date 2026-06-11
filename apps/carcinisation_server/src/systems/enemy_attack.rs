@@ -241,6 +241,10 @@ pub fn tick_enemy_attacks(
         mosquiton_sim.shoot_anim_elapsed = sim.shoot_anim_elapsed;
         mosquiton_sim.reaction = sim.reaction;
 
+        // Presentation-only: mirror the shared sim's hit-stun so clients can
+        // render a stagger cue from authoritative state. Never read by the sim.
+        enemy.stunned = sim.reaction.is_stunned();
+
         // Map sim state → NetEnemyState for replication.
         let net_state = sim_state_to_net(&sim.state);
         if !matches!(
@@ -543,6 +547,10 @@ pub fn tick_spidey_attacks(
         spidey_sim.web_anim_elapsed = sim.web_anim_elapsed;
         spidey_sim.seed = sim.seed;
         spidey_sim.reaction = sim.reaction;
+
+        // Presentation-only: mirror the shared sim's hit-stun so clients can
+        // render a stagger cue from authoritative state. Never read by the sim.
+        enemy.stunned = sim.reaction.is_stunned();
 
         // Map sim state -> NetEnemyState for replication.
         let net_state = spidey_sim_state_to_net(&sim.state);

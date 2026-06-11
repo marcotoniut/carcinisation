@@ -642,6 +642,7 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
                     enemy_type: net_enemy_type_from_spawn(spawn),
                     visual_height: 0.0,
                     visual_phase: 0.0,
+                    stunned: false,
                 },
                 NetHealth {
                     current: health as f32,
