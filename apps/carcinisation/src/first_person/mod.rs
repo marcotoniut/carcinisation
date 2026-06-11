@@ -152,6 +152,9 @@ struct HitImpact {
     lifetime: f32,
     kind: carcinisation_net::HitImpactKind,
     projectile_type: Option<NetProjectileType>,
+    /// Critical (weak-point) hit — renders a larger splat for feedback emphasis.
+    /// Presentation only; mirrored by the single-player path.
+    critical: bool,
 }
 
 use carcinisation_net::HitImpactKind;
@@ -431,6 +434,7 @@ fn handle_hit_confirm(trigger: On<HitConfirm>, mut impacts: ResMut<HitImpacts>) 
         lifetime,
         kind,
         projectile_type: confirm.projectile_type,
+        critical: confirm.critical,
     });
 }
 
@@ -1799,7 +1803,14 @@ fn sync_camera_from_net_player(
                         |bs| Arc::clone(&bs.0.hit),
                     )
                 };
-                (s, 0.42)
+                // Critical (weak-point) hits render a larger splat for feedback
+                // emphasis (presentation only — matches the SP path).
+                let h = if impact.critical {
+                    0.42 * carcinisation_fps_core::enemy::CRIT_IMPACT_HEIGHT_SCALE
+                } else {
+                    0.42
+                };
+                (s, h)
             }
             HitImpactKind::Destroy => {
                 let s = if is_web_shot(impact.projectile_type) {

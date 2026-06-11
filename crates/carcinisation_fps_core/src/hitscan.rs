@@ -108,6 +108,23 @@ pub const NEUTRAL_DAMAGE_SCALE: f32 = 1.0;
 /// FPS, which is otherwise invisible.
 pub const HIT_DEBUG_TARGET: &str = "carcinisation::fps::hit";
 
+/// Whether a hit is a *critical* (weak-point) hit, for **presentation only**.
+///
+/// A hit is critical when the part's `damage_scale` exceeds the neutral
+/// identity ([`NEUTRAL_DAMAGE_SCALE`]) — i.e. the part takes amplified damage
+/// (e.g. a 2× headshot). The single source of truth so the server and
+/// single-player classify identically; both feed the result into the hit-impact
+/// feedback (a scaled blood splat), never back into damage/AI. A non-finite
+/// scale is not critical.
+///
+/// This drives *feedback emphasis*, not gameplay: the damage itself is already
+/// computed by [`routed_damage`]. Reading this flag must never alter the
+/// simulation.
+#[must_use]
+pub fn is_critical_hit(damage_scale: f32) -> bool {
+    damage_scale.is_finite() && damage_scale > NEUTRAL_DAMAGE_SCALE
+}
+
 /// Part damage routing rule: `base × scale`, clamped non-negative.
 ///
 /// The single source of truth for per-part damage scaling, so single-player

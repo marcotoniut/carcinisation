@@ -19,7 +19,8 @@ use carcinisation_fps_core::enemy_collision::{
 };
 use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::hitscan::{
-    FlameStrip, HIT_DEBUG_TARGET, PartHitscanTarget, hitscan_parts_from_pose, routed_damage,
+    FlameStrip, HIT_DEBUG_TARGET, PartHitscanTarget, hitscan_parts_from_pose, is_critical_hit,
+    routed_damage,
 };
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
@@ -400,6 +401,9 @@ pub fn process_combat(
                             position: proj_pos,
                             kind: carcinisation_net::HitImpactKind::Destroy,
                             projectile_type: Some(proj_type),
+                            // Projectile destroy is not an enemy part hit.
+                            part_id: None,
+                            critical: false,
                         },
                     });
                     continue;
@@ -492,6 +496,11 @@ pub fn process_combat(
                             position: impact_pos,
                             kind: carcinisation_net::HitImpactKind::Hit,
                             projectile_type: None,
+                            // Per-part feedback (presentation only): identify the
+                            // hit part and emphasise weak-point hits. FALLBACK
+                            // (whole-body circle) carries no authored part id.
+                            part_id: (part_id != PartId::FALLBACK).then_some(part_id.0),
+                            critical: is_critical_hit(damage_scale),
                         },
                     });
                 }

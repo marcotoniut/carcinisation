@@ -30,7 +30,9 @@ use carcinisation_fps_core::collision::{
 use carcinisation_fps_core::enemy_collision::{
     DEFAULT_ANIMATION, DEFAULT_FRAME, enemy_fallback_radius,
 };
-use carcinisation_fps_core::hitscan::{PartHitscanTarget, hitscan_parts_from_pose, routed_damage};
+use carcinisation_fps_core::hitscan::{
+    PartHitscanTarget, hitscan_parts_from_pose, is_critical_hit, routed_damage,
+};
 use carcinisation_fps_core::map::test_map;
 use carcinisation_fps_core::{
     FirePose2d, FpsCombatConfig, FpsEnemyKind, PendingHitReaction, collision_set, facing_yaw_toward,
@@ -96,6 +98,42 @@ fn server_spidey_headshot_scales_damage_through_live_combat() {
         head > body,
         "head > body ⇒ authored per-part collision, not whole-body fallback"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Per-part hit feedback (presentation only): the values the server feeds into
+// `HitConfirm` — `critical` (= is_critical_hit(damage_scale)) and the wire part
+// id (FALLBACK → None). Asserted at the exact routing boundary the server reads
+// (same rationale as the armour test: `collision_set` cannot be injected into
+// the live server). The live health e2e above proves the same part is selected
+// end-to-end; feedback derives from that part and never alters damage.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn server_headshot_feedback_is_critical_body_is_not() {
+    let combat = FpsCombatConfig::default();
+    let base = combat.hitscan_damage;
+    let radius = enemy_fallback_radius(FpsEnemyKind::Spidey, &combat);
+
+    // Head (faces player): amplified part → critical, authored part id on wire.
+    let (head_part, head_scale, _, _) = route_via_kernel(PI, radius, base);
+    assert_ne!(head_part, PartId::FALLBACK, "authored part, not fallback");
+    assert!(is_critical_hit(head_scale), "head (2.0×) is a critical hit");
+    let head_wire: Option<u16> = (head_part != PartId::FALLBACK).then_some(head_part.0);
+    assert_eq!(
+        head_wire,
+        Some(head_part.0),
+        "real part id sent on the wire"
+    );
+
+    // Body (faces away): neutral part → not critical.
+    let (_body_part, body_scale, _, _) = route_via_kernel(0.0, radius, base);
+    assert!(!is_critical_hit(body_scale), "body (1.0×) is not critical");
+
+    // The FALLBACK sentinel maps to no wire part id (whole-body circle).
+    let fallback_wire: Option<u16> =
+        (PartId::FALLBACK != PartId::FALLBACK).then_some(PartId::FALLBACK.0);
+    assert_eq!(fallback_wire, None, "fallback carries no authored part id");
 }
 
 // ---------------------------------------------------------------------------

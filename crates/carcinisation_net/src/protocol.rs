@@ -193,6 +193,17 @@ pub struct HitConfirm {
     /// Used by the client to select the correct destroy sprite.
     #[serde(default)]
     pub projectile_type: Option<NetProjectileType>,
+    /// Hit part id (`PartId::0`) for feedback identification; `None` for the
+    /// whole-body fallback, projectiles, and hits with no authored part.
+    /// **Presentation only** — the client renders feedback from it and never
+    /// derives gameplay state. Server-authoritative.
+    #[serde(default)]
+    pub part_id: Option<u16>,
+    /// Whether this was a critical (weak-point) hit, driving splat emphasis on
+    /// the client. **Presentation only**; server-authoritative (derived from
+    /// the hit part's `damage_scale`, see `is_critical_hit`).
+    #[serde(default)]
+    pub critical: bool,
 }
 
 /// Visual kind for impact billboards.
@@ -470,12 +481,16 @@ mod tests {
             position: Vec2::new(3.5, 1.5),
             kind: HitImpactKind::Destroy,
             projectile_type: Some(NetProjectileType::BloodShot),
+            part_id: Some(7),
+            critical: true,
         };
         let back = roundtrip(&event);
         assert_eq!(back.target_id, NetworkObjectId(5));
         assert!((back.damage - 37.0).abs() < 1e-5);
         assert_eq!(back.kind, HitImpactKind::Destroy);
         assert_eq!(back.projectile_type, Some(NetProjectileType::BloodShot));
+        assert_eq!(back.part_id, Some(7));
+        assert!(back.critical);
     }
 
     #[test]
@@ -486,9 +501,13 @@ mod tests {
             position: Vec2::new(3.5, 1.5),
             kind: HitImpactKind::Hit,
             projectile_type: None,
+            part_id: None,
+            critical: false,
         };
         let back = roundtrip(&event);
         assert_eq!(back.projectile_type, None);
+        assert_eq!(back.part_id, None);
+        assert!(!back.critical);
     }
 
     #[test]

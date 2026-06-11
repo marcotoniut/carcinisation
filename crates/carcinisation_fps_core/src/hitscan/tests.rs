@@ -1288,3 +1288,97 @@ fn combined_transparency_armour_and_reaction_flow_through_one_hit() {
     assert!(approx(pending.poise_damage, 30.0), "20 × 1.5");
     assert!(approx(pending.knockback_distance, 0.075), "0.1 × 0.75");
 }
+
+// ---------------------------------------------------------------------------
+// Critical-hit feedback classification (presentation only)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn is_critical_hit_only_for_amplified_parts() {
+    // Critical == damage_scale strictly above the neutral identity.
+    assert!(
+        !is_critical_hit(NEUTRAL_DAMAGE_SCALE),
+        "neutral is not crit"
+    );
+    assert!(!is_critical_hit(0.5), "reduced (armour-like) is not crit");
+    assert!(is_critical_hit(2.0), "amplified weak point is crit");
+    assert!(is_critical_hit(1.0001), "any scale above neutral is crit");
+    // Fail-safe: a non-finite scale (sanitised to neutral in routing) is not
+    // critical, so bad data never spuriously emphasises a hit.
+    assert!(!is_critical_hit(f32::NAN));
+    assert!(!is_critical_hit(f32::INFINITY), "non-finite is not crit");
+}
+
+#[test]
+fn critical_feedback_tracks_the_resolved_part_not_the_skipped_one() {
+    // Reuses the transparency layout: a non-targetable PLATE (scale 9.0) sits in
+    // front of an amplified WEAKPT (scale 2.0). Feedback must key off the part
+    // the ray actually resolves to (WEAKPT) — the skipped plate emits nothing,
+    // and the enormous plate scale must never leak into the critical decision.
+    const PLATE: PartId = PartId(20);
+    const WEAKPT: PartId = PartId(21);
+    const CORE: PartId = PartId(22);
+
+    let mut set = TargetCollisionSet::new();
+    for facing in BillboardFacing8::ALL {
+        set.insert_frame(
+            CollisionFrameKey {
+                animation: ANIM,
+                frame: 0,
+                facing,
+            },
+            TargetCollisionFrame::new([
+                PartCollider2d {
+                    part_id: CORE,
+                    collider: Collider::Circle(Circle::new(Vec2::ZERO, 0.2)),
+                },
+                PartCollider2d {
+                    part_id: WEAKPT,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.25, 0.0), 0.1)),
+                },
+                PartCollider2d {
+                    part_id: PLATE,
+                    collider: Collider::Circle(Circle::new(Vec2::new(0.5, 0.0), 0.12)),
+                },
+            ]),
+        );
+    }
+    set.insert_part_metadata(CORE, PartMetadata::targetable(MaterialId(1), 1.0));
+    set.insert_part_metadata(
+        WEAKPT,
+        PartMetadata {
+            material: MaterialId(2),
+            damage_scale: 2.0,
+            targetable: true,
+            armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
+        },
+    );
+    set.insert_part_metadata(
+        PLATE,
+        PartMetadata {
+            material: MaterialId(3),
+            damage_scale: 9.0,
+            targetable: false,
+            armour: 0.0,
+            reaction: PartReactionProfile::NEUTRAL,
+        },
+    );
+
+    let map = test_map();
+    let hit = hitscan_parts_from_pose(
+        pose_west(Vec2::new(5.5, 1.5)),
+        &map,
+        [target(&set, Vec2::new(3.5, 1.5), 0.3)].into_iter(),
+    )
+    .unwrap();
+
+    // Resolves to the weak point (plate skipped), so feedback is the weak point.
+    assert_eq!(hit.part_id, WEAKPT);
+    assert!(
+        is_critical_hit(hit.damage_scale),
+        "resolved weak point (2.0) is critical"
+    );
+    // Fallback and neutral parts are not critical → body hits read as ordinary.
+    assert!(!is_critical_hit(NEUTRAL_DAMAGE_SCALE));
+}

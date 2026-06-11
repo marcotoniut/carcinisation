@@ -774,6 +774,13 @@ pub enum ProjectileImpactKind {
     Destroy,
 }
 
+/// Vertical-size multiplier applied to a **critical** (weak-point) hit splat,
+/// for **presentation only**. A critical hit renders a larger blood splat so a
+/// weak-point/headshot reads differently from a body hit without new art. Used
+/// by both the single-player and networked impact renderers so the emphasis is
+/// identical. Pure feedback — never read by the simulation.
+pub const CRIT_IMPACT_HEIGHT_SCALE: f32 = 1.6;
+
 #[derive(Clone, Debug)]
 pub struct ProjectileImpact {
     pub position: Vec2,
@@ -783,6 +790,13 @@ pub struct ProjectileImpact {
     pub visual_height: f32,
     pub age: f32,
     pub lifetime: f32,
+    /// Hit part id (`PartId::0`) for feedback identification; `None` for the
+    /// whole-body fallback, projectiles, and any hit with no authored part.
+    /// Presentation only — never read by the simulation.
+    pub part_id: Option<u16>,
+    /// Whether this was a critical (weak-point) hit; drives splat emphasis.
+    /// Presentation only — see [`crate::hitscan::is_critical_hit`].
+    pub critical: bool,
 }
 
 impl ProjectileImpact {
@@ -795,6 +809,33 @@ impl ProjectileImpact {
             visual_height,
             age: 0.0,
             lifetime: 0.18,
+            part_id: None,
+            critical: false,
+        }
+    }
+
+    /// Blood-splat hit carrying per-part feedback metadata (hit part + critical
+    /// flag). Used by the single-player hitscan path so an enemy hit shows a
+    /// splat at the part surface point, scaled on a critical hit — matching the
+    /// networked `HitConfirm` feedback. `part_id`/`critical` are presentation
+    /// only and never influence damage/AI.
+    #[must_use]
+    pub const fn hit_part(
+        position: Vec2,
+        source_kind: ProjectileKind,
+        visual_height: f32,
+        part_id: Option<u16>,
+        critical: bool,
+    ) -> Self {
+        Self {
+            position,
+            kind: ProjectileImpactKind::Hit,
+            source_kind,
+            visual_height,
+            age: 0.0,
+            lifetime: 0.18,
+            part_id,
+            critical,
         }
     }
 
@@ -807,6 +848,8 @@ impl ProjectileImpact {
             visual_height,
             age: 0.0,
             lifetime: 0.3,
+            part_id: None,
+            critical: false,
         }
     }
 }

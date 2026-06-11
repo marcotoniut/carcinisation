@@ -85,6 +85,8 @@ pub fn tick_projectiles_server(
                     position: proj.position,
                     kind: carcinisation_net::HitImpactKind::Destroy,
                     projectile_type: Some(proj.projectile_type),
+                    part_id: None,
+                    critical: false,
                 },
             });
             commands.entity(proj_entity).despawn();
@@ -116,6 +118,8 @@ pub fn tick_projectiles_server(
                     position: impact_pos,
                     kind: carcinisation_net::HitImpactKind::Hit,
                     projectile_type: Some(proj.projectile_type),
+                    part_id: None,
+                    critical: false,
                 },
             });
             commands.entity(proj_entity).despawn();
@@ -180,6 +184,8 @@ pub fn tick_projectiles_server(
                         position: proj.position,
                         kind: carcinisation_net::HitImpactKind::Hit,
                         projectile_type: Some(proj.projectile_type),
+                        part_id: None,
+                        critical: false,
                     },
                 });
             }

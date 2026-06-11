@@ -75,7 +75,7 @@ pub use ground_fire::{
 pub use hitscan::{
     FlamePartHit, FlameStrip, HIT_DEBUG_TARGET, NEUTRAL_DAMAGE_SCALE, PartHitscanResult,
     PartHitscanTarget, flame_hits_target_parts, flame_hits_target_parts_configured,
-    hitscan_parts_from_pose, routed_damage, scaled_damage,
+    hitscan_parts_from_pose, is_critical_hit, routed_damage, scaled_damage,
 };
 pub use map::{
     EntitySpawnData, EntitySpawnKind, Map, MapError, MapLoadData, PlayerStartData, test_map,

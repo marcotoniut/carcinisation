@@ -8,7 +8,7 @@ use carcinisation_fps_core::{
     collision_set,
     enemy_collision::{DEFAULT_ANIMATION, DEFAULT_FRAME},
     facing_yaw_toward, flame_hits_position_configured_from_pose, flame_visual_max_distance,
-    hitscan_parts_from_pose, routed_damage,
+    hitscan_parts_from_pose, is_critical_hit, routed_damage,
 };
 
 /// Snap turn state snapshot passed into the presentation layer.
@@ -33,7 +33,7 @@ use std::{
 use crate::{
     billboard::Billboard,
     camera::Camera,
-    enemy::{Enemy, Projectile, ProjectileImpact},
+    enemy::{Enemy, Projectile, ProjectileImpact, ProjectileKind},
     map::Map,
     mosquiton::Mosquiton,
     raycast::{WallSurfaceId, cast_ray},
@@ -1705,10 +1705,11 @@ fn apply_hitscan_damage(
             r.armour,
             r.part_id,
             r.reaction,
+            r.point,
         )
     });
     if let Some(r) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance, _, _, _, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Mosquiton(r.target_idx),
@@ -1717,10 +1718,11 @@ fn apply_hitscan_damage(
             r.armour,
             r.part_id,
             r.reaction,
+            r.point,
         ));
     }
     if let Some(r) = spidey_hit
-        && hit.is_none_or(|(_, current_distance, _, _, _, _)| r.distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _, _, _)| r.distance < current_distance)
     {
         hit = Some((
             FpShotHit::Spidey(r.target_idx),
@@ -1729,12 +1731,15 @@ fn apply_hitscan_damage(
             r.armour,
             r.part_id,
             r.reaction,
+            r.point,
         ));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
-        && hit.is_none_or(|(_, current_distance, _, _, _, _)| distance < current_distance)
+        && hit.is_none_or(|(_, current_distance, _, _, _, _, _)| distance < current_distance)
     {
         // Projectiles are not enemy parts: neutral routing, FALLBACK part id.
+        // `point` is unused for the projectile branch (it spawns its own
+        // destroy impact at the projectile position).
         hit = Some((
             FpShotHit::Projectile(projectile_idx),
             distance,
@@ -1742,10 +1747,11 @@ fn apply_hitscan_damage(
             0.0,
             PartId::FALLBACK,
             PartReactionProfile::NEUTRAL,
+            Vec2::ZERO,
         ));
     }
 
-    let Some((hit, distance, damage_scale, armour, part_id, part_reaction)) = hit else {
+    let Some((hit, distance, damage_scale, armour, part_id, part_reaction, point)) = hit else {
         return;
     };
     if max_range.is_some_and(|range| distance > range) {
@@ -1782,15 +1788,34 @@ fn apply_hitscan_damage(
     // poise from flame). A neutral `part_reaction` reproduces Phase 11 exactly.
     let pending =
         PendingHitReaction::from_profiles(reaction_profile, part_reaction, fire_pose.direction());
+    // Per-part hit feedback (presentation only): spawn a blood splat at the part
+    // surface point, scaled on a critical (weak-point) hit. This mirrors the
+    // networked `HitConfirm` feedback so single-player enemy hits read the same
+    // (location + weak-point emphasis). `part_id`/`critical` never feed back into
+    // damage/AI. Projectiles are excluded (they spawn their own destroy impact).
+    let enemy_hit_feedback = || {
+        ProjectileImpact::hit_part(
+            point,
+            ProjectileKind::BloodShot,
+            0.0,
+            (part_id != PartId::FALLBACK).then_some(part_id.0),
+            is_critical_hit(damage_scale),
+        )
+    };
     match hit {
-        FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(dealt),
+        FpShotHit::Enemy(enemy_idx) => {
+            enemies[enemy_idx].take_damage(dealt);
+            impacts.push(enemy_hit_feedback());
+        }
         FpShotHit::Mosquiton(mosquiton_idx) => {
             mosquitons[mosquiton_idx].take_damage(dealt);
             queue_reaction(&mut mosquitons[mosquiton_idx].reaction, pending);
+            impacts.push(enemy_hit_feedback());
         }
         FpShotHit::Spidey(spidey_idx) => {
             spideys[spidey_idx].take_damage(dealt);
             queue_reaction(&mut spideys[spidey_idx].reaction, pending);
+            impacts.push(enemy_hit_feedback());
         }
         FpShotHit::Projectile(projectile_idx) => {
             if let Some(projectile) = projectiles.get_mut(projectile_idx) {
@@ -3552,6 +3577,111 @@ mod tests {
     }
 
     #[test]
+    fn sp_spidey_headshot_emits_critical_feedback_without_changing_damage() {
+        // A front Spidey shot resolves to the head (scale 2.0) → critical
+        // feedback. The blood splat lands at the part surface point, and the
+        // damage routing is unchanged by the presentation flag (still 74).
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let mut spideys = vec![crate::spidey::Spidey::new(
+            Vec2::new(3.5, 1.5),
+            crate::spidey::SpideyConfig::default(),
+        )];
+        let hp_before = spideys[0].health;
+        let mut impacts = Vec::new();
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut [],
+            &mut [],
+            &mut spideys,
+            &mut Vec::new(),
+            &mut impacts,
+            37,
+            None,
+            &carcinisation_fps_core::WeaponReactionProfile::NONE,
+        );
+
+        // Routing unchanged by feedback.
+        assert_eq!(hp_before - spideys[0].health, 74);
+        // Exactly one hit splat, marked critical, identifying an authored part.
+        let hits: Vec<_> = impacts
+            .iter()
+            .filter(|i| i.kind == crate::enemy::ProjectileImpactKind::Hit)
+            .collect();
+        assert_eq!(hits.len(), 1, "one blood splat per enemy hit");
+        assert!(hits[0].critical, "headshot is a critical weak-point hit");
+        assert!(
+            hits[0].part_id.is_some(),
+            "weak point carries an authored part id"
+        );
+        // Splat is placed at the part surface point near the Spidey, not origin.
+        assert!(hits[0].position.distance(Vec2::new(3.5, 1.5)) < 1.0);
+    }
+
+    #[test]
+    fn sp_basic_body_hit_emits_noncritical_feedback() {
+        // A Basic enemy has no amplified part → ordinary (non-critical) feedback,
+        // and damage routing is unchanged (37 → health 63).
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let mut enemies = vec![Enemy::new(Vec2::new(3.5, 1.5), 100, 0.0)];
+        let mut impacts = Vec::new();
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut impacts,
+            37,
+            None,
+            &carcinisation_fps_core::WeaponReactionProfile::NONE,
+        );
+
+        assert_eq!(enemies[0].health, 63);
+        let hits: Vec<_> = impacts
+            .iter()
+            .filter(|i| i.kind == crate::enemy::ProjectileImpactKind::Hit)
+            .collect();
+        assert_eq!(hits.len(), 1, "body hit still produces a valid splat");
+        assert!(!hits[0].critical, "a neutral body hit is not critical");
+    }
+
+    #[test]
+    fn sp_blocked_shot_emits_no_feedback() {
+        // No hit → no feedback splat (and no damage).
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(Some(3));
+        let mut enemies = vec![Enemy::new(Vec2::new(4.5, 1.5), 100, 0.0)];
+        let mut impacts = Vec::new();
+
+        apply_hitscan_damage(
+            fire_pose,
+            &map,
+            &mut enemies,
+            &mut [],
+            &mut [],
+            &mut Vec::new(),
+            &mut impacts,
+            37,
+            None,
+            &carcinisation_fps_core::WeaponReactionProfile::NONE,
+        );
+
+        assert_eq!(enemies[0].health, 100);
+        assert!(
+            impacts
+                .iter()
+                .all(|i| i.kind != crate::enemy::ProjectileImpactKind::Hit),
+            "a blocked shot emits no blood splat"
+        );
+    }
+
+    #[test]
     fn flamethrower_does_not_feed_poise_or_stagger() {
         // Phase 11 policy: continuous flame exposure must not feed the poise
         // meter (per-tick poise would re-create permanent stun) and never
@@ -3595,6 +3725,46 @@ mod tests {
                 "no deferred reaction from flame"
             );
         }
+    }
+
+    #[test]
+    fn sp_flame_emits_no_critical_hit_feedback() {
+        // DEFERRED: flamethrower per-part hit feedback is intentionally not part
+        // of Phase 1. Flame is continuous AoE exposure (no discrete per-shot
+        // hit) and does not route a per-part `damage_scale`, so there is no
+        // "critical" notion to surface. The flame keeps its own wall-impact /
+        // burn visuals; it pushes no critical blood splat for enemy exposure.
+        let fire_pose = FirePose2d::new(Vec2::new(1.5, 1.5), 0.0, 0.0);
+        let map = corridor_map(None);
+        let burn_config = carcinisation_fps_core::BurnConfig::default();
+        let flame_config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        // A front Spidey: its head would be a 2.0× hitscan weak point, so this
+        // proves flame does not borrow the hitscan critical path.
+        let mut spideys = vec![crate::spidey::Spidey::new(
+            Vec2::new(3.5, 1.5),
+            crate::spidey::SpideyConfig::default(),
+        )];
+        let mut impacts = Vec::new();
+
+        for _ in 0..10 {
+            apply_flamethrower_damage(
+                fire_pose,
+                &map,
+                &mut [],
+                &mut [],
+                &mut spideys,
+                &mut Vec::new(),
+                &mut impacts,
+                &burn_config,
+                &flame_config,
+                1.0 / 30.0,
+            );
+        }
+
+        assert!(
+            impacts.iter().all(|i| !i.critical),
+            "flame exposure emits no critical hit feedback (deferred)"
+        );
     }
 
     #[test]

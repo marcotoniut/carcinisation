@@ -32,7 +32,9 @@ use crate::camera::Camera;
 use carcinisation_fps_core::ProjectileKind;
 use carcinisation_net::AvatarPaletteVariant;
 
-use crate::enemy::{Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileImpactKind};
+use crate::enemy::{
+    CRIT_IMPACT_HEIGHT_SCALE, Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileImpactKind,
+};
 use crate::mosquiton::{
     BloodShotBillboardSprites, Mosquiton, MosquitonBillboardSprites, MosquitonState,
 };
@@ -575,7 +577,10 @@ pub fn billboards_from_projectile_impacts(
             Billboard {
                 position: impact.position,
                 height,
+                // Critical (weak-point) hits render a larger splat for feedback
+                // emphasis (presentation only — see CRIT_IMPACT_HEIGHT_SCALE).
                 world_height: match impact.kind {
+                    ProjectileImpactKind::Hit if impact.critical => 0.42 * CRIT_IMPACT_HEIGHT_SCALE,
                     ProjectileImpactKind::Hit => 0.42,
                     ProjectileImpactKind::Destroy => 0.36,
                 },
