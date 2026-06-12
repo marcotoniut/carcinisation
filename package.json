@@ -19,12 +19,5 @@
     "lint:fix": "biome check --write"
   },
   "packageManager": "pnpm@11.1.0",
-  "workspaces": ["scripts", "packages/*"],
-  "pnpm": {
-    "overrides": {
-      "hono": ">=4.12.18",
-      "@hono/node-server": ">=1.19.10",
-      "express-rate-limit": ">=8.5.0"
-    }
-  }
+  "workspaces": ["scripts", "packages/*"]
 }
